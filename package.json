@@ -1,10 +1,22 @@
 {
-  "name": "WebRoom",
+  "name": "webroom",
   "displayName": "WebRoom",
-  "description": "",
-  "private": true,
+  "description": "Decentralized real-time presence layer for every webpage. See how many people are browsing the same page as you in real time.",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/devlopersabbir/webroom",
+  "keywords": [
+    "webroom",
+    "presence",
+    "peer-to-peer",
+    "decentralized",
+    "real-time",
+    "browser-extension",
+    "firefox-addon",
+    "chrome-extension"
+  ],
   "author": {
     "email": "devlopersabbir@gmail.com",
     "name": "Sabbir Hossain Shuvo",
@@ -29,8 +41,8 @@
     "repositoryUrl": "https://github.com/devlopersabbir/webroom"
   },
   "bugs": {
-    "email": "devloeprsabbir@gmail.com",
-    "url": "https://github.com/devlopersabbir"
+    "email": "devlopersabbir@gmail.com",
+    "url": "https://github.com/devlopersabbir/webroom/issues"
   },
   "repository": {
     "directory": "webroom",
