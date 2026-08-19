@@ -4,6 +4,7 @@
 
 export interface PeerPresence {
   peerId: string;
+  avatar?: string;
   lastSeen: number;
 }
 
@@ -11,13 +12,19 @@ export class PeerStore {
   private peers = new Map<string, PeerPresence>();
 
   /**
-   * Updates or inserts a peer's last seen timestamp.
+   * Updates or inserts a peer's last seen timestamp and avatar.
    * @returns `true` if this peer was newly added, `false` if existing.
    */
-  public updatePeer(peerId: string, timestamp: number = Date.now()): boolean {
-    const isNew = !this.peers.has(peerId);
+  public updatePeer(
+    peerId: string,
+    timestamp: number = Date.now(),
+    avatar?: string
+  ): boolean {
+    const existing = this.peers.get(peerId);
+    const isNew = !existing;
     this.peers.set(peerId, {
       peerId,
+      avatar: avatar || existing?.avatar,
       lastSeen: timestamp,
     });
     return isNew;

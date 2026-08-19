@@ -1,5 +1,10 @@
 import { ChatManager, ChatMessagesListener } from "../chat/chat";
 import { ChatMessage } from "../chat/chat-protocol";
+import {
+  FollowManager,
+  FollowStateListener,
+} from "../follow/follow-manager";
+import { FollowPeerInfo } from "../follow/follow-store";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { getRandomAvatar } from "../shared/constants";
 import { BroadcastChannelTransport } from "../transport/broadcast-channel";
@@ -17,6 +22,14 @@ export interface RoomOptions {
   customPeerId?: string;
   customAvatar?: string;
 }
+
+export interface Participant {
+  peerId: string;
+  avatar: string;
+  isSelf: boolean;
+}
+
+export type ParticipantsListener = (participants: Participant[]) => void;
 
 /**
  * Generates a temporary unique peer ID for the current browser context.
@@ -41,6 +54,7 @@ export class Room {
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
   private readonly voiceManager: VoiceManager;
+  private readonly followManager: FollowManager;
 
   private constructor(
     url: string,
@@ -50,7 +64,8 @@ export class Room {
     avatar: string,
     presenceManager: PresenceManager,
     chatManager: ChatManager,
-    voiceManager: VoiceManager
+    voiceManager: VoiceManager,
+    followManager: FollowManager
   ) {
     this.url = url;
     this.canonicalUrl = canonicalUrl;
@@ -60,6 +75,7 @@ export class Room {
     this.presenceManager = presenceManager;
     this.chatManager = chatManager;
     this.voiceManager = voiceManager;
+    this.followManager = followManager;
   }
 
   /**
@@ -75,22 +91,25 @@ export class Room {
       ? options.transportFactory(roomId)
       : new BroadcastChannelTransport(roomId);
 
-    const presenceManager = new PresenceManager(roomId, peerId, transport);
+    const presenceManager = new PresenceManager(roomId, peerId, transport, undefined, avatar);
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
     const voiceManager = new VoiceManager(roomId, peerId, transport);
+    const followManager = new FollowManager(roomId, peerId, avatar, transport);
 
-    // Wire presence lifecycle to WebRTC voice mesh negotiation
+    // Wire presence lifecycle to WebRTC voice mesh negotiation and follow cleanup
     presenceManager.onPeerJoin((remotePeerId) => {
       voiceManager.handlePeerDiscovered(remotePeerId);
     });
 
     presenceManager.onPeerLeave((remotePeerId) => {
       voiceManager.handlePeerLeft(remotePeerId);
+      followManager.handlePeerLeft(remotePeerId);
     });
 
     presenceManager.start();
     chatManager.start();
     voiceManager.start();
+    followManager.start();
 
     return new Room(
       url,
@@ -100,7 +119,8 @@ export class Room {
       avatar,
       presenceManager,
       chatManager,
-      voiceManager
+      voiceManager,
+      followManager
     );
   }
 
@@ -116,6 +136,44 @@ export class Room {
    */
   public onCountChange(listener: PresenceCountListener): () => void {
     return this.presenceManager.onCountChange(listener);
+  }
+
+  /**
+   * Snapshot of all active participants in this room (self + remote peers).
+   */
+  public getParticipants(): Participant[] {
+    const selfParticipant: Participant = {
+      peerId: this.peerId,
+      avatar: this.avatar,
+      isSelf: true,
+    };
+
+    const remoteParticipants: Participant[] = this.presenceManager.getPeers().map((peer) => ({
+      peerId: peer.peerId,
+      avatar: peer.avatar || "🐸",
+      isSelf: false,
+    }));
+
+    return [selfParticipant, ...remoteParticipants];
+  }
+
+  /**
+   * Subscribes to participant list updates (joins, leaves, heartbeats).
+   */
+  public onParticipantsChange(listener: ParticipantsListener): () => void {
+    const emit = () => listener(this.getParticipants());
+
+    const unsubscribeCount = this.presenceManager.onCountChange(() => emit());
+    const unsubscribeJoin = this.presenceManager.onPeerJoin(() => emit());
+    const unsubscribeLeave = this.presenceManager.onPeerLeave(() => emit());
+
+    emit();
+
+    return () => {
+      unsubscribeCount();
+      unsubscribeJoin();
+      unsubscribeLeave();
+    };
   }
 
   /**
@@ -182,12 +240,49 @@ export class Room {
   }
 
   /**
+   * Starts following a remote participant.
+   */
+  public followUser(leaderId: string, leaderAvatar: string = "🐸"): void {
+    this.followManager.followUser(leaderId, leaderAvatar);
+  }
+
+  /**
+   * Stops following the current leader.
+   */
+  public unfollowUser(): void {
+    this.followManager.unfollowUser();
+  }
+
+  /**
+   * Returns the current leader being followed, or null.
+   */
+  public getFollowing(): FollowPeerInfo | null {
+    return this.followManager.getFollowing();
+  }
+
+  /**
+   * Returns all active remote peers following this user.
+   */
+  public getFollowers(): Map<string, FollowPeerInfo> {
+    return this.followManager.getFollowers();
+  }
+
+  /**
+   * Subscribes to changes in follow relationships.
+   */
+  public onFollowChange(listener: FollowStateListener): () => void {
+    return this.followManager.onStateChange(listener);
+  }
+
+  /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(): void {
+    this.followManager.destroy();
     this.voiceManager.destroy();
     this.presenceManager.destroy();
     this.chatManager.destroy();
   }
 }
+
 

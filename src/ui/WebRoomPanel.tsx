@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "../chat/chat-protocol";
+import { FollowPeerInfo } from "../follow/follow-store";
 import { Room } from "../room/room";
 import { VoiceState } from "../voice/voice-manager";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { MessageComposer } from "./MessageComposer";
+import { ParticipantList } from "./ParticipantList";
 
 interface WebRoomPanelProps {
   room: Room;
@@ -15,6 +17,8 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
   const [messages, setMessages] = useState<ChatMessage[]>(room.getMessages());
   const [voiceState, setVoiceState] = useState<VoiceState>(room.getVoiceState());
   const [speakingPeers, setSpeakingPeers] = useState<Set<string>>(room.getSpeakingPeers());
+  const [followingLeader, setFollowingLeader] = useState<FollowPeerInfo | null>(room.getFollowing());
+  const [showParticipants, setShowParticipants] = useState<boolean>(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef<boolean>(true);
 
@@ -22,6 +26,14 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
   useEffect(() => {
     const unsubscribe = room.onCountChange((newCount) => {
       setOnlineCount(newCount);
+    });
+    return () => unsubscribe();
+  }, [room]);
+
+  // Subscribe to follow changes
+  useEffect(() => {
+    const unsubscribe = room.onFollowChange((following) => {
+      setFollowingLeader(following);
     });
     return () => unsubscribe();
   }, [room]);
@@ -104,9 +116,13 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation();
 
-    if (e.key === "Escape" && onClose) {
+    if (e.key === "Escape") {
       e.preventDefault();
-      onClose();
+      if (showParticipants) {
+        setShowParticipants(false);
+      } else if (onClose) {
+        onClose();
+      }
     }
   };
 
@@ -130,7 +146,15 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
             <span className="webroom-header-title">WebRoom</span>
             <span className="webroom-header-badge">V2</span>
           </div>
-          <span className="webroom-header-presence">{presenceText}</span>
+          <button
+            type="button"
+            className={`webroom-header-presence-btn ${showParticipants ? "webroom-header-presence-btn-active" : ""}`}
+            onClick={() => setShowParticipants((prev) => !prev)}
+            title="View participants & follow"
+            aria-label={presenceText}
+          >
+            {presenceText}
+          </button>
         </div>
 
         {/* Top-Right Voice Controls & Settings */}
@@ -171,6 +195,16 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
         </div>
       </div>
 
+      {/* Participant List Overlay / Modal */}
+      {showParticipants && (
+        <ParticipantList
+          room={room}
+          onClose={() => setShowParticipants(false)}
+          followingLeader={followingLeader}
+          speakingPeers={speakingPeers}
+        />
+      )}
+
       {/* Messages Scroll Area */}
       <div
         className="webroom-messages-container"
@@ -210,4 +244,5 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
     </div>
   );
 };
+
 

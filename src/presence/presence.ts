@@ -17,6 +17,7 @@ export type PeerLifecycleListener = (peerId: string) => void;
 export class PresenceManager {
   public readonly roomId: string;
   public readonly peerId: string;
+  public readonly avatar: string;
   private readonly transport: Transport;
   private readonly peerStore: PeerStore;
 
@@ -33,12 +34,14 @@ export class PresenceManager {
     roomId: string,
     peerId: string,
     transport: Transport,
-    peerStore = new PeerStore()
+    peerStore = new PeerStore(),
+    avatar: string = "🐸"
   ) {
     this.roomId = roomId;
     this.peerId = peerId;
     this.transport = transport;
     this.peerStore = peerStore;
+    this.avatar = avatar;
   }
 
   /**
@@ -79,6 +82,13 @@ export class PresenceManager {
    */
   public getOnlineCount(): number {
     return 1 + this.peerStore.getPeerCount();
+  }
+
+  /**
+   * Returns all active remote peer presence records.
+   */
+  public getPeers() {
+    return this.peerStore.getAllPeers();
   }
 
   /**
@@ -158,13 +168,17 @@ export class PresenceManager {
       return;
     }
 
-    // Ignore self messages
-    if (msg.peerId === this.peerId) {
+    // Ignore messages belonging to another room
+    if (msg.roomId !== this.roomId) {
       return;
     }
 
-    // Ignore messages belonging to another room
-    if (msg.roomId !== this.roomId) {
+    if (msg.type !== "HELLO" && msg.type !== "HEARTBEAT" && msg.type !== "GOODBYE") {
+      return;
+    }
+
+    // Ignore self messages
+    if (msg.peerId === this.peerId) {
       return;
     }
 
@@ -172,7 +186,7 @@ export class PresenceManager {
       case "HELLO": {
         // A new peer joined. Update their presence and immediately reply with HEARTBEAT
         // so the new peer discovers us without waiting for our periodic heartbeat timer.
-        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp);
+        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp, msg.avatar);
         this.broadcastMessage("HEARTBEAT");
         this.notifyCountChange();
         if (isNew) {
@@ -182,7 +196,7 @@ export class PresenceManager {
       }
 
       case "HEARTBEAT": {
-        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp);
+        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp, msg.avatar);
         this.notifyCountChange();
         if (isNew) {
           this.notifyPeerJoin(msg.peerId);
@@ -210,6 +224,7 @@ export class PresenceManager {
       type,
       roomId: this.roomId,
       peerId: this.peerId,
+      avatar: this.avatar,
       timestamp: Date.now(),
     };
 

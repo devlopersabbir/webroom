@@ -188,24 +188,68 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     tabB.leave();
   });
 
-  it("manages independent mic and speaker state at room level and cleans up on leave()", async () => {
+  it("tracks participant list with avatars across multiple peers", async () => {
     const bus = new MockBus();
-    const tab = await Room.join("https://example.com/voice-room", {
-      customPeerId: "peer_voice_test",
+    const url = "https://example.com/team-room";
+
+    const tabA = await Room.join(url, {
+      customPeerId: "peer_A",
+      customAvatar: "🐸",
       transportFactory: (roomId) => new MockTransport(roomId, bus),
     });
 
-    const voiceState = tab.getVoiceState();
-    expect(voiceState.isMicOn).toBe(false);
-    expect(voiceState.isSpeakerOn).toBe(false);
+    expect(tabA.getParticipants()).toEqual([
+      { peerId: "peer_A", avatar: "🐸", isSelf: true },
+    ]);
 
-    // Toggle speaker
-    const speakerOn = tab.toggleSpeaker();
-    expect(speakerOn).toBe(true);
-    expect(tab.getVoiceState().isSpeakerOn).toBe(true);
-    expect(tab.getVoiceState().isMicOn).toBe(false);
+    const tabB = await Room.join(url, {
+      customPeerId: "peer_B",
+      customAvatar: "🦊",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
 
-    tab.leave();
+    const participantsA = tabA.getParticipants();
+    expect(participantsA.length).toBe(2);
+    expect(participantsA[0]).toEqual({ peerId: "peer_A", avatar: "🐸", isSelf: true });
+    expect(participantsA[1]).toEqual({ peerId: "peer_B", avatar: "🦊", isSelf: false });
+
+    tabA.leave();
+    tabB.leave();
+  });
+
+  it("coordinates follow mode between rooms and handles follow/unfollow", async () => {
+    const bus = new MockBus();
+    const url = "https://example.com/follow-room";
+
+    const leaderTab = await Room.join(url, {
+      customPeerId: "leader_fox",
+      customAvatar: "🦊",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    const followerTab = await Room.join(url, {
+      customPeerId: "follower_frog",
+      customAvatar: "🐸",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    expect(followerTab.getFollowing()).toBeNull();
+    expect(leaderTab.getFollowers().size).toBe(0);
+
+    // Follower follows leader
+    followerTab.followUser("leader_fox", "🦊");
+
+    expect(followerTab.getFollowing()).toEqual({ peerId: "leader_fox", avatar: "🦊" });
+    expect(leaderTab.getFollowers().get("follower_frog")?.avatar).toBe("🐸");
+
+    // Follower stops following
+    followerTab.unfollowUser();
+    expect(followerTab.getFollowing()).toBeNull();
+    expect(leaderTab.getFollowers().has("follower_frog")).toBe(false);
+
+    leaderTab.leave();
+    followerTab.leave();
   });
 });
+
 

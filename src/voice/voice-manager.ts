@@ -229,17 +229,23 @@ export class VoiceManager {
   /**
    * Called when presence discovers a peer or receives a heartbeat.
    */
-  public handlePeerDiscovered(remotePeerId: string): void {
+  public async handlePeerDiscovered(remotePeerId: string): Promise<void> {
     if (this.isDestroyed || remotePeerId === this.peerId) {
       return;
     }
 
-    if (!this.peerConnections.has(remotePeerId)) {
-      // Deterministic negotiation: peer with higher ID initiates the offer
-      const pc = this.createPeerConnection(remotePeerId);
-      if (this.peerId > remotePeerId) {
-        this.initiateOffer(remotePeerId, pc);
-      }
+    if (this.peerConnections.has(remotePeerId)) {
+      return;
+    }
+
+    const pc = this.createPeerConnection(remotePeerId);
+    if (!pc) {
+      return;
+    }
+
+    // Deterministic tie-breaker: the peer with the lexicographically smaller peerId initiates the offer
+    if (this.peerId < remotePeerId) {
+      await this.initiateOffer(remotePeerId, pc);
     }
   }
 
@@ -250,7 +256,11 @@ export class VoiceManager {
     this.closePeer(remotePeerId);
   }
 
-  private createPeerConnection(remotePeerId: string): RTCPeerConnection {
+  private createPeerConnection(remotePeerId: string): RTCPeerConnection | null {
+    if (typeof RTCPeerConnection === "undefined") {
+      return null;
+    }
+
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this.peerConnections.set(remotePeerId, pc);
 
@@ -385,7 +395,9 @@ export class VoiceManager {
   private async handleVoiceOffer(msg: VoiceOfferMessage): Promise<void> {
     let pc = this.peerConnections.get(msg.peerId);
     if (!pc) {
-      pc = this.createPeerConnection(msg.peerId);
+      const newPc = this.createPeerConnection(msg.peerId);
+      if (!newPc) return;
+      pc = newPc;
     }
 
     try {

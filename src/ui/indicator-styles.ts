@@ -856,5 +856,466 @@ export const INDICATOR_STYLES = `
   color: #6b7280;
   text-align: center;
 }
+
+/* ==========================================================================
+   Header Presence Button & Participant List
+   ========================================================================== */
+
+.webroom-header-presence-btn {
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.webroom-header-presence-btn:hover {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.webroom-header-presence-btn-active {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.webroom-participant-list-modal {
+  position: absolute;
+  top: 58px;
+  left: 12px;
+  right: 12px;
+  max-height: 280px;
+  background: rgba(22, 22, 28, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 
+    0 16px 36px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: webroom-fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes webroom-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.webroom-participant-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.webroom-participant-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e5e7eb;
+  letter-spacing: -0.01em;
+}
+
+.webroom-participant-count-badge {
+  background: rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.webroom-participant-close-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.webroom-participant-close-btn:hover {
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.webroom-participant-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.webroom-participant-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.webroom-participant-item-clickable {
+  cursor: pointer;
+}
+
+.webroom-participant-item-clickable:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.webroom-participant-item-following {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.webroom-participant-avatar-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.webroom-participant-speaking-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border: 2px solid #16161c;
+  border-radius: 50%;
+  animation: webroom-pulse 1.8s infinite;
+}
+
+.webroom-participant-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.webroom-participant-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.webroom-you-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.webroom-following-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.webroom-follow-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.18s ease;
+}
+
+.webroom-follow-btn:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.webroom-follow-btn-active {
+  background: rgba(99, 102, 241, 0.85);
+  border-color: #818cf8;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.webroom-follow-btn-active:hover {
+  background: rgba(239, 68, 68, 0.85);
+  border-color: #f87171;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.webroom-follow-btn-active:hover::after {
+  content: "";
+}
+
+/* ==========================================================================
+   Full-Screen Figma-Inspired Follow Border
+   ========================================================================== */
+
+.webroom-follow-border-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2147483640;
+  box-sizing: border-box;
+}
+
+.webroom-follow-border-inner {
+  position: absolute;
+  inset: 0;
+  border: 3px solid #6366f1;
+  box-shadow: 
+    inset 0 0 20px rgba(99, 102, 241, 0.35),
+    0 0 16px rgba(99, 102, 241, 0.4);
+  animation: webroom-border-glow 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes webroom-border-glow {
+  0% {
+    border-color: #6366f1;
+    box-shadow: 
+      inset 0 0 16px rgba(99, 102, 241, 0.25),
+      0 0 12px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    border-color: #8b5cf6;
+    box-shadow: 
+      inset 0 0 24px rgba(139, 92, 246, 0.4),
+      0 0 20px rgba(139, 92, 246, 0.45);
+  }
+  100% {
+    border-color: #3b82f6;
+    box-shadow: 
+      inset 0 0 16px rgba(59, 130, 246, 0.25),
+      0 0 12px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* ==========================================================================
+   Top Floating Following Indicator
+   ========================================================================== */
+
+.webroom-top-following-indicator {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483646;
+  pointer-events: auto;
+  animation: webroom-slide-down 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes webroom-slide-down {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.webroom-top-following-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 14px;
+  background: rgba(18, 18, 24, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  border-radius: 9999px;
+  box-shadow: 
+    0 8px 30px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(99, 102, 241, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #f3f4f6;
+  font-size: 12.5px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.webroom-top-following-icon {
+  font-size: 14px;
+  color: #818cf8;
+}
+
+.webroom-top-following-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #e5e7eb;
+}
+
+.webroom-top-following-avatar {
+  font-size: 15px;
+}
+
+.webroom-top-following-stop-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #9ca3af;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  outline: none;
+  margin-left: 2px;
+  transition: all 0.15s ease;
+}
+
+.webroom-top-following-stop-btn:hover {
+  background: rgba(239, 68, 68, 0.85);
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+/* ==========================================================================
+   Bottom Floating Stop Following Action Control
+   ========================================================================== */
+
+.webroom-bottom-stop-wrapper {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483646;
+  pointer-events: auto;
+  animation: webroom-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes webroom-slide-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.webroom-bottom-stop-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 14px;
+  background: rgba(18, 18, 24, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 9999px;
+  box-shadow: 
+    0 12px 36px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(99, 102, 241, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #f3f4f6;
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.webroom-bottom-stop-pulse {
+  width: 8px;
+  height: 8px;
+  background: #6366f1;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #6366f1;
+  animation: webroom-pulse 2s infinite;
+}
+
+.webroom-bottom-stop-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #e5e7eb;
+}
+
+.webroom-bottom-stop-avatar {
+  font-size: 16px;
+}
+
+.webroom-bottom-stop-btn {
+  background: rgba(239, 68, 68, 0.85);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.webroom-bottom-stop-btn:hover {
+  background: rgba(220, 38, 38, 0.95);
+  border-color: #f87171;
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5);
+}
+
+.webroom-bottom-stop-btn:active {
+  transform: translateY(0) scale(0.97);
+}
 `;
+
 

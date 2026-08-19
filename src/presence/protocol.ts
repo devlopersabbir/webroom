@@ -1,4 +1,5 @@
 import { ChatMessage, isValidChatMessage } from "../chat/chat-protocol";
+import { FollowMessage, isValidFollowMessage } from "../follow/follow-protocol";
 import { isValidVoiceSignalingMessage, VoiceSignalingMessage } from "../voice/voice-protocol";
 
 /**
@@ -11,13 +12,18 @@ export interface PresenceMessage {
   type: PresenceMessageType;
   roomId: string;
   peerId: string;
+  avatar?: string;
   timestamp: number;
 }
 
 /**
  * Unified message type for the WebRoom peer-to-peer transport layer.
  */
-export type WebRoomMessage = PresenceMessage | ChatMessage | VoiceSignalingMessage;
+export type WebRoomMessage =
+  | PresenceMessage
+  | ChatMessage
+  | VoiceSignalingMessage
+  | FollowMessage;
 
 const VALID_MESSAGE_TYPES = new Set<PresenceMessageType>(["HELLO", "HEARTBEAT", "GOODBYE"]);
 
@@ -51,6 +57,13 @@ export function isValidPresenceMessage(
     return false;
   }
 
+  if (
+    candidate.avatar !== undefined &&
+    (typeof candidate.avatar !== "string" || candidate.avatar.trim().length === 0)
+  ) {
+    return false;
+  }
+
   if (typeof candidate.timestamp !== "number" || isNaN(candidate.timestamp) || candidate.timestamp <= 0) {
     return false;
   }
@@ -68,7 +81,9 @@ export function isValidWebRoomMessage(
   return (
     isValidPresenceMessage(payload, expectedRoomId) ||
     isValidChatMessage(payload, expectedRoomId) ||
-    isValidVoiceSignalingMessage(payload, expectedRoomId)
+    isValidVoiceSignalingMessage(payload, expectedRoomId) ||
+    isValidFollowMessage(payload, expectedRoomId)
   );
 }
+
 
