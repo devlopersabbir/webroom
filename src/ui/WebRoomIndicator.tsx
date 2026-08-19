@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FollowPeerInfo } from "../follow/follow-store";
 import { Room } from "../room/room";
 import { FollowBorder } from "./FollowBorder";
+import { FollowCursor } from "./FollowCursor";
 import { FollowingIndicator } from "./FollowingIndicator";
 import { StopFollowingControl } from "./StopFollowingControl";
 import { WebRoomPanel } from "./WebRoomPanel";
@@ -65,6 +66,9 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
 
   return (
     <>
+      {/* Live Remote Leader Mouse Cursor */}
+      <FollowCursor room={room} />
+
       {/* Full-screen Figma-inspired Follow Border */}
       <FollowBorder followingLeader={followingLeader} />
 

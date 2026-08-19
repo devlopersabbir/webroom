@@ -263,5 +263,72 @@ describe("FollowManager Coordination", () => {
       leaderId: "peer_leader",
     });
   });
+
+  it("broadcasts and receives FOLLOW_CURSOR messages with hover and click state", () => {
+    const transport = new SimpleMockTransport();
+    const followerManager = new FollowManager("room_1", "peer_follower", "🐸", transport);
+    followerManager.start();
+
+    // Start following leader 🦊
+    followerManager.followUser("peer_leader", "🦊");
+
+    let receivedCursor: any = null;
+    followerManager.onCursorChange((cursor) => {
+      receivedCursor = cursor;
+    });
+
+    // Leader moves cursor and hovers a button
+    transport.emitMessage({
+      type: "FOLLOW_CURSOR",
+      roomId: "room_1",
+      leaderId: "peer_leader",
+      leaderAvatar: "🦊",
+      clientX: 320,
+      clientY: 480,
+      pageX: 320,
+      pageY: 980,
+      percentageX: 0.25,
+      percentageY: 0.48,
+      isHovering: true,
+      isClicking: true,
+      timestamp: Date.now(),
+    });
+
+    expect(receivedCursor).not.toBeNull();
+    expect(receivedCursor.clientX).toBe(320);
+    expect(receivedCursor.clientY).toBe(480);
+    expect(receivedCursor.isHovering).toBe(true);
+    expect(receivedCursor.isClicking).toBe(true);
+    expect(receivedCursor.leaderAvatar).toBe("🦊");
+
+    followerManager.destroy();
+  });
+
+  it("broadcasts and receives FOLLOW_SELECTION messages", () => {
+    const transport = new SimpleMockTransport();
+    const followerManager = new FollowManager("room_1", "peer_follower", "🐸", transport);
+    followerManager.start();
+
+    followerManager.followUser("peer_leader", "🦊");
+
+    let receivedSelection = "";
+    followerManager.onSelectionChange((sel) => {
+      receivedSelection = sel;
+    });
+
+    // Leader selects text
+    transport.emitMessage({
+      type: "FOLLOW_SELECTION",
+      roomId: "room_1",
+      leaderId: "peer_leader",
+      selectedText: "Hello WebRoom Live Follow!",
+      timestamp: Date.now(),
+    });
+
+    expect(receivedSelection).toBe("Hello WebRoom Live Follow!");
+
+    followerManager.destroy();
+  });
 });
+
 

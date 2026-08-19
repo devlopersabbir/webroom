@@ -1316,6 +1316,123 @@ export const INDICATOR_STYLES = `
 .webroom-bottom-stop-btn:active {
   transform: translateY(0) scale(0.97);
 }
+
+/* ==========================================================================
+   Live Multiplayer Follow Cursor & Click Ripples
+   ========================================================================== */
+
+.webroom-follow-cursor-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2147483645;
+  overflow: hidden;
+}
+
+.webroom-leader-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform 0.06s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  z-index: 10;
+}
+
+.webroom-cursor-svg {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+  transform: translate(-1px, -1px);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.webroom-cursor-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -3px;
+  margin-left: 12px;
+  padding: 3px 8px 3px 6px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(99, 102, 241, 0.95));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 9999px;
+  box-shadow: 
+    0 4px 14px rgba(139, 92, 246, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+  animation: webroom-tag-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes webroom-tag-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.webroom-cursor-avatar {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.webroom-cursor-label {
+  font-size: 10.5px;
+  opacity: 0.95;
+  letter-spacing: -0.01em;
+}
+
+.webroom-cursor-hovering .webroom-cursor-svg {
+  transform: scale(1.22) translate(-1px, -1px);
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.7));
+}
+
+.webroom-cursor-hovering .webroom-cursor-tag {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.98), rgba(129, 140, 248, 0.98));
+  box-shadow: 0 4px 18px rgba(168, 85, 247, 0.55);
+}
+
+.webroom-cursor-click-ripple {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+  margin-left: -16px;
+  border-radius: 50%;
+  border: 2px solid rgba(168, 85, 247, 0.85);
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 5;
+  animation: webroom-click-burst 0.55s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes webroom-click-burst {
+  0% {
+    opacity: 1;
+    transform: translate3d(var(--x, 0), var(--y, 0), 0) scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--x, 0), var(--y, 0), 0) scale(2.4);
+  }
+}
 `;
+
 
 

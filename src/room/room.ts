@@ -1,7 +1,10 @@
 import { ChatManager, ChatMessagesListener } from "../chat/chat";
 import { ChatMessage } from "../chat/chat-protocol";
 import {
+  FollowCursorListener,
+  FollowCursorState,
   FollowManager,
+  FollowSelectionListener,
   FollowStateListener,
 } from "../follow/follow-manager";
 import { FollowPeerInfo } from "../follow/follow-store";
@@ -275,6 +278,27 @@ export class Room {
   }
 
   /**
+   * Returns the current leader's live cursor state, or null.
+   */
+  public getLeaderCursor(): FollowCursorState | null {
+    return this.followManager.getLeaderCursor();
+  }
+
+  /**
+   * Subscribes to live mouse cursor updates from the leader.
+   */
+  public onFollowCursor(listener: FollowCursorListener): () => void {
+    return this.followManager.onCursorChange(listener);
+  }
+
+  /**
+   * Subscribes to live selection updates from the leader.
+   */
+  public onFollowSelection(listener: FollowSelectionListener): () => void {
+    return this.followManager.onSelectionChange(listener);
+  }
+
+  /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(): void {
@@ -284,5 +308,6 @@ export class Room {
     this.chatManager.destroy();
   }
 }
+
 
 

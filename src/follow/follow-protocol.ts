@@ -6,6 +6,8 @@ export type FollowMessageType =
   | "FOLLOW_START"
   | "FOLLOW_STOP"
   | "FOLLOW_SCROLL"
+  | "FOLLOW_CURSOR"
+  | "FOLLOW_SELECTION"
   | "FOLLOW_NAVIGATE";
 
 export interface FollowStartMessage {
@@ -38,6 +40,30 @@ export interface FollowScrollMessage {
   timestamp: number;
 }
 
+export interface FollowCursorMessage {
+  type: "FOLLOW_CURSOR";
+  roomId: string;
+  leaderId: string;
+  leaderAvatar: string;
+  clientX: number;
+  clientY: number;
+  pageX: number;
+  pageY: number;
+  percentageX: number;
+  percentageY: number;
+  isHovering?: boolean;
+  isClicking?: boolean;
+  timestamp: number;
+}
+
+export interface FollowSelectionMessage {
+  type: "FOLLOW_SELECTION";
+  roomId: string;
+  leaderId: string;
+  selectedText: string;
+  timestamp: number;
+}
+
 export interface FollowNavigateMessage {
   type: "FOLLOW_NAVIGATE";
   roomId: string;
@@ -49,12 +75,16 @@ export type FollowMessage =
   | FollowStartMessage
   | FollowStopMessage
   | FollowScrollMessage
+  | FollowCursorMessage
+  | FollowSelectionMessage
   | FollowNavigateMessage;
 
 const VALID_FOLLOW_TYPES = new Set<FollowMessageType>([
   "FOLLOW_START",
   "FOLLOW_STOP",
   "FOLLOW_SCROLL",
+  "FOLLOW_CURSOR",
+  "FOLLOW_SELECTION",
   "FOLLOW_NAVIGATE",
 ]);
 
@@ -132,6 +162,33 @@ export function isValidFollowMessage(
         !isNaN(candidate.scrollPercentageY)
       );
 
+    case "FOLLOW_CURSOR":
+      return (
+        typeof candidate.leaderId === "string" &&
+        candidate.leaderId.trim().length > 0 &&
+        typeof candidate.leaderAvatar === "string" &&
+        candidate.leaderAvatar.trim().length > 0 &&
+        typeof candidate.clientX === "number" &&
+        !isNaN(candidate.clientX) &&
+        typeof candidate.clientY === "number" &&
+        !isNaN(candidate.clientY) &&
+        typeof candidate.pageX === "number" &&
+        !isNaN(candidate.pageX) &&
+        typeof candidate.pageY === "number" &&
+        !isNaN(candidate.pageY) &&
+        typeof candidate.percentageX === "number" &&
+        !isNaN(candidate.percentageX) &&
+        typeof candidate.percentageY === "number" &&
+        !isNaN(candidate.percentageY)
+      );
+
+    case "FOLLOW_SELECTION":
+      return (
+        typeof candidate.leaderId === "string" &&
+        candidate.leaderId.trim().length > 0 &&
+        typeof candidate.selectedText === "string"
+      );
+
     case "FOLLOW_NAVIGATE":
       return (
         typeof candidate.leaderId === "string" &&
@@ -142,3 +199,4 @@ export function isValidFollowMessage(
       return false;
   }
 }
+
