@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Room } from "../room/room";
+import { installWebSocketBridge } from "../transport/background-ws-bridge";
 import { INDICATOR_STYLES } from "../ui/indicator-styles";
 import { WebRoomIndicator } from "../ui/WebRoomIndicator";
 import { UrlListener } from "./url-listener";
@@ -11,6 +12,9 @@ import { UrlListener } from "./url-listener";
  * and coordinates room transitions on navigation.
  */
 function initWebRoomContentScript(): void {
+  // Ensure WebSocket bridge is active before any networking is attempted
+  installWebSocketBridge();
+
   // Only run in the top-level frame of the tab
   if (window.top !== window) {
     return;
