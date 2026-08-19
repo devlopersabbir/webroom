@@ -7,12 +7,12 @@ import pkg from "../../package.json";
 // Application version dynamically matching package.json release SemVer
 export const APP_VERSION = pkg.version;
 
-// Heartbeat transmission interval in milliseconds (2 seconds)
-export const HEARTBEAT_INTERVAL_MS = 2000;
+// Heartbeat transmission interval in milliseconds (2.5 seconds)
+export const HEARTBEAT_INTERVAL_MS = 2500;
 
-// Peer inactivity timeout threshold in milliseconds (6 seconds)
-// A peer not heard from within this window is considered disconnected.
-export const PEER_TIMEOUT_MS = 6000;
+// Peer inactivity timeout threshold in milliseconds (10 seconds)
+// Generous 4x heartbeat window ensures internet jitter never causes false disconnects.
+export const PEER_TIMEOUT_MS = 10000;
 
 // Peer store cleanup scan interval in milliseconds (1 second)
 export const CLEANUP_INTERVAL_MS = 1000;

@@ -41,7 +41,7 @@ export class StreamAudioAnalyser {
     this.init();
   }
 
-  private static getAudioContext(): AudioContext | null {
+  public static getAudioContext(): AudioContext | null {
     if (typeof window === "undefined") {
       return null;
     }

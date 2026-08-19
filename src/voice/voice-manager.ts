@@ -20,6 +20,9 @@ export type SpeakingPeersListener = (speakingPeerIds: Set<string>) => void;
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun.cloudflare.com:3478" },
   { urls: "stun:global.stun.twilio.com:3478" },
 ];
 
@@ -137,6 +140,8 @@ export class VoiceManager {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000,
           },
           video: false,
         });
@@ -144,6 +149,11 @@ export class VoiceManager {
         if (this.isDestroyed) {
           stream.getTracks().forEach((t) => t.stop());
           return false;
+        }
+
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack && "contentHint" in audioTrack) {
+          audioTrack.contentHint = "speech";
         }
 
         this.localStream = stream;
@@ -163,7 +173,6 @@ export class VoiceManager {
         });
 
         // Add tracks to all existing peer connections
-        const audioTrack = stream.getAudioTracks()[0];
         if (audioTrack) {
           for (const [targetPeerId, pc] of this.peerConnections) {
             const senders = pc.getSenders();
@@ -214,9 +223,16 @@ export class VoiceManager {
 
     this.isSpeakerOn = !this.isSpeakerOn;
 
-    // Update muted status on all remote audio elements
+    // Resume AudioContext during user gesture to comply with browser autoplay policies
+    const ctx = StreamAudioAnalyser.getAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+
+    // Update muted status and ensure smooth playback on all remote audio elements
     for (const audioElement of this.remoteAudioElements.values()) {
       audioElement.muted = !this.isSpeakerOn;
+      audioElement.volume = 1.0;
       if (this.isSpeakerOn) {
         audioElement.play().catch(() => {});
       }
@@ -264,16 +280,21 @@ export class VoiceManager {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this.peerConnections.set(remotePeerId, pc);
 
-    // Add local tracks if mic stream exists
-    if (this.localStream) {
-      const track = this.localStream.getAudioTracks()[0];
-      if (track) {
-        try {
+    // Explicitly configure audio transceiver for bidirectional audio or subscribing/receiving mode
+    try {
+      if (this.localStream && this.localStream.getAudioTracks().length > 0) {
+        const track = this.localStream.getAudioTracks()[0];
+        if (track) {
+          if ("contentHint" in track) {
+            track.contentHint = "speech";
+          }
           pc.addTrack(track, this.localStream);
-        } catch (err) {
-          console.warn(`[WebRoom Voice] Failed to add track for peer ${remotePeerId}:`, err);
         }
+      } else if (pc.addTransceiver) {
+        pc.addTransceiver("audio", { direction: "recvonly" });
       }
+    } catch (err) {
+      console.warn(`[WebRoom Voice] Failed to configure audio transceiver for peer ${remotePeerId}:`, err);
     }
 
     pc.onicecandidate = (event) => {
@@ -338,6 +359,7 @@ export class VoiceManager {
     }
 
     audioElement.srcObject = stream;
+    audioElement.volume = 1.0;
     audioElement.muted = !this.isSpeakerOn;
 
     if (this.isSpeakerOn) {

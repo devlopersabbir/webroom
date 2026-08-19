@@ -184,21 +184,21 @@ export class PresenceManager {
 
     switch (msg.type) {
       case "HELLO": {
-        // A new peer joined. Update their presence and immediately reply with HEARTBEAT
-        // so the new peer discovers us without waiting for our periodic heartbeat timer.
-        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp, msg.avatar);
+        // A new peer joined. Update their presence using local receiver timestamp
+        // and immediately reply with HEARTBEAT so the new peer discovers us.
+        const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
         this.broadcastMessage("HEARTBEAT");
-        this.notifyCountChange();
         if (isNew) {
+          this.notifyCountChange();
           this.notifyPeerJoin(msg.peerId);
         }
         break;
       }
 
       case "HEARTBEAT": {
-        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp, msg.avatar);
-        this.notifyCountChange();
+        const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
         if (isNew) {
+          this.notifyCountChange();
           this.notifyPeerJoin(msg.peerId);
         }
         break;
