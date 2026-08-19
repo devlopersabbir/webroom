@@ -1,9 +1,11 @@
+import pkg from "../../package.json";
+
 /**
  * Constants used across WebRoom presence and room lifecycle.
  */
 
-// Application version strictly tracking release SemVer
-export const APP_VERSION = "0.1.0";
+// Application version dynamically matching package.json release SemVer
+export const APP_VERSION = pkg.version;
 
 // Heartbeat transmission interval in milliseconds (2 seconds)
 export const HEARTBEAT_INTERVAL_MS = 2000;
