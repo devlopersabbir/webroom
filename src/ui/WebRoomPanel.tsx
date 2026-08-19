@@ -72,16 +72,10 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
   // Isolate all keyboard and mouse interactions from the host webpage
   const stopEventPropagation = (e: React.SyntheticEvent) => {
     e.stopPropagation();
-    if (e.nativeEvent) {
-      e.nativeEvent.stopImmediatePropagation();
-    }
   };
 
-  const handleKeyDownCapture = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation();
-    if (e.nativeEvent) {
-      e.nativeEvent.stopImmediatePropagation();
-    }
 
     if (e.key === "Escape" && onClose) {
       e.preventDefault();
@@ -94,15 +88,13 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
       className="webroom-panel"
       role="dialog"
       aria-label="WebRoom Chat Panel"
-      onKeyDownCapture={handleKeyDownCapture}
-      onKeyUpCapture={stopEventPropagation}
-      onKeyPressCapture={stopEventPropagation}
-      onMouseDownCapture={stopEventPropagation}
-      onMouseUpCapture={stopEventPropagation}
-      onClickCapture={stopEventPropagation}
-      onPointerDownCapture={stopEventPropagation}
-      onPointerUpCapture={stopEventPropagation}
-      onWheelCapture={(e) => e.stopPropagation()}
+      onKeyDown={handleKeyDown}
+      onKeyUp={stopEventPropagation}
+      onKeyPress={stopEventPropagation}
+      onMouseDown={stopEventPropagation}
+      onMouseUp={stopEventPropagation}
+      onClick={stopEventPropagation}
+      onWheel={(e) => e.stopPropagation()}
     >
       {/* Panel Header */}
       <div className="webroom-panel-header">

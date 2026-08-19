@@ -30,11 +30,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
-    if (e.nativeEvent) {
-      e.nativeEvent.stopImmediatePropagation();
-    }
 
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
@@ -64,6 +61,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         value={text}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onKeyUp={(e) => e.stopPropagation()}
+        onKeyPress={(e) => e.stopPropagation()}
         disabled={disabled}
         maxLength={MAX_MESSAGE_LENGTH}
       />
