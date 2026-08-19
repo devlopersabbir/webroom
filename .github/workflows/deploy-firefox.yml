@@ -55,6 +55,7 @@ jobs:
           source: ${{ steps.web-ext-build.outputs.target }}
           sourceCode: sources.zip
           channel: ${{ github.event.inputs.channel || 'listed' }}
+          license: MIT
           approvalNotes: "WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle."
           releaseNotes: ${{ github.event.release.body }}
           apiKey: ${{ secrets.AMO_JWT_ISSUER }}
