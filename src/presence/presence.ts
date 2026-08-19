@@ -8,6 +8,7 @@ import { PeerStore } from "./peer-store";
 import { PresenceMessage, WebRoomMessage } from "./protocol";
 
 export type PresenceCountListener = (count: number) => void;
+export type PeerLifecycleListener = (peerId: string) => void;
 
 /**
  * Coordinates presence discovery, periodic heartbeats, peer timeout eviction,
@@ -23,6 +24,8 @@ export class PresenceManager {
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private unsubscribeTransport: (() => void) | null = null;
   private countListeners = new Set<PresenceCountListener>();
+  private peerJoinListeners = new Set<PeerLifecycleListener>();
+  private peerLeaveListeners = new Set<PeerLifecycleListener>();
   private isDestroyed = false;
   private lastEmittedCount = 1;
 
@@ -92,6 +95,26 @@ export class PresenceManager {
   }
 
   /**
+   * Subscribes to peer join events.
+   */
+  public onPeerJoin(listener: PeerLifecycleListener): () => void {
+    this.peerJoinListeners.add(listener);
+    return () => {
+      this.peerJoinListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Subscribes to peer leave events.
+   */
+  public onPeerLeave(listener: PeerLifecycleListener): () => void {
+    this.peerLeaveListeners.add(listener);
+    return () => {
+      this.peerLeaveListeners.delete(listener);
+    };
+  }
+
+  /**
    * Gracefully leaves the room and tears down all timers and transport channels.
    */
   public destroy(): void {
@@ -126,6 +149,8 @@ export class PresenceManager {
     // Clear peers
     this.peerStore.clear();
     this.countListeners.clear();
+    this.peerJoinListeners.clear();
+    this.peerLeaveListeners.clear();
   }
 
   private handleMessage(msg: WebRoomMessage): void {
@@ -147,15 +172,21 @@ export class PresenceManager {
       case "HELLO": {
         // A new peer joined. Update their presence and immediately reply with HEARTBEAT
         // so the new peer discovers us without waiting for our periodic heartbeat timer.
-        this.peerStore.updatePeer(msg.peerId, msg.timestamp);
+        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp);
         this.broadcastMessage("HEARTBEAT");
         this.notifyCountChange();
+        if (isNew) {
+          this.notifyPeerJoin(msg.peerId);
+        }
         break;
       }
 
       case "HEARTBEAT": {
-        this.peerStore.updatePeer(msg.peerId, msg.timestamp);
+        const isNew = this.peerStore.updatePeer(msg.peerId, msg.timestamp);
         this.notifyCountChange();
+        if (isNew) {
+          this.notifyPeerJoin(msg.peerId);
+        }
         break;
       }
 
@@ -163,6 +194,7 @@ export class PresenceManager {
         const removed = this.peerStore.removePeer(msg.peerId);
         if (removed) {
           this.notifyCountChange();
+          this.notifyPeerLeave(msg.peerId);
         }
         break;
       }
@@ -192,6 +224,9 @@ export class PresenceManager {
     const evicted = this.peerStore.cleanupTimedOut(PEER_TIMEOUT_MS);
     if (evicted.length > 0) {
       this.notifyCountChange();
+      for (const peerId of evicted) {
+        this.notifyPeerLeave(peerId);
+      }
     }
   }
 
@@ -206,4 +241,25 @@ export class PresenceManager {
       }
     }
   }
+
+  private notifyPeerJoin(peerId: string): void {
+    for (const listener of this.peerJoinListeners) {
+      try {
+        listener(peerId);
+      } catch (err) {
+        console.error("[WebRoom Presence] Error in peer join listener:", err);
+      }
+    }
+  }
+
+  private notifyPeerLeave(peerId: string): void {
+    for (const listener of this.peerLeaveListeners) {
+      try {
+        listener(peerId);
+      } catch (err) {
+        console.error("[WebRoom Presence] Error in peer leave listener:", err);
+      }
+    }
+  }
 }
+

@@ -250,13 +250,96 @@ export const INDICATOR_STYLES = `
   gap: 4px;
 }
 
+.webroom-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.webroom-voice-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.webroom-voice-btn-off {
+  color: #9ca3af;
+  opacity: 0.6;
+}
+
+.webroom-voice-btn-off:hover {
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.webroom-voice-btn-off:active {
+  transform: scale(0.94);
+}
+
+.webroom-voice-btn-mic-on {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+  transform: scale(1.03);
+}
+
+.webroom-voice-btn-mic-on:hover {
+  background: rgba(16, 185, 129, 0.24);
+  border-color: rgba(16, 185, 129, 0.55);
+}
+
+.webroom-voice-btn-speaker-on {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+  transform: scale(1.03);
+}
+
+.webroom-voice-btn-speaker-on:hover {
+  background: rgba(99, 102, 241, 0.24);
+  border-color: rgba(99, 102, 241, 0.55);
+}
+
+.webroom-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 13.5px;
+}
+
+.webroom-mic-indicator-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
 .webroom-settings-btn {
   background: transparent;
   border: none;
   cursor: default;
-  font-size: 15px;
+  font-size: 14px;
   opacity: 0.6;
-  padding: 4px 6px;
+  padding: 4px 5px;
   border-radius: 6px;
   outline: none;
   color: #9ca3af;
@@ -267,6 +350,27 @@ export const INDICATOR_STYLES = `
   opacity: 0.95;
   background: rgba(255, 255, 255, 0.08);
   transform: rotate(20deg);
+}
+
+/* Speaking Peer Avatar Animation */
+.webroom-avatar-speaking {
+  animation: webroom-speaking-pulse 1.3s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.85));
+}
+
+@keyframes webroom-speaking-pulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.5));
+  }
+  50% {
+    transform: scale(1.22);
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.95));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.5));
+  }
 }
 
 /* ==========================================================================

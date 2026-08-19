@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "../chat/chat-protocol";
 import { Room } from "../room/room";
+import { VoiceState } from "../voice/voice-manager";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { MessageComposer } from "./MessageComposer";
 
@@ -12,6 +13,8 @@ interface WebRoomPanelProps {
 export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => {
   const [onlineCount, setOnlineCount] = useState<number>(room.getOnlineCount());
   const [messages, setMessages] = useState<ChatMessage[]>(room.getMessages());
+  const [voiceState, setVoiceState] = useState<VoiceState>(room.getVoiceState());
+  const [speakingPeers, setSpeakingPeers] = useState<Set<string>>(room.getSpeakingPeers());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef<boolean>(true);
 
@@ -27,6 +30,22 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
   useEffect(() => {
     const unsubscribe = room.onMessagesChange((newMessages) => {
       setMessages(newMessages);
+    });
+    return () => unsubscribe();
+  }, [room]);
+
+  // Subscribe to voice state (mic ON/OFF, speaker ON/OFF)
+  useEffect(() => {
+    const unsubscribe = room.onVoiceStateChange((newState) => {
+      setVoiceState(newState);
+    });
+    return () => unsubscribe();
+  }, [room]);
+
+  // Subscribe to actively speaking peers
+  useEffect(() => {
+    const unsubscribe = room.onSpeakingChange((peers) => {
+      setSpeakingPeers(peers);
     });
     return () => unsubscribe();
   }, [room]);
@@ -66,6 +85,14 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
     }, 10);
   };
 
+  const handleToggleMic = async () => {
+    await room.toggleMicrophone();
+  };
+
+  const handleToggleSpeaker = () => {
+    room.toggleSpeaker();
+  };
+
   const presenceText =
     onlineCount === 1 ? "👥 1 person here" : `👥 ${onlineCount} people here`;
 
@@ -101,21 +128,47 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
         <div className="webroom-header-left">
           <div className="webroom-header-title-row">
             <span className="webroom-header-title">WebRoom</span>
-            <span className="webroom-header-badge">V1</span>
+            <span className="webroom-header-badge">V2</span>
           </div>
           <span className="webroom-header-presence">{presenceText}</span>
         </div>
 
-        {/* Top-Right Settings Placeholder (No-op in V1) */}
-        <button
-          type="button"
-          className="webroom-settings-btn"
-          title="Settings (coming soon)"
-          aria-label="Settings"
-          tabIndex={-1}
-        >
-          ⚙️
-        </button>
+        {/* Top-Right Voice Controls & Settings */}
+        <div className="webroom-header-controls">
+          {/* Microphone Toggle (🎙️) */}
+          <button
+            type="button"
+            className={`webroom-voice-btn ${voiceState.isMicOn ? "webroom-voice-btn-mic-on" : "webroom-voice-btn-off"}`}
+            onClick={handleToggleMic}
+            title={voiceState.isMicOn ? "Microphone on" : "Microphone off"}
+            aria-label={voiceState.isMicOn ? "Microphone on" : "Microphone off"}
+          >
+            <span className="webroom-btn-icon">🎙️</span>
+            {voiceState.isMicOn && <span className="webroom-mic-indicator-dot" />}
+          </button>
+
+          {/* Speaker Toggle (🔊 / 🔇) */}
+          <button
+            type="button"
+            className={`webroom-voice-btn ${voiceState.isSpeakerOn ? "webroom-voice-btn-speaker-on" : "webroom-voice-btn-off"}`}
+            onClick={handleToggleSpeaker}
+            title={voiceState.isSpeakerOn ? "Speaker on" : "Speaker off"}
+            aria-label={voiceState.isSpeakerOn ? "Speaker on" : "Speaker off"}
+          >
+            <span className="webroom-btn-icon">{voiceState.isSpeakerOn ? "🔊" : "🔇"}</span>
+          </button>
+
+          {/* Settings Placeholder */}
+          <button
+            type="button"
+            className="webroom-settings-btn"
+            title="Settings (coming soon)"
+            aria-label="Settings"
+            tabIndex={-1}
+          >
+            ⚙️
+          </button>
+        </div>
       </div>
 
       {/* Messages Scroll Area */}
@@ -143,6 +196,7 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
                 key={msg.id}
                 message={msg}
                 isSelf={msg.peerId === room.peerId}
+                isSpeaking={speakingPeers.has(msg.peerId)}
               />
             ))}
           </div>
@@ -156,3 +210,4 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
     </div>
   );
 };
+

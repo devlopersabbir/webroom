@@ -4,6 +4,7 @@ import { ChatMessage } from "../chat/chat-protocol";
 interface ChatMessageItemProps {
   message: ChatMessage;
   isSelf: boolean;
+  isSpeaking?: boolean;
 }
 
 function formatTimestamp(timestamp: number): string {
@@ -15,7 +16,11 @@ function formatTimestamp(timestamp: number): string {
   }
 }
 
-export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message, isSelf }) => {
+export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
+  message,
+  isSelf,
+  isSpeaking = false,
+}) => {
   const formattedTime = formatTimestamp(message.timestamp);
 
   if (isSelf) {
@@ -33,7 +38,10 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message, isSel
 
   return (
     <div className="webroom-message-row webroom-message-peer">
-      <div className="webroom-message-avatar" title={`Peer ${message.peerId.slice(0, 8)}`}>
+      <div
+        className={`webroom-message-avatar ${isSpeaking ? "webroom-avatar-speaking" : ""}`}
+        title={`Peer ${message.peerId.slice(0, 8)}${isSpeaking ? " (Speaking 🎙️)" : ""}`}
+      >
         {message.avatar}
       </div>
       <div className="webroom-message-content">
@@ -45,3 +53,4 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message, isSel
     </div>
   );
 };
+

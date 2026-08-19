@@ -187,4 +187,25 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     tabA.leave();
     tabB.leave();
   });
+
+  it("manages independent mic and speaker state at room level and cleans up on leave()", async () => {
+    const bus = new MockBus();
+    const tab = await Room.join("https://example.com/voice-room", {
+      customPeerId: "peer_voice_test",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    const voiceState = tab.getVoiceState();
+    expect(voiceState.isMicOn).toBe(false);
+    expect(voiceState.isSpeakerOn).toBe(false);
+
+    // Toggle speaker
+    const speakerOn = tab.toggleSpeaker();
+    expect(speakerOn).toBe(true);
+    expect(tab.getVoiceState().isSpeakerOn).toBe(true);
+    expect(tab.getVoiceState().isMicOn).toBe(false);
+
+    tab.leave();
+  });
 });
+

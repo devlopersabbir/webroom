@@ -4,6 +4,12 @@ import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { getRandomAvatar } from "../shared/constants";
 import { BroadcastChannelTransport } from "../transport/broadcast-channel";
 import { Transport } from "../transport/transport";
+import {
+  SpeakingPeersListener,
+  VoiceManager,
+  VoiceState,
+  VoiceStateListener,
+} from "../voice/voice-manager";
 import { canonicalizeUrl, getRoomId } from "./room-id";
 
 export interface RoomOptions {
@@ -16,7 +22,10 @@ export interface RoomOptions {
  * Generates a temporary unique peer ID for the current browser context.
  */
 export function generatePeerId(): string {
-  const uuid = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+  const uuid =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 15);
   return `peer_${uuid}`;
 }
 
@@ -31,6 +40,7 @@ export class Room {
   public readonly avatar: string;
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
+  private readonly voiceManager: VoiceManager;
 
   private constructor(
     url: string,
@@ -39,7 +49,8 @@ export class Room {
     peerId: string,
     avatar: string,
     presenceManager: PresenceManager,
-    chatManager: ChatManager
+    chatManager: ChatManager,
+    voiceManager: VoiceManager
   ) {
     this.url = url;
     this.canonicalUrl = canonicalUrl;
@@ -48,6 +59,7 @@ export class Room {
     this.avatar = avatar;
     this.presenceManager = presenceManager;
     this.chatManager = chatManager;
+    this.voiceManager = voiceManager;
   }
 
   /**
@@ -65,9 +77,20 @@ export class Room {
 
     const presenceManager = new PresenceManager(roomId, peerId, transport);
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
+    const voiceManager = new VoiceManager(roomId, peerId, transport);
+
+    // Wire presence lifecycle to WebRTC voice mesh negotiation
+    presenceManager.onPeerJoin((remotePeerId) => {
+      voiceManager.handlePeerDiscovered(remotePeerId);
+    });
+
+    presenceManager.onPeerLeave((remotePeerId) => {
+      voiceManager.handlePeerLeft(remotePeerId);
+    });
 
     presenceManager.start();
     chatManager.start();
+    voiceManager.start();
 
     return new Room(
       url,
@@ -76,7 +99,8 @@ export class Room {
       peerId,
       avatar,
       presenceManager,
-      chatManager
+      chatManager,
+      voiceManager
     );
   }
 
@@ -116,10 +140,54 @@ export class Room {
   }
 
   /**
+   * Current voice state (mic ON/OFF, speaker ON/OFF).
+   */
+  public getVoiceState(): VoiceState {
+    return this.voiceManager.getState();
+  }
+
+  /**
+   * Toggles microphone ON/OFF.
+   */
+  public async toggleMicrophone(): Promise<boolean> {
+    return this.voiceManager.toggleMicrophone();
+  }
+
+  /**
+   * Toggles speaker ON/OFF.
+   */
+  public toggleSpeaker(): boolean {
+    return this.voiceManager.toggleSpeaker();
+  }
+
+  /**
+   * Subscribes to voice state changes.
+   */
+  public onVoiceStateChange(listener: VoiceStateListener): () => void {
+    return this.voiceManager.onStateChange(listener);
+  }
+
+  /**
+   * Set of peer IDs currently speaking.
+   */
+  public getSpeakingPeers(): Set<string> {
+    return this.voiceManager.getSpeakingPeers();
+  }
+
+  /**
+   * Subscribes to changes in which peers are actively speaking.
+   */
+  public onSpeakingChange(listener: SpeakingPeersListener): () => void {
+    return this.voiceManager.onSpeakingChange(listener);
+  }
+
+  /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(): void {
+    this.voiceManager.destroy();
     this.presenceManager.destroy();
     this.chatManager.destroy();
   }
 }
+
