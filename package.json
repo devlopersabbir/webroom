@@ -111,8 +111,10 @@
     "build:firefox": "tsc && cross-env TARGET=firefox vite build"
   },
   "dependencies": {
+    "@trystero-p2p/torrent": "^0.25.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "trystero": "^0.25.3",
     "zip-a-folder": "^6.1.4"
   },
   "devDependencies": {

@@ -11,6 +11,7 @@ import { FollowPeerInfo } from "../follow/follow-store";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { getRandomAvatar } from "../shared/constants";
 import { BroadcastChannelTransport } from "../transport/broadcast-channel";
+import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
 import {
   SpeakingPeersListener,
@@ -41,12 +42,12 @@ export function generatePeerId(): string {
   const uuid =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
-      : Math.random().toString(36).substring(2, 15);
-  return `peer_${uuid}`;
+      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  return `peer_${uuid.replace(/-/g, "").substring(0, 12)}`;
 }
 
 /**
- * Represents an active WebRoom instance for a specific webpage URL.
+ * WebRoom Room instance representing the active session for a specific canonical webpage URL.
  */
 export class Room {
   public readonly url: string;
@@ -54,6 +55,7 @@ export class Room {
   public readonly roomId: string;
   public readonly peerId: string;
   public readonly avatar: string;
+  private readonly transport: Transport;
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
   private readonly voiceManager: VoiceManager;
@@ -65,6 +67,7 @@ export class Room {
     roomId: string,
     peerId: string,
     avatar: string,
+    transport: Transport,
     presenceManager: PresenceManager,
     chatManager: ChatManager,
     voiceManager: VoiceManager,
@@ -75,6 +78,7 @@ export class Room {
     this.roomId = roomId;
     this.peerId = peerId;
     this.avatar = avatar;
+    this.transport = transport;
     this.presenceManager = presenceManager;
     this.chatManager = chatManager;
     this.voiceManager = voiceManager;
@@ -92,7 +96,7 @@ export class Room {
 
     const transport = options.transportFactory
       ? options.transportFactory(roomId)
-      : new BroadcastChannelTransport(roomId);
+      : new HybridTransport(roomId);
 
     const presenceManager = new PresenceManager(roomId, peerId, transport, undefined, avatar);
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
@@ -120,6 +124,7 @@ export class Room {
       roomId,
       peerId,
       avatar,
+      transport,
       presenceManager,
       chatManager,
       voiceManager,
