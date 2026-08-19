@@ -37,6 +37,13 @@ jobs:
       - name: Build Firefox Extension
         run: bun run build:firefox
 
+      - name: Package extension for AMO
+        id: web-ext-build
+        uses: kewisch/action-web-ext@v2
+        with:
+          cmd: build
+          source: dist
+
       - name: Archive source code for Mozilla review
         run: git archive --format=zip --output=sources.zip HEAD
 
@@ -45,7 +52,7 @@ jobs:
         uses: kewisch/action-web-ext@v2
         with:
           cmd: sign
-          source: dist
+          source: ${{ steps.web-ext-build.outputs.target }}
           sourceCode: sources.zip
           channel: ${{ github.event.inputs.channel || 'listed' }}
           approvalNotes: "WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle."
