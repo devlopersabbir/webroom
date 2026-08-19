@@ -1,19 +1,10 @@
-name: Release & Deploy
+name: Release
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      channel:
-        description: "AMO Channel (listed for public store review, unlisted for signing)"
-        required: true
-        default: "listed"
-        type: choice
-        options:
-          - listed
-          - unlisted
 
 permissions:
   contents: write
@@ -22,7 +13,7 @@ permissions:
 
 jobs:
   release:
-    name: Auto Version & Deploy to AMO
+    name: Auto Version & GitHub Release
     runs-on: ubuntu-latest
 
     steps:
@@ -48,30 +39,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
-
-      - name: Build Firefox Extension
-        run: bun run build:firefox
-
-      - name: Package extension for AMO
-        id: web-ext-build
-        uses: kewisch/action-web-ext@v2
-        with:
-          cmd: build
-          source: dist
-
-      - name: Archive source code for Mozilla review
-        run: git archive --format=zip --output=sources.zip HEAD
-
-      - name: Submit to Mozilla Add-ons (AMO)
-        uses: kewisch/action-web-ext@v2
-        with:
-          cmd: sign
-          source: ${{ steps.web-ext-build.outputs.target }}
-          sourceCode: sources.zip
-          channel: ${{ github.event.inputs.channel || 'listed' }}
-          license: MIT
-          metaDataFile: amo_metadata.json
-          approvalNotes: "WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle."
-          apiKey: ${{ secrets.AMO_JWT_ISSUER }}
-          apiSecret: ${{ secrets.AMO_JWT_SECRET }}
-          timeout: 0

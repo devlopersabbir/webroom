@@ -1,8 +1,6 @@
 name: Deploy to Firefox Add-ons (AMO)
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       channel:
@@ -13,6 +11,11 @@ on:
         options:
           - listed
           - unlisted
+      notes:
+        description: "Release notes for this version (optional)"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   deploy-firefox:
@@ -58,7 +61,7 @@ jobs:
           license: MIT
           metaDataFile: amo_metadata.json
           approvalNotes: "WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle."
-          releaseNotes: ${{ github.event.release.body }}
+          releaseNotes: ${{ github.event.inputs.notes || '' }}
           apiKey: ${{ secrets.AMO_JWT_ISSUER }}
           apiSecret: ${{ secrets.AMO_JWT_SECRET }}
-          timeout: 900000
+          timeout: 180000 # 3 minutes maximum deadline (exits immediately once AMO finishes in ~30-60s)
