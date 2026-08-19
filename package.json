@@ -53,6 +53,12 @@
         }
       ],
       [
+        "@semantic-release/exec",
+        {
+          "prepareCmd": "bun ./zip.ts TARGET=all"
+        }
+      ],
+      [
         "@semantic-release/git",
         {
           "assets": [
@@ -62,7 +68,16 @@
           "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
         }
       ],
-      "@semantic-release/github"
+      [
+        "@semantic-release/github",
+        {
+          "assets": [
+            {
+              "path": "release/*.zip"
+            }
+          ]
+        }
+      ]
     ]
   },
   "bugs": {
@@ -80,10 +95,13 @@
     "build": "tsc && vite build",
     "test": "vitest",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "lint": "bun run lint:firefox",
     "lint:firefox": "bun run build:firefox && bunx web-ext lint --source-dir=dist",
     "deploy:firefox": "bun ./scripts/deploy-firefox.ts",
-    "zip:chrome": "bun run build:chrome && bun ./zip.ts TARGET=chrome",
-    "zip:firefox": "bun run build:firefox && bun ./zip.ts TARGET=firefox",
+    "zip": "bun ./zip.ts",
+    "zip:all": "bun ./zip.ts TARGET=all",
+    "zip:chrome": "bun ./zip.ts TARGET=chrome",
+    "zip:firefox": "bun ./zip.ts TARGET=firefox",
     "build:chrome": "tsc && cross-env TARGET=chrome vite build",
     "build:firefox": "tsc && cross-env TARGET=firefox vite build"
   },
@@ -94,6 +112,7 @@
   },
   "devDependencies": {
     "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^11.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.3.14",
