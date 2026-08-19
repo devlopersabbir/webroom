@@ -1,3 +1,12 @@
+# [1.2.0](https://github.com/devlopersabbir/webroom/compare/v1.1.0...v1.2.0) (2026-08-19)
+
+
+### Features
+
+* implement core WebRoom architecture including voice signaling protocol, presence management, and room lifecycle logic ([1def989](https://github.com/devlopersabbir/webroom/commit/1def9898200ef14b0850a8980f5c35a4c89c3514))
+* implement emoji picker component with search functionality and unit tests ([6279a0e](https://github.com/devlopersabbir/webroom/commit/6279a0ed1c0a304327818fb23d8e199c0bfd4d31))
+* implement room presence management, peer discovery, and follow-mode protocol systems ([6a06a11](https://github.com/devlopersabbir/webroom/commit/6a06a11461fe55735e51b3cd71f8313979b03316))
+
 # [1.1.0](https://github.com/devlopersabbir/webroom/compare/v1.0.0...v1.1.0) (2026-08-19)
 
 
