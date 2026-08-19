@@ -1,8 +1,9 @@
-name: Deploy to Firefox Add-ons (AMO)
+name: Release & Deploy
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       channel:
@@ -14,14 +15,22 @@ on:
           - listed
           - unlisted
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 jobs:
-  deploy-firefox:
-    name: Build & Submit to Firefox AMO
+  release:
+    name: Auto Version & Deploy to AMO
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -33,6 +42,12 @@ jobs:
 
       - name: Run Tests
         run: bun test
+
+      - name: Semantic Release (Auto Calculate Version & Publish GitHub Release)
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
 
       - name: Build Firefox Extension
         run: bun run build:firefox
@@ -47,8 +62,7 @@ jobs:
       - name: Archive source code for Mozilla review
         run: git archive --format=zip --output=sources.zip HEAD
 
-      - name: web-ext sign AMO
-        id: web-ext-sign
+      - name: Submit to Mozilla Add-ons (AMO)
         uses: kewisch/action-web-ext@v2
         with:
           cmd: sign
@@ -58,7 +72,6 @@ jobs:
           license: MIT
           metaDataFile: amo_metadata.json
           approvalNotes: "WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle."
-          releaseNotes: ${{ github.event.release.body }}
           apiKey: ${{ secrets.AMO_JWT_ISSUER }}
           apiSecret: ${{ secrets.AMO_JWT_SECRET }}
-          timeout: 900000
+          timeout: 0

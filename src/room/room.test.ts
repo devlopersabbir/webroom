@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PresenceMessage } from "../presence/protocol";
+import { WebRoomMessage } from "../presence/protocol";
 import { MessageHandler, Transport } from "../transport/transport";
 import { Room } from "./room";
 
@@ -23,7 +23,7 @@ class MockBus {
     }
   }
 
-  public broadcast(sender: MockTransport, message: PresenceMessage): void {
+  public broadcast(sender: MockTransport, message: WebRoomMessage): void {
     const peers = this.channels.get(message.roomId);
     if (!peers) return;
 
@@ -50,7 +50,7 @@ class MockTransport implements Transport {
     }
   }
 
-  public send(message: PresenceMessage): void {
+  public send(message: WebRoomMessage): void {
     if (!this.closed) {
       this.bus.broadcast(this, message);
     }
@@ -63,7 +63,7 @@ class MockTransport implements Transport {
     };
   }
 
-  public receive(message: PresenceMessage): void {
+  public receive(message: WebRoomMessage): void {
     if (this.closed) return;
     for (const handler of this.handlers) {
       handler(message);
@@ -77,7 +77,7 @@ class MockTransport implements Transport {
   }
 }
 
-describe("PresenceManager Multi-Peer Simulation", () => {
+describe("Room Multi-Peer Presence & Chat Simulation", () => {
   it("coordinates 1, 2, 3 peers and handles graceful goodbye", async () => {
     const bus = new MockBus();
     const url = "https://youtube.com/watch?v=ABC123";
@@ -123,21 +123,66 @@ describe("PresenceManager Multi-Peer Simulation", () => {
     tabA.leave();
   });
 
-  it("isolates different rooms on different URLs", async () => {
+  it("exchanges real-time ephemeral chat messages among peers in the same room", async () => {
+    const bus = new MockBus();
+    const url = "https://example.com/shared-doc";
+
+    const tabA = await Room.join(url, {
+      customPeerId: "peer_A",
+      customAvatar: "🐸",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    const tabB = await Room.join(url, {
+      customPeerId: "peer_B",
+      customAvatar: "🦊",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    expect(tabA.getMessages().length).toBe(0);
+    expect(tabB.getMessages().length).toBe(0);
+
+    // Peer A sends a message
+    const msg1 = tabA.sendMessage("Hello from Peer A! 👋");
+    expect(msg1).not.toBeNull();
+    expect(tabA.getMessages().length).toBe(1);
+    expect(tabB.getMessages().length).toBe(1);
+    expect(tabB.getMessages()[0].text).toBe("Hello from Peer A! 👋");
+    expect(tabB.getMessages()[0].avatar).toBe("🐸");
+
+    // Peer B sends a reply
+    const msg2 = tabB.sendMessage("Hey A! Nice room 🚀");
+    expect(msg2).not.toBeNull();
+    expect(tabA.getMessages().length).toBe(2);
+    expect(tabB.getMessages().length).toBe(2);
+    expect(tabA.getMessages()[1].text).toBe("Hey A! Nice room 🚀");
+    expect(tabA.getMessages()[1].avatar).toBe("🦊");
+
+    tabA.leave();
+    tabB.leave();
+  });
+
+  it("isolates different rooms on different URLs for presence and chat", async () => {
     const bus = new MockBus();
 
     const tabA = await Room.join("https://example.com/page-1", {
       customPeerId: "peer_A",
+      customAvatar: "🐸",
       transportFactory: (roomId) => new MockTransport(roomId, bus),
     });
 
     const tabB = await Room.join("https://example.com/page-2", {
       customPeerId: "peer_B",
+      customAvatar: "🦊",
       transportFactory: (roomId) => new MockTransport(roomId, bus),
     });
 
     expect(tabA.getOnlineCount()).toBe(1);
     expect(tabB.getOnlineCount()).toBe(1);
+
+    tabA.sendMessage("Secret message in Page 1");
+    expect(tabA.getMessages().length).toBe(1);
+    expect(tabB.getMessages().length).toBe(0);
 
     tabA.leave();
     tabB.leave();

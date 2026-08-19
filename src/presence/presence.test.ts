@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { PeerStore } from "./peer-store";
 import { PresenceManager } from "./presence";
-import { isValidPresenceMessage, PresenceMessage } from "./protocol";
+import { isValidPresenceMessage, PresenceMessage, WebRoomMessage } from "./protocol";
 import { MessageHandler, Transport } from "../transport/transport";
 
 class SimpleMockTransport implements Transport {
-  public sent: PresenceMessage[] = [];
+  public sent: WebRoomMessage[] = [];
   private handlers = new Set<MessageHandler>();
 
   public start(): void {}
-  public send(message: PresenceMessage): void {
+  public send(message: WebRoomMessage): void {
     this.sent.push(message);
   }
   public onMessage(handler: MessageHandler): () => void {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
   }
-  public emitMessage(message: PresenceMessage): void {
+  public emitMessage(message: WebRoomMessage): void {
     for (const h of this.handlers) h(message);
   }
   public close(): void {

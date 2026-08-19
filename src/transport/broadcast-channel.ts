@@ -1,5 +1,5 @@
 import { CHANNEL_PREFIX } from "../shared/constants";
-import { isValidPresenceMessage, PresenceMessage } from "../presence/protocol";
+import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { MessageHandler, Transport } from "./transport";
 
 /**
@@ -32,7 +32,7 @@ export class BroadcastChannelTransport implements Transport {
     }
   }
 
-  public send(message: PresenceMessage): void {
+  public send(message: WebRoomMessage): void {
     if (this.isClosed || !this.channel) {
       return;
     }
@@ -80,7 +80,7 @@ export class BroadcastChannelTransport implements Transport {
       return;
     }
 
-    if (!isValidPresenceMessage(data, this.roomId)) {
+    if (!isValidWebRoomMessage(data, this.roomId)) {
       return;
     }
 

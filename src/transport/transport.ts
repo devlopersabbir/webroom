@@ -1,11 +1,11 @@
-import { PresenceMessage } from "../presence/protocol";
+import { WebRoomMessage } from "../presence/protocol";
 
-export type MessageHandler = (message: PresenceMessage) => void;
+export type MessageHandler = (message: WebRoomMessage) => void;
 
 /**
  * Pluggable Transport interface for peer discovery & communication.
  * Allows switching between BroadcastChannel (local V0 prototype)
- * and WebRTC / P2P transports in future milestones without changing room/presence logic.
+ * and WebRTC / P2P transports in future milestones without changing room/presence/chat logic.
  */
 export interface Transport {
   /**
@@ -14,9 +14,9 @@ export interface Transport {
   start(): void;
 
   /**
-   * Sends a presence message to peers in this room.
+   * Sends a presence or chat message to peers in this room.
    */
-  send(message: PresenceMessage): void;
+  send(message: WebRoomMessage): void;
 
   /**
    * Subscribes a handler to receive incoming messages.

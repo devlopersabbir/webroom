@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Room } from "../room/room";
+import { WebRoomPanel } from "./WebRoomPanel";
 
 interface WebRoomIndicatorProps {
   room: Room;
@@ -8,6 +9,7 @@ interface WebRoomIndicatorProps {
 export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
   const [count, setCount] = useState<number>(room.getOnlineCount());
   const [bumping, setBumping] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = room.onCountChange((newCount) => {
@@ -25,31 +27,45 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
     };
   }, [room]);
 
-  const shortRoomId = `${room.roomId.slice(0, 6)}...${room.roomId.slice(-4)}`;
-  const shortPeerId = `${room.peerId.slice(0, 10)}...`;
+  // Handle ESC key to close the panel cleanly without triggering host page shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [isOpen]);
+
+  const toggleOpen = () => {
+    setIsOpen((prev) => !prev);
+  };
 
   return (
     <div className="webroom-floating-wrapper" id="webroom-indicator">
-      <div className="webroom-tooltip">
-        <div className="tooltip-header">
-          <span className="tooltip-title">WebRoom V0</span>
-          <span className="tooltip-badge">Live</span>
+      {/* Floating Chat Panel */}
+      {isOpen && (
+        <div className="webroom-panel-wrapper">
+          <WebRoomPanel room={room} onClose={() => setIsOpen(false)} />
         </div>
-        <div className="tooltip-row">
-          <span className="tooltip-label">Room</span>
-          <span className="tooltip-value" title={room.roomId}>{shortRoomId}</span>
-        </div>
-        <div className="tooltip-row">
-          <span className="tooltip-label">Peer</span>
-          <span className="tooltip-value" title={room.peerId}>{shortPeerId}</span>
-        </div>
-        <div className="tooltip-row">
-          <span className="tooltip-label">Online</span>
-          <span className="tooltip-value">{count} {count === 1 ? "peer" : "peers"}</span>
-        </div>
-      </div>
+      )}
 
-      <div className="webroom-pill" title="WebRoom: Online peers on this page">
+      {/* Floating Indicator Pill */}
+      <button
+        type="button"
+        className={`webroom-pill ${isOpen ? "webroom-pill-active" : ""}`}
+        onClick={toggleOpen}
+        title={isOpen ? "Close WebRoom Chat" : "Open WebRoom Chat"}
+        aria-expanded={isOpen}
+        aria-label="WebRoom online indicator and chat toggle"
+      >
         <div className="webroom-pulse-dot" />
         <span className="webroom-icon">
           <svg
@@ -71,7 +87,7 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
         <span className={`webroom-count ${bumping ? "webroom-count-bump" : ""}`}>
           {count}
         </span>
-      </div>
+      </button>
     </div>
   );
 };

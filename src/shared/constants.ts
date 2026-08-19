@@ -1,9 +1,11 @@
+import pkg from "../../package.json";
+
 /**
  * Constants used across WebRoom presence and room lifecycle.
  */
 
-// Application version strictly tracking release SemVer
-export const APP_VERSION = "0.1.0";
+// Application version dynamically matching package.json release SemVer
+export const APP_VERSION = pkg.version;
 
 // Heartbeat transmission interval in milliseconds (2 seconds)
 export const HEARTBEAT_INTERVAL_MS = 2000;
@@ -17,6 +19,38 @@ export const CLEANUP_INTERVAL_MS = 1000;
 
 // Transport channel prefix
 export const CHANNEL_PREFIX = "webroom:";
+
+// Maximum allowed character length for an ephemeral chat message
+export const MAX_MESSAGE_LENGTH = 2000;
+
+// Predefined pool of playful emoji avatars for temporary peer identity
+export const AVATARS: readonly string[] = [
+  "🐸",
+  "🦊",
+  "🐼",
+  "🐨",
+  "🦄",
+  "🐙",
+  "🐳",
+  "🦁",
+  "🐯",
+  "👻",
+  "🤖",
+  "👽",
+  "🍕",
+  "🌮",
+  "🚀",
+  "🔥",
+  "🌈",
+];
+
+/**
+ * Selects a random emoji avatar from the AVATARS pool.
+ */
+export function getRandomAvatar(): string {
+  const index = Math.floor(Math.random() * AVATARS.length);
+  return AVATARS[index] || "🐸";
+}
 
 // Common tracking / marketing / referral query parameter names to strip during URL canonicalization
 export const KNOWN_TRACKING_PARAMS: ReadonlySet<string> = new Set([
