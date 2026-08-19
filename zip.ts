@@ -18,6 +18,10 @@ const compress = async (target: "chrome" | "firefox", version: string) => {
   const args = process.argv[2];
   const target = args?.split("TARGET=")[1]?.toLowerCase() as "chrome" | "firefox" | "all" | undefined;
 
+  // Clean release directory before packaging fresh zips
+  rmSync("./release", { recursive: true, force: true });
+  mkdirSync("./release", { recursive: true });
+
   if (target === "chrome" || target === "firefox") {
     await compress(target, pkg.version);
   } else {
