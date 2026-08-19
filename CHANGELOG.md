@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/devlopersabbir/webroom/compare/v1.0.0...v1.1.0) (2026-08-19)
+
+
+### Features
+
+* implement ephemeral P2P chat, cross-browser manifest generation, and Firefox deployment automation ([cf258fe](https://github.com/devlopersabbir/webroom/commit/cf258fe783cb1c24def93a8a3c8a8dd6d46b2c15))
+
 # Changelog
 
 All notable changes to this project will be documented in this file automatically.
