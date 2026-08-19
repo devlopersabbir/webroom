@@ -73,7 +73,12 @@
         {
           "assets": [
             {
-              "path": "release/*.zip"
+              "path": "v*_chrome.zip",
+              "label": "WebRoom Chrome Extension (v${nextRelease.version})"
+            },
+            {
+              "path": "v*_firefox.zip",
+              "label": "WebRoom Firefox Add-on (v${nextRelease.version})"
             }
           ]
         }
