@@ -4,8 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import webExtension, { readJsonFile } from "vite-plugin-web-extension";
 
 /**
- * Strict version validator adhering to SemVer and Chrome Extension Manifest specifications.
- * Chrome requires 1 to 4 dot-separated integers between 0 and 65535 with no leading zeroes (except 0 itself).
+ * Strict version validator adhering to SemVer and Chrome/Firefox Extension specifications.
  */
 function validateStrictVersion(version: string): void {
   const semverPattern =
@@ -22,7 +21,7 @@ function validateStrictVersion(version: string): void {
   const baseVersion = version.split("-")[0].split("+")[0];
   if (!manifestVersionPattern.test(baseVersion)) {
     throw new Error(
-      `[WebRoom Build Error] Version "${baseVersion}" is not a valid Chrome Extension manifest version (1-4 dot-separated integers).`,
+      `[WebRoom Build Error] Version "${baseVersion}" is not a valid Extension manifest version (1-4 dot-separated integers).`,
     );
   }
 }
@@ -39,7 +38,6 @@ function generateManifest() {
 
   validateStrictVersion(pkg.version);
 
-  // Chrome manifest version strictly uses the numeric dot-separated base
   const cleanManifestVersion = pkg.version.split("-")[0].split("+")[0];
 
   return {
@@ -52,6 +50,8 @@ function generateManifest() {
   };
 }
 
+const targetBrowser = (process.env.TARGET as "chrome" | "firefox") || "firefox";
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -59,7 +59,7 @@ export default defineConfig({
     tailwindcss(),
     webExtension({
       manifest: generateManifest,
-      browser: "firefox",
+      browser: targetBrowser,
     }),
   ],
 });
