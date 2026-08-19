@@ -26,8 +26,8 @@ function validateStrictVersion(version: string): void {
   }
 }
 
-// const targetBrowser = (process.env.TARGET as "chrome" | "firefox") || "chrome";
-const targetBrowser = "chrome";
+const targetBrowser = (process.env.TARGET as "chrome" | "firefox") || "chrome";
+// const targetBrowser = "chrome";
 
 function generateManifest() {
   const pkg = readJsonFile("package.json");
