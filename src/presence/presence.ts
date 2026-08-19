@@ -5,7 +5,7 @@ import {
 } from "../shared/constants";
 import { Transport } from "../transport/transport";
 import { PeerStore } from "./peer-store";
-import { PresenceMessage } from "./protocol";
+import { PresenceMessage, WebRoomMessage } from "./protocol";
 
 export type PresenceCountListener = (count: number) => void;
 
@@ -128,7 +128,7 @@ export class PresenceManager {
     this.countListeners.clear();
   }
 
-  private handleMessage(msg: PresenceMessage): void {
+  private handleMessage(msg: WebRoomMessage): void {
     if (this.isDestroyed) {
       return;
     }

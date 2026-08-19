@@ -50,7 +50,7 @@ function generateManifest() {
   };
 }
 
-const targetBrowser = (process.env.TARGET as "chrome" | "firefox") || "firefox";
+const targetBrowser = (process.env.TARGET as "chrome" | "firefox") || "chrome";
 
 // https://vitejs.dev/config/
 export default defineConfig({

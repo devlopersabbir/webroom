@@ -1,3 +1,5 @@
+import { ChatMessage, isValidChatMessage } from "../chat/chat-protocol";
+
 /**
  * WebRoom Presence Protocol Definitions & Message Validation
  */
@@ -10,6 +12,11 @@ export interface PresenceMessage {
   peerId: string;
   timestamp: number;
 }
+
+/**
+ * Unified message type for the WebRoom peer-to-peer transport layer.
+ */
+export type WebRoomMessage = PresenceMessage | ChatMessage;
 
 const VALID_MESSAGE_TYPES = new Set<PresenceMessageType>(["HELLO", "HEARTBEAT", "GOODBYE"]);
 
@@ -48,4 +55,17 @@ export function isValidPresenceMessage(
   }
 
   return true;
+}
+
+/**
+ * Validates whether an incoming object conforms to any WebRoomMessage specification.
+ */
+export function isValidWebRoomMessage(
+  payload: unknown,
+  expectedRoomId?: string
+): payload is WebRoomMessage {
+  return (
+    isValidPresenceMessage(payload, expectedRoomId) ||
+    isValidChatMessage(payload, expectedRoomId)
+  );
 }

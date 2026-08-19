@@ -1,4 +1,7 @@
+import { ChatManager, ChatMessagesListener } from "../chat/chat";
+import { ChatMessage } from "../chat/chat-protocol";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
+import { getRandomAvatar } from "../shared/constants";
 import { BroadcastChannelTransport } from "../transport/broadcast-channel";
 import { Transport } from "../transport/transport";
 import { canonicalizeUrl, getRoomId } from "./room-id";
@@ -6,6 +9,7 @@ import { canonicalizeUrl, getRoomId } from "./room-id";
 export interface RoomOptions {
   transportFactory?: (roomId: string) => Transport;
   customPeerId?: string;
+  customAvatar?: string;
 }
 
 /**
@@ -24,20 +28,26 @@ export class Room {
   public readonly canonicalUrl: string;
   public readonly roomId: string;
   public readonly peerId: string;
+  public readonly avatar: string;
   private readonly presenceManager: PresenceManager;
+  private readonly chatManager: ChatManager;
 
   private constructor(
     url: string,
     canonicalUrl: string,
     roomId: string,
     peerId: string,
-    presenceManager: PresenceManager
+    avatar: string,
+    presenceManager: PresenceManager,
+    chatManager: ChatManager
   ) {
     this.url = url;
     this.canonicalUrl = canonicalUrl;
     this.roomId = roomId;
     this.peerId = peerId;
+    this.avatar = avatar;
     this.presenceManager = presenceManager;
+    this.chatManager = chatManager;
   }
 
   /**
@@ -47,15 +57,27 @@ export class Room {
     const canonicalUrl = canonicalizeUrl(url);
     const roomId = await getRoomId(canonicalUrl);
     const peerId = options.customPeerId || generatePeerId();
+    const avatar = options.customAvatar || getRandomAvatar();
 
     const transport = options.transportFactory
       ? options.transportFactory(roomId)
       : new BroadcastChannelTransport(roomId);
 
     const presenceManager = new PresenceManager(roomId, peerId, transport);
-    presenceManager.start();
+    const chatManager = new ChatManager(roomId, peerId, avatar, transport);
 
-    return new Room(url, canonicalUrl, roomId, peerId, presenceManager);
+    presenceManager.start();
+    chatManager.start();
+
+    return new Room(
+      url,
+      canonicalUrl,
+      roomId,
+      peerId,
+      avatar,
+      presenceManager,
+      chatManager
+    );
   }
 
   /**
@@ -73,9 +95,31 @@ export class Room {
   }
 
   /**
+   * Snapshot of all ephemeral chat messages in this room.
+   */
+  public getMessages(): ChatMessage[] {
+    return this.chatManager.getMessages();
+  }
+
+  /**
+   * Sends an ephemeral chat message to all peers on this page.
+   */
+  public sendMessage(text: string): ChatMessage | null {
+    return this.chatManager.sendMessage(text);
+  }
+
+  /**
+   * Subscribes to chat message updates in this room.
+   */
+  public onMessagesChange(listener: ChatMessagesListener): () => void {
+    return this.chatManager.onMessagesChange(listener);
+  }
+
+  /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(): void {
     this.presenceManager.destroy();
+    this.chatManager.destroy();
   }
 }
