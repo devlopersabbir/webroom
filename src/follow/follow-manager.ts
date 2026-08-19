@@ -2,18 +2,18 @@ import { WebRoomMessage } from "../presence/protocol";
 import { Transport } from "../transport/transport";
 import {
   FollowCursorMessage,
-  FollowMessage,
   FollowNavigateMessage,
   FollowScrollMessage,
   FollowSelectionMessage,
   FollowStartMessage,
   FollowStopMessage,
+  SelectionRect,
 } from "./follow-protocol";
 import { FollowPeerInfo, FollowStore } from "./follow-store";
 
 export type FollowStateListener = (
   following: FollowPeerInfo | null,
-  followers: Map<string, FollowPeerInfo>
+  followers: Map<string, FollowPeerInfo>,
 ) => void;
 
 export interface FollowCursorState {
@@ -30,8 +30,18 @@ export interface FollowCursorState {
   timestamp: number;
 }
 
+export interface FollowSelectionState {
+  leaderId: string;
+  leaderAvatar: string;
+  selectedText: string;
+  rect?: SelectionRect;
+  timestamp: number;
+}
+
 export type FollowCursorListener = (cursor: FollowCursorState | null) => void;
-export type FollowSelectionListener = (selection: string) => void;
+export type FollowSelectionListener = (
+  selection: FollowSelectionState | null,
+) => void;
 
 /**
  * Coordinates follow relationships, live mouse cursor broadcast,
@@ -50,9 +60,9 @@ export class FollowManager {
   private cursorListeners = new Set<FollowCursorListener>();
   private selectionListeners = new Set<FollowSelectionListener>();
 
-  // Current active remote cursor from leader
+  // Current active remote cursor & selection from leader
   private currentLeaderCursor: FollowCursorState | null = null;
-  private currentLeaderSelection = "";
+  private currentLeaderSelection: FollowSelectionState | null = null;
 
   // Flag to suppress echoing back remote programmatic scrolls
   private isApplyingRemoteScroll = false;
@@ -73,14 +83,20 @@ export class FollowManager {
   private boundClickListener: ((e: MouseEvent) => void) | null = null;
   private boundSelectionListener: (() => void) | null = null;
   private cursorThrottleTimer: ReturnType<typeof setTimeout> | null = null;
-  private latestMouseCoords: { clientX: number; clientY: number; pageX: number; pageY: number; isHovering: boolean } | null = null;
+  private latestMouseCoords: {
+    clientX: number;
+    clientY: number;
+    pageX: number;
+    pageY: number;
+    isHovering: boolean;
+  } | null = null;
 
   constructor(
     roomId: string,
     peerId: string,
     avatar: string,
     transport: Transport,
-    store = new FollowStore()
+    store = new FollowStore(),
   ) {
     this.roomId = roomId;
     this.peerId = peerId;
@@ -103,17 +119,29 @@ export class FollowManager {
 
     if (typeof window !== "undefined") {
       this.boundScrollListener = () => this.handleLocalScroll();
-      window.addEventListener("scroll", this.boundScrollListener, { passive: true });
+      window.addEventListener("scroll", this.boundScrollListener, {
+        passive: true,
+      });
 
-      this.boundMouseMoveListener = (e: MouseEvent) => this.handleLocalMouseMove(e);
-      window.addEventListener("mousemove", this.boundMouseMoveListener, { passive: true });
+      this.boundMouseMoveListener = (e: MouseEvent) =>
+        this.handleLocalMouseMove(e);
+      window.addEventListener("mousemove", this.boundMouseMoveListener, {
+        passive: true,
+      });
 
       this.boundClickListener = (e: MouseEvent) => this.handleLocalClick(e);
-      window.addEventListener("click", this.boundClickListener, { capture: true, passive: true });
+      window.addEventListener("click", this.boundClickListener, {
+        capture: true,
+        passive: true,
+      });
 
       if (typeof document !== "undefined") {
         this.boundSelectionListener = () => this.handleLocalSelection();
-        document.addEventListener("selectionchange", this.boundSelectionListener, { passive: true });
+        document.addEventListener(
+          "selectionchange",
+          this.boundSelectionListener,
+          { passive: true },
+        );
       }
     }
   }
@@ -154,8 +182,9 @@ export class FollowManager {
     if (prev) {
       this.broadcastStop(prev.peerId);
       this.currentLeaderCursor = null;
-      this.currentLeaderSelection = "";
+      this.currentLeaderSelection = null;
       this.notifyCursorChange(null);
+      this.notifySelectionChange(null);
       this.notifyStateChange();
     }
   }
@@ -179,6 +208,13 @@ export class FollowManager {
    */
   public getLeaderCursor(): FollowCursorState | null {
     return this.currentLeaderCursor;
+  }
+
+  /**
+   * Returns the latest live selection from the followed leader.
+   */
+  public getLeaderSelection(): FollowSelectionState | null {
+    return this.currentLeaderSelection;
   }
 
   /**
@@ -232,8 +268,9 @@ export class FollowManager {
     if (following?.peerId === remotePeerId) {
       this.store.clearFollowing();
       this.currentLeaderCursor = null;
-      this.currentLeaderSelection = "";
+      this.currentLeaderSelection = null;
       this.notifyCursorChange(null);
+      this.notifySelectionChange(null);
       stateChanged = true;
     }
 
@@ -279,16 +316,24 @@ export class FollowManager {
     }
 
     if (this.boundClickListener && typeof window !== "undefined") {
-      window.removeEventListener("click", this.boundClickListener, { capture: true });
+      window.removeEventListener("click", this.boundClickListener, {
+        capture: true,
+      });
       this.boundClickListener = null;
     }
 
     if (this.boundSelectionListener && typeof document !== "undefined") {
-      document.removeEventListener("selectionchange", this.boundSelectionListener);
+      document.removeEventListener(
+        "selectionchange",
+        this.boundSelectionListener,
+      );
       this.boundSelectionListener = null;
     }
 
-    if (this.smoothScrollRafId !== null && typeof cancelAnimationFrame !== "undefined") {
+    if (
+      this.smoothScrollRafId !== null &&
+      typeof cancelAnimationFrame !== "undefined"
+    ) {
       cancelAnimationFrame(this.smoothScrollRafId);
       this.smoothScrollRafId = null;
     }
@@ -330,7 +375,10 @@ export class FollowManager {
     switch (msg.type) {
       case "FOLLOW_START": {
         if (msg.leaderId === this.peerId && msg.followerId !== this.peerId) {
-          const isNew = this.store.addFollower(msg.followerId, msg.followerAvatar);
+          const isNew = this.store.addFollower(
+            msg.followerId,
+            msg.followerAvatar,
+          );
           if (isNew) {
             this.notifyStateChange();
             // Broadcast initial scroll position immediately to newly joined follower
@@ -346,11 +394,15 @@ export class FollowManager {
           if (removed) {
             this.notifyStateChange();
           }
-        } else if (msg.followerId === this.peerId && this.store.getFollowing()?.peerId === msg.leaderId) {
+        } else if (
+          msg.followerId === this.peerId &&
+          this.store.getFollowing()?.peerId === msg.leaderId
+        ) {
           this.store.clearFollowing();
           this.currentLeaderCursor = null;
-          this.currentLeaderSelection = "";
+          this.currentLeaderSelection = null;
           this.notifyCursorChange(null);
+          this.notifySelectionChange(null);
           this.notifyStateChange();
         }
         break;
@@ -362,8 +414,9 @@ export class FollowManager {
         if (currentFollowing?.peerId === msg.leaderId) {
           this.store.clearFollowing();
           this.currentLeaderCursor = null;
-          this.currentLeaderSelection = "";
+          this.currentLeaderSelection = null;
           this.notifyCursorChange(null);
+          this.notifySelectionChange(null);
           this.notifyStateChange();
         }
         break;
@@ -401,8 +454,18 @@ export class FollowManager {
       case "FOLLOW_SELECTION": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
-          this.currentLeaderSelection = msg.selectedText;
-          this.notifySelectionChange(msg.selectedText);
+          if (msg.selectedText && msg.selectedText.trim().length > 0) {
+            this.currentLeaderSelection = {
+              leaderId: msg.leaderId,
+              leaderAvatar: msg.leaderAvatar || currentFollowing.avatar || "🐸",
+              selectedText: msg.selectedText,
+              rect: msg.rect,
+              timestamp: msg.timestamp,
+            };
+          } else {
+            this.currentLeaderSelection = null;
+          }
+          this.notifySelectionChange(this.currentLeaderSelection);
         }
         break;
       }
@@ -434,7 +497,7 @@ export class FollowManager {
         this.pendingScrollBroadcast = false;
         this.broadcastCurrentScroll();
       }
-    }, 30);
+    }, 25);
   }
 
   /**
@@ -478,7 +541,7 @@ export class FollowManager {
       if (this.latestMouseCoords) {
         this.broadcastCursor(this.latestMouseCoords, false);
       }
-    }, 30);
+    }, 25);
   }
 
   /**
@@ -497,37 +560,66 @@ export class FollowManager {
         pageY: e.pageY,
         isHovering: true,
       },
-      true
+      true,
     );
   }
 
   /**
-   * Captures active text selections to broadcast to followers.
+   * Captures active text selections and bounding boxes to broadcast to followers.
    */
   private handleLocalSelection(): void {
     if (this.isDestroyed || this.store.getFollowerCount() === 0) {
       return;
     }
 
-    const sel = typeof window !== "undefined" ? window.getSelection()?.toString().trim() || "" : "";
-    if (sel.length > 0 && sel.length < 500) {
-      const message: FollowSelectionMessage = {
-        type: "FOLLOW_SELECTION",
-        roomId: this.roomId,
-        leaderId: this.peerId,
-        selectedText: sel,
-        timestamp: Date.now(),
-      };
-      this.transport.send(message);
+    const sel = typeof window !== "undefined" ? window.getSelection() : null;
+    const text = sel?.toString().trim() || "";
+    if (text.length > 0 && text.length < 500 && sel && sel.rangeCount > 0) {
+      try {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const message: FollowSelectionMessage = {
+          type: "FOLLOW_SELECTION",
+          roomId: this.roomId,
+          leaderId: this.peerId,
+          leaderAvatar: this.avatar,
+          selectedText: text,
+          rect: {
+            top: Math.round(rect.top),
+            left: Math.round(rect.left),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          },
+          timestamp: Date.now(),
+        };
+        this.transport.send(message);
+        return;
+      } catch {}
     }
+
+    const message: FollowSelectionMessage = {
+      type: "FOLLOW_SELECTION",
+      roomId: this.roomId,
+      leaderId: this.peerId,
+      leaderAvatar: this.avatar,
+      selectedText: "",
+      timestamp: Date.now(),
+    };
+    this.transport.send(message);
   }
 
   /**
    * Broadcasts live cursor position to followers.
    */
   private broadcastCursor(
-    coords: { clientX: number; clientY: number; pageX: number; pageY: number; isHovering: boolean },
-    isClicking = false
+    coords: {
+      clientX: number;
+      clientY: number;
+      pageX: number;
+      pageY: number;
+      isHovering: boolean;
+    },
+    isClicking = false,
   ): void {
     if (typeof window === "undefined" || this.isDestroyed) {
       return;
@@ -559,7 +651,11 @@ export class FollowManager {
    * Reads the current viewport scroll position and broadcasts to followers.
    */
   public broadcastCurrentScroll(): void {
-    if (typeof window === "undefined" || typeof document === "undefined" || this.isDestroyed) {
+    if (
+      typeof window === "undefined" ||
+      typeof document === "undefined" ||
+      this.isDestroyed
+    ) {
       return;
     }
 
@@ -604,11 +700,11 @@ export class FollowManager {
     let targetY = msg.scrollY;
     let targetX = msg.scrollX;
 
-    // If local document height differs significantly, use percentage interpolation
-    if (msg.maxScrollY > 0 && Math.abs(msg.maxScrollY - localMaxScrollY) > 60) {
+    // Percentage interpolation when page layout differs between devices
+    if (msg.maxScrollY > 0 && Math.abs(msg.maxScrollY - localMaxScrollY) > 50) {
       targetY = Math.round(msg.scrollPercentageY * localMaxScrollY);
     }
-    if (msg.maxScrollX > 0 && Math.abs(msg.maxScrollX - localMaxScrollX) > 60) {
+    if (msg.maxScrollX > 0 && Math.abs(msg.maxScrollX - localMaxScrollX) > 50) {
       targetX = Math.round(msg.scrollPercentageX * localMaxScrollX);
     }
 
@@ -616,27 +712,26 @@ export class FollowManager {
     this.targetScrollX = Math.max(0, Math.min(targetX, localMaxScrollX));
 
     this.isApplyingRemoteScroll = true;
-    if (this.remoteScrollResetTimer) {
-      clearTimeout(this.remoteScrollResetTimer);
-    }
 
-    // Start RAF-based smooth lerp scroll loop
+    // Start direct RAF-based smooth lerp scroll loop
     this.startSmoothScrollLoop();
-
-    // Reset suppression flag after smooth scroll transition completes
-    this.remoteScrollResetTimer = setTimeout(() => {
-      this.isApplyingRemoteScroll = false;
-      this.remoteScrollResetTimer = null;
-    }, 180);
   }
 
   /**
    * Linear Interpolation (Lerp) spring animation loop for butter-smooth viewport following.
+   * Uses behavior: 'auto' to prevent conflicts with host webpage smooth-scroll CSS.
    */
   private startSmoothScrollLoop(): void {
-    if (typeof window === "undefined" || typeof requestAnimationFrame === "undefined") {
+    if (
+      typeof window === "undefined" ||
+      typeof requestAnimationFrame === "undefined"
+    ) {
       try {
-        window.scrollTo({ top: this.targetScrollY, left: this.targetScrollX, behavior: "smooth" });
+        window.scrollTo({
+          top: this.targetScrollY,
+          left: this.targetScrollX,
+          behavior: "auto",
+        });
       } catch {
         window.scrollTo(this.targetScrollX, this.targetScrollY);
       }
@@ -648,7 +743,10 @@ export class FollowManager {
     }
 
     const step = () => {
-      if (this.isDestroyed) return;
+      if (this.isDestroyed) {
+        this.isApplyingRemoteScroll = false;
+        return;
+      }
 
       const currentY = window.scrollY || window.pageYOffset || 0;
       const currentX = window.scrollX || window.pageXOffset || 0;
@@ -656,17 +754,24 @@ export class FollowManager {
       const diffY = this.targetScrollY - currentY;
       const diffX = this.targetScrollX - currentX;
 
-      if (Math.abs(diffY) < 1 && Math.abs(diffX) < 1) {
-        window.scrollTo(this.targetScrollX, this.targetScrollY);
+      if (Math.abs(diffY) < 1.5 && Math.abs(diffX) < 1.5) {
+        window.scrollTo({
+          top: this.targetScrollY,
+          left: this.targetScrollX,
+          behavior: "auto",
+        });
         this.smoothScrollRafId = null;
+        setTimeout(() => {
+          this.isApplyingRemoteScroll = false;
+        }, 80);
         return;
       }
 
-      // Smooth dampening factor (0.24 provides snappy yet organic glide)
-      const nextY = currentY + diffY * 0.24;
-      const nextX = currentX + diffX * 0.24;
+      // Smooth dampening factor (0.22) with direct pixel positioning
+      const nextY = Math.round(currentY + diffY * 0.22);
+      const nextX = Math.round(currentX + diffX * 0.22);
 
-      window.scrollTo(nextX, nextY);
+      window.scrollTo({ top: nextY, left: nextX, behavior: "auto" });
       this.smoothScrollRafId = requestAnimationFrame(step);
     };
 
@@ -728,7 +833,7 @@ export class FollowManager {
     }
   }
 
-  private notifySelectionChange(selection: string): void {
+  private notifySelectionChange(selection: FollowSelectionState | null): void {
     for (const listener of this.selectionListeners) {
       try {
         listener(selection);

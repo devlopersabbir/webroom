@@ -5,12 +5,12 @@ import {
   FollowCursorState,
   FollowManager,
   FollowSelectionListener,
+  FollowSelectionState,
   FollowStateListener,
 } from "../follow/follow-manager";
 import { FollowPeerInfo } from "../follow/follow-store";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { getRandomAvatar } from "../shared/constants";
-import { BroadcastChannelTransport } from "../transport/broadcast-channel";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
 import {
@@ -42,7 +42,8 @@ export function generatePeerId(): string {
   const uuid =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
-      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      : Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15);
   return `peer_${uuid.replace(/-/g, "").substring(0, 12)}`;
 }
 
@@ -71,7 +72,7 @@ export class Room {
     presenceManager: PresenceManager,
     chatManager: ChatManager,
     voiceManager: VoiceManager,
-    followManager: FollowManager
+    followManager: FollowManager,
   ) {
     this.url = url;
     this.canonicalUrl = canonicalUrl;
@@ -88,7 +89,10 @@ export class Room {
   /**
    * Initializes and joins a room for the given webpage URL.
    */
-  public static async join(url: string, options: RoomOptions = {}): Promise<Room> {
+  public static async join(
+    url: string,
+    options: RoomOptions = {},
+  ): Promise<Room> {
     const canonicalUrl = canonicalizeUrl(url);
     const roomId = await getRoomId(canonicalUrl);
     const peerId = options.customPeerId || generatePeerId();
@@ -98,7 +102,13 @@ export class Room {
       ? options.transportFactory(roomId)
       : new HybridTransport(roomId);
 
-    const presenceManager = new PresenceManager(roomId, peerId, transport, undefined, avatar);
+    const presenceManager = new PresenceManager(
+      roomId,
+      peerId,
+      transport,
+      undefined,
+      avatar,
+    );
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
     const voiceManager = new VoiceManager(roomId, peerId, transport);
     const followManager = new FollowManager(roomId, peerId, avatar, transport);
@@ -128,7 +138,7 @@ export class Room {
       presenceManager,
       chatManager,
       voiceManager,
-      followManager
+      followManager,
     );
   }
 
@@ -156,11 +166,13 @@ export class Room {
       isSelf: true,
     };
 
-    const remoteParticipants: Participant[] = this.presenceManager.getPeers().map((peer) => ({
-      peerId: peer.peerId,
-      avatar: peer.avatar || "🐸",
-      isSelf: false,
-    }));
+    const remoteParticipants: Participant[] = this.presenceManager
+      .getPeers()
+      .map((peer) => ({
+        peerId: peer.peerId,
+        avatar: peer.avatar || "🐸",
+        isSelf: false,
+      }));
 
     return [selfParticipant, ...remoteParticipants];
   }
@@ -290,6 +302,13 @@ export class Room {
   }
 
   /**
+   * Returns the current leader's live text selection state, or null.
+   */
+  public getLeaderSelection(): FollowSelectionState | null {
+    return this.followManager.getLeaderSelection();
+  }
+
+  /**
    * Subscribes to live mouse cursor updates from the leader.
    */
   public onFollowCursor(listener: FollowCursorListener): () => void {
@@ -313,6 +332,3 @@ export class Room {
     this.chatManager.destroy();
   }
 }
-
-
-

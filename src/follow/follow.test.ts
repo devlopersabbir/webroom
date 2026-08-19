@@ -311,7 +311,7 @@ describe("FollowManager Coordination", () => {
 
     followerManager.followUser("peer_leader", "🦊");
 
-    let receivedSelection = "";
+    let receivedSelection: any = null;
     followerManager.onSelectionChange((sel) => {
       receivedSelection = sel;
     });
@@ -321,11 +321,13 @@ describe("FollowManager Coordination", () => {
       type: "FOLLOW_SELECTION",
       roomId: "room_1",
       leaderId: "peer_leader",
+      leaderAvatar: "🦊",
       selectedText: "Hello WebRoom Live Follow!",
       timestamp: Date.now(),
     });
 
-    expect(receivedSelection).toBe("Hello WebRoom Live Follow!");
+    expect(receivedSelection).not.toBeNull();
+    expect(receivedSelection.selectedText).toBe("Hello WebRoom Live Follow!");
 
     followerManager.destroy();
   });

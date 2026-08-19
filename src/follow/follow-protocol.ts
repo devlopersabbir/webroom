@@ -56,11 +56,20 @@ export interface FollowCursorMessage {
   timestamp: number;
 }
 
+export interface SelectionRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 export interface FollowSelectionMessage {
   type: "FOLLOW_SELECTION";
   roomId: string;
   leaderId: string;
+  leaderAvatar?: string;
   selectedText: string;
+  rect?: SelectionRect;
   timestamp: number;
 }
 
