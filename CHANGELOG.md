@@ -1,3 +1,11 @@
+# [1.4.0](https://github.com/devlopersabbir/webroom/compare/v1.3.0...v1.4.0) (2026-08-19)
+
+
+### Features
+
+* implement follow mode protocol, manager, and UI components ([97b85ff](https://github.com/devlopersabbir/webroom/commit/97b85ff88870a309cd49cae8ad39cf97aaf0d211))
+* integrate trystero p2p transport and implement Room connection logic ([22fb77d](https://github.com/devlopersabbir/webroom/commit/22fb77d005af622cc233c82bf22ddf2dad909ab3))
+
 # [1.3.0](https://github.com/devlopersabbir/webroom/compare/v1.2.0...v1.3.0) (2026-08-19)
 
 
