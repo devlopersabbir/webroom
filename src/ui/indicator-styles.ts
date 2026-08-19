@@ -573,6 +573,12 @@ export const INDICATOR_STYLES = `
   flex-shrink: 0;
 }
 
+.webroom-composer-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 .webroom-composer {
   display: flex;
   align-items: flex-end;
@@ -642,4 +648,213 @@ export const INDICATOR_STYLES = `
 .webroom-send-active:active {
   transform: scale(0.95);
 }
+
+.webroom-emoji-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  outline: none;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.webroom-emoji-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.08);
+}
+
+.webroom-emoji-btn:active {
+  transform: scale(0.95);
+}
+
+.webroom-emoji-btn-active {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+/* ==========================================================================
+   Emoji Picker Popup Component
+   ========================================================================== */
+
+.webroom-emoji-picker {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  z-index: 100;
+  width: 290px;
+  height: 270px;
+  background: rgba(18, 18, 24, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  box-shadow: 
+    0 16px 36px rgba(0, 0, 0, 0.6),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  overflow: hidden;
+  animation: webroom-emoji-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom left;
+}
+
+@keyframes webroom-emoji-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.webroom-emoji-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 10, 14, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.webroom-emoji-search-icon {
+  font-size: 11px;
+  opacity: 0.6;
+  user-select: none;
+}
+
+.webroom-emoji-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f3f4f6;
+  font-family: inherit;
+  font-size: 11.5px;
+}
+
+.webroom-emoji-search-input::placeholder {
+  color: #6b7280;
+}
+
+.webroom-emoji-search-clear {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+.webroom-emoji-search-clear:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.webroom-emoji-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.webroom-emoji-tab-btn {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.webroom-emoji-tab-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.webroom-emoji-tab-active {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.webroom-emoji-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.webroom-emoji-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.webroom-emoji-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.webroom-emoji-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, background 0.15s ease;
+  user-select: none;
+}
+
+.webroom-emoji-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.22);
+}
+
+.webroom-emoji-item:active {
+  transform: scale(0.95);
+}
+
+.webroom-emoji-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 11.5px;
+  color: #6b7280;
+  text-align: center;
+}
 `;
+
