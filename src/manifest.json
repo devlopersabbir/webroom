@@ -1,11 +1,13 @@
 {
+  "name": "WebRoom",
+  "description": "Decentralized real-time presence layer for every webpage. See active peers on the same URL.",
+  "homepage_url": "https://github.com/devlopersabbir/webroom",
   "{{chrome}}.manifest_version": 3,
   "{{firefox}}.manifest_version": 3,
   "icons": {
     "16": "icon/16.png",
     "32": "icon/32.png",
     "48": "icon/48.png",
-    "96": "icon/96.png",
     "128": "icon/128.png"
   },
   "background": {
