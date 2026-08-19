@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/devlopersabbir/webroom/compare/v1.5.0...v1.6.0) (2026-08-19)
+
+
+### Features
+
+* implement WebRTC-based voice communication with microphone, speaker, and speech detection support ([f0d2da6](https://github.com/devlopersabbir/webroom/commit/f0d2da66adeb25051d22689d448a2362f1c422ac))
+
 # [1.5.0](https://github.com/devlopersabbir/webroom/compare/v1.4.0...v1.5.0) (2026-08-19)
 
 
