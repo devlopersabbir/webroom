@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/devlopersabbir/webroom/compare/v1.4.0...v1.5.0) (2026-08-19)
+
+
+### Features
+
+* implement background WebSocket bridge to bypass CSP restrictions for signaling ([f07fd91](https://github.com/devlopersabbir/webroom/commit/f07fd919b2464b14bceb15bd1fc1d098f6532ffc))
+
 # [1.4.0](https://github.com/devlopersabbir/webroom/compare/v1.3.0...v1.4.0) (2026-08-19)
 
 
