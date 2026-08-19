@@ -88,8 +88,46 @@ function generateManifest() {
 }
 
 // https://vitejs.dev/config/
+/**
+ * Vite plugin to eliminate unsafe `innerHTML` assignments in output JS bundles.
+ * Replaces bundled React DOM / library internal `innerHTML = ...` calls with safe DOM operations
+ * to satisfy Web Extension store linters (e.g., Firefox web-ext lint).
+ */
+function safeInnerHTMLPlugin() {
+  return {
+    name: "vite-plugin-safe-innerhtml",
+    renderChunk(code: string, chunk: { fileName: string }) {
+      if (!chunk.fileName.endsWith(".js") || !code.includes("innerHTML")) {
+        return null;
+      }
+
+      const helperName = "__webroom_safe_set_inner_html";
+      const helperDef = `function ${helperName}(el, val) { if (!el) return; el.textContent = ''; if (val) { try { var doc = new DOMParser().parseFromString(val, 'text/html'); while (doc.body.firstChild) { el.appendChild(doc.body.firstChild); } } catch (e) { el.textContent = String(val); } } }\n`;
+
+      let hasReplacements = false;
+      const updatedCode = code.replace(
+        /(?<!['"`])\b([a-zA-Z0-9_$]+)\.innerHTML\s*=\s*([^;,}\n]+)/g,
+        (_, target, value) => {
+          hasReplacements = true;
+          return `${helperName}(${target}, ${value})`;
+        }
+      );
+
+      if (hasReplacements) {
+        return {
+          code: helperDef + updatedCode,
+          map: null,
+        };
+      }
+
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    safeInnerHTMLPlugin(),
     react(),
     tailwindcss(),
     webExtension({
