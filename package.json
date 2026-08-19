@@ -41,6 +41,8 @@
     "build": "tsc && vite build",
     "test": "vitest",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "lint:firefox": "bun run build:firefox && bunx web-ext lint --source-dir=dist",
+    "deploy:firefox": "bun ./scripts/deploy-firefox.ts",
     "zip:chrome": "bun run build:chrome && bun ./zip.ts TARGET=chrome",
     "zip:firefox": "bun run build:firefox && bun ./zip.ts TARGET=firefox",
     "build:chrome": "cross-env TARGET=chrome tsc && vite build",
@@ -58,10 +60,12 @@
     "@types/react-dom": "^18.0.9",
     "@types/webextension-polyfill": "^0.10.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "cross-env": "^10.1.0",
     "typescript": "~5.6.3",
     "vite": "^5.0.0",
     "vite-plugin-web-extension": "^4.0.0",
     "vitest": "^4.1.11",
+    "web-ext": "^10.6.0",
     "webextension-polyfill": "^0.10.0"
   }
 }

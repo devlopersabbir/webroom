@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+sources.zip
+release/
 
 # Editor directories and files
 .vscode/*
@@ -26,3 +28,5 @@ dist-ssr
 # Config files
 .webextrc
 .webextrc.*
+
+secret.txt
