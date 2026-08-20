@@ -146,6 +146,15 @@ function extensionSecuritySanitizerPlugin() {
         hasReplacements = true;
       }
 
+      // 5. Sanitize worker-timers in MQTT to use native timers instead of blob: workers (avoids webpage CSP violations)
+      if (updatedCode.includes("isReactNativeBrowser") && updatedCode.includes("isWebWorker")) {
+        updatedCode = updatedCode.replace(
+          /return\s+([a-zA-Z0-9_$]+)\.default\s*&&\s*!\1\.isWebWorker\s*&&\s*!\1\.isReactNativeBrowser\s*\?\s*([a-zA-Z0-9_$]+)\s*:\s*([a-zA-Z0-9_$]+)/g,
+          "return $3",
+        );
+        hasReplacements = true;
+      }
+
       if (hasReplacements) {
         return {
           code: updatedCode,
