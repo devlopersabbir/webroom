@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/devlopersabbir/webroom/compare/v1.12.0...v1.12.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement Trystero-based decentralized WebRTC transport with background relay support ([87d2534](https://github.com/devlopersabbir/webroom/commit/87d2534aa6315164ad588ed92611ef1b6e5a4ebb))
+
 # [1.12.0](https://github.com/devlopersabbir/webroom/compare/v1.11.1...v1.12.0) (2026-08-20)
 
 
