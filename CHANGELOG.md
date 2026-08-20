@@ -5,6 +5,15 @@
 
 * implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
 * implement TrysteroTorrentTransport for decentralized peer-to-peer WebRTC communication ([c7d5874](https://github.com/devlopersabbir/webroom/commit/c7d58745bb13e0f59f8ca76781790cdc86198d22))
+* merge issues ([69ba769](https://github.com/devlopersabbir/webroom/commit/69ba769972932797fb726c8121d81c25ffedaf32))
+
+## [1.13.1](https://github.com/devlopersabbir/webroom/compare/v1.13.0...v1.13.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
+* implement TrysteroTorrentTransport for decentralized peer-to-peer WebRTC communication ([c7d5874](https://github.com/devlopersabbir/webroom/commit/c7d58745bb13e0f59f8ca76781790cdc86198d22))
 
 # [1.13.0](https://github.com/devlopersabbir/webroom/compare/v1.12.1...v1.13.0) (2026-08-20)
 
