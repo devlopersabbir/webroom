@@ -1,3 +1,10 @@
+## [1.13.2](https://github.com/devlopersabbir/webroom/compare/v1.13.1...v1.13.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
+
 ## [1.13.1](https://github.com/devlopersabbir/webroom/compare/v1.13.0...v1.13.1) (2026-08-20)
 
 
