@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/devlopersabbir/webroom/compare/v1.12.1...v1.13.0) (2026-08-20)
+
+
+### Features
+
+* implement decentralized WebRTC transport using Trystero and background WebSocket bridge ([f02d2c2](https://github.com/devlopersabbir/webroom/commit/f02d2c281c4132e72ad6c4b523140fff510190b8))
+
 ## [1.12.1](https://github.com/devlopersabbir/webroom/compare/v1.12.0...v1.12.1) (2026-08-20)
 
 
