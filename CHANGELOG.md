@@ -1,3 +1,10 @@
+## [1.13.6](https://github.com/devlopersabbir/webroom/compare/v1.13.5...v1.13.6) (2026-08-20)
+
+
+### Bug Fixes
+
+* update description text in package.json ([a2ffd14](https://github.com/devlopersabbir/webroom/commit/a2ffd14b7784752fc16672c2cc0a6f365e8d991f))
+
 ## [1.13.5](https://github.com/devlopersabbir/webroom/compare/v1.13.4...v1.13.5) (2026-08-20)
 
 
