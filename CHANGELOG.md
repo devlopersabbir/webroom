@@ -1,3 +1,12 @@
+## [1.7.1](https://github.com/devlopersabbir/webroom/compare/v1.7.0...v1.7.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* prepare release v1.7.1 ([d45fe76](https://github.com/devlopersabbir/webroom/commit/d45fe765bfd971bd4c94118685a4bfd6a764e70d))
+* trigger v1.7.1 release ([226a9b9](https://github.com/devlopersabbir/webroom/commit/226a9b95f998ff46e21570dc3e9b4267e8feca6e))
+* trigger v1.7.1 release ([96ad09c](https://github.com/devlopersabbir/webroom/commit/96ad09c3ae1d41fb9489ceef417242c706d92619))
+
 # [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
 
 
