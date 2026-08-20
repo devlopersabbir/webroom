@@ -135,6 +135,7 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     if (!isValidWebRoomMessage(data, this.roomId)) {
+      console.warn(`[WebRoom Trystero] Received invalid message payload for room ${this.roomId}:`, data);
       return;
     }
 
@@ -159,6 +160,8 @@ export class TrysteroTorrentTransport implements Transport {
         if (val) this.seenMessageSignatures.delete(val);
       }
     }
+
+    console.log(`[WebRoom Trystero] Received ${(data as any).type} from remote peer ${remotePeerId} (payload peerId: ${pId})`);
 
     for (const handler of this.handlers) {
       try {

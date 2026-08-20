@@ -54,6 +54,7 @@ export class HybridTransport implements Transport {
 
     this.localTransport.send(message);
     this.remoteTransport.send(message);
+    console.log(`[WebRoom Hybrid] Dispatched ${message.type} packet to local (BroadcastChannel) & remote (MQTT WebRTC)`);
   }
 
   public onMessage(handler: MessageHandler): () => void {

@@ -161,6 +161,7 @@ export class BackgroundWebSocket extends EventTarget {
   private handleOpen(): void {
     if (this.readyState !== WS_CONNECTING) return;
     this.readyState = WS_OPEN;
+    console.log(`[WebRoom WS Bridge] Bridge WebSocket connected to: ${this.url}`);
 
     const event = new Event("open");
     if (this.onopen) {
@@ -180,6 +181,7 @@ export class BackgroundWebSocket extends EventTarget {
   }
 
   private handleError(errorDetails: any): void {
+    console.warn(`[WebRoom WS Bridge] Bridge WebSocket error on ${this.url}:`, errorDetails);
     const event = new Event("error");
     (event as any).error = errorDetails;
     if (this.onerror) {
@@ -192,6 +194,7 @@ export class BackgroundWebSocket extends EventTarget {
     if (this.readyState === WS_CLOSED) return;
     this.readyState = WS_CLOSED;
     this.isCleanClosed = wasClean;
+    console.log(`[WebRoom WS Bridge] Bridge WebSocket closed on ${this.url} (code: ${code}, reason: "${reason}")`);
 
     const event = new CloseEvent("close", {
       code,

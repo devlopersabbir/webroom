@@ -60,8 +60,16 @@ export class PresenceManager {
     // Start transport
     this.transport.start();
 
-    // Broadcast initial HELLO to announce ourselves to existing peers
+    // Broadcast initial HELLO with warmup pulses to guarantee discovery once signaling connects
     this.broadcastMessage("HELLO");
+    const warmupDelays = [1000, 2500, 5000];
+    for (const delay of warmupDelays) {
+      setTimeout(() => {
+        if (!this.isDestroyed) {
+          this.broadcastMessage("HELLO");
+        }
+      }, delay);
+    }
 
     // Periodic heartbeat to keep presence alive across peers
     this.heartbeatTimer = setInterval(() => {
@@ -187,6 +195,7 @@ export class PresenceManager {
         // A new peer joined. Update their presence using local receiver timestamp
         // and immediately reply with HEARTBEAT so the new peer discovers us.
         const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
+        console.log(`[WebRoom Presence] Received HELLO from peer: ${msg.peerId} (new: ${isNew})`);
         this.broadcastMessage("HEARTBEAT");
         if (isNew) {
           this.notifyCountChange();
@@ -198,6 +207,7 @@ export class PresenceManager {
       case "HEARTBEAT": {
         const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
         if (isNew) {
+          console.log(`[WebRoom Presence] Discovered new peer via HEARTBEAT: ${msg.peerId}`);
           this.notifyCountChange();
           this.notifyPeerJoin(msg.peerId);
         }
@@ -207,6 +217,7 @@ export class PresenceManager {
       case "GOODBYE": {
         const removed = this.peerStore.removePeer(msg.peerId);
         if (removed) {
+          console.log(`[WebRoom Presence] Peer left room: ${msg.peerId}`);
           this.notifyCountChange();
           this.notifyPeerLeave(msg.peerId);
         }
