@@ -12,13 +12,6 @@ function getExtensionRuntime(): any {
 
 const runtime = getExtensionRuntime();
 
-console.log("[WebRoom] Background service worker initialized");
-
-if (runtime && runtime.onInstalled) {
-  runtime.onInstalled.addListener((details: any) => {
-    console.log("[WebRoom] Extension installed/updated:", details);
-  });
-}
 
 /**
  * Background WebSocket Relay for Decentralized WebRTC Signaling.
@@ -76,7 +69,6 @@ if (runtime && runtime.onConnect) {
 
             socket.onopen = () => {
               if (isPortClosed) return;
-              console.log("[WebRoom Background WS] Connected to relay:", url);
               try {
                 port.postMessage({
                   type: "open",

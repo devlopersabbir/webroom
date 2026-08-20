@@ -161,7 +161,6 @@ export class BackgroundWebSocket extends EventTarget {
   private handleOpen(): void {
     if (this.readyState !== WS_CONNECTING) return;
     this.readyState = WS_OPEN;
-    console.log(`[WebRoom WS Bridge] Bridge WebSocket connected to: ${this.url}`);
 
     const event = new Event("open");
     if (this.onopen) {
@@ -194,7 +193,6 @@ export class BackgroundWebSocket extends EventTarget {
     if (this.readyState === WS_CLOSED) return;
     this.readyState = WS_CLOSED;
     this.isCleanClosed = wasClean;
-    console.log(`[WebRoom WS Bridge] Bridge WebSocket closed on ${this.url} (code: ${code}, reason: "${reason}")`);
 
     const event = new CloseEvent("close", {
       code,
@@ -287,6 +285,5 @@ export function installWebSocketBridge(): void {
     (BackgroundWebSocket as any)._NativeWebSocket = originalWS;
     globalScope.WebSocket = BackgroundWebSocket as any;
     isBridgeInstalled = true;
-    console.log("[WebRoom] Background WebSocket Bridge successfully installed (CSP-immune signaling enabled)");
   }
 }

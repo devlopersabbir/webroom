@@ -195,7 +195,6 @@ export class PresenceManager {
         // A new peer joined. Update their presence using local receiver timestamp
         // and immediately reply with HEARTBEAT so the new peer discovers us.
         const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
-        console.log(`[WebRoom Presence] Received HELLO from peer: ${msg.peerId} (new: ${isNew})`);
         this.broadcastMessage("HEARTBEAT");
         if (isNew) {
           this.notifyCountChange();
@@ -207,7 +206,6 @@ export class PresenceManager {
       case "HEARTBEAT": {
         const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
         if (isNew) {
-          console.log(`[WebRoom Presence] Discovered new peer via HEARTBEAT: ${msg.peerId}`);
           this.notifyCountChange();
           this.notifyPeerJoin(msg.peerId);
         }
@@ -217,7 +215,6 @@ export class PresenceManager {
       case "GOODBYE": {
         const removed = this.peerStore.removePeer(msg.peerId);
         if (removed) {
-          console.log(`[WebRoom Presence] Peer left room: ${msg.peerId}`);
           this.notifyCountChange();
           this.notifyPeerLeave(msg.peerId);
         }
