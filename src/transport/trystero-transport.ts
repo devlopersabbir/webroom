@@ -13,7 +13,6 @@ export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 export const DEFAULT_RELAY_URLS = [
   "wss://broker.emqx.io:8084/mqtt",
   "wss://broker.hivemq.com:8884/mqtt",
-  "wss://test.mosquitto.org:8081/mqtt",
 ];
 
 /**

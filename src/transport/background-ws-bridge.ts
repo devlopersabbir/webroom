@@ -138,7 +138,16 @@ export class BackgroundWebSocket extends EventTarget {
         this.handleOpen();
         break;
       case "message":
-        this.handleMessage(msg.data);
+        if (msg.isBinary && typeof msg.data === "string") {
+          const len = msg.data.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = msg.data.charCodeAt(i);
+          }
+          this.handleMessage(bytes.buffer);
+        } else {
+          this.handleMessage(msg.data);
+        }
         break;
       case "error":
         this.handleError(msg.error || "WebSocket error in background");
