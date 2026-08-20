@@ -1,3 +1,10 @@
+## [1.13.4](https://github.com/devlopersabbir/webroom/compare/v1.13.3...v1.13.4) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement TrysteroTorrentTransport for decentralized WebRTC communication ([2872a0b](https://github.com/devlopersabbir/webroom/commit/2872a0b0fb704f2d25ce94db7866e7638d8dadb7))
+
 ## [1.13.3](https://github.com/devlopersabbir/webroom/compare/v1.13.2...v1.13.3) (2026-08-20)
 
 
