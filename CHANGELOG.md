@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/devlopersabbir/webroom/compare/v1.11.1...v1.12.0) (2026-08-20)
+
+
+### Features
+
+* implement decentralized WebRTC transport using Trystero and Nostr relay discovery ([e2f448f](https://github.com/devlopersabbir/webroom/commit/e2f448f3aab86b94868a2b1ccb04a12aaacba23f))
+
 ## [1.11.1](https://github.com/devlopersabbir/webroom/compare/v1.11.0...v1.11.1) (2026-08-20)
 
 
