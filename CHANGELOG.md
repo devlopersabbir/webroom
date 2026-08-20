@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/devlopersabbir/webroom/compare/v1.10.0...v1.11.0) (2026-08-20)
+
+
+### Features
+
+* implement core room orchestration, transport layer, and presence management system ([72da0d4](https://github.com/devlopersabbir/webroom/commit/72da0d4c01efaa5be46f49683af7ea1754e2599a))
+
 # [1.10.0](https://github.com/devlopersabbir/webroom/compare/v1.9.0...v1.10.0) (2026-08-20)
 
 
