@@ -22,6 +22,18 @@
 
 * implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
 
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+
 # [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-19)
 
 
