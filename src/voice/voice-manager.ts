@@ -348,7 +348,6 @@ export class VoiceManager {
       return null;
     }
 
-    console.log(`[WebRoom Voice] Initializing Voice RTCPeerConnection for peer: ${remotePeerId}`);
     const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
     this.peerConnections.set(remotePeerId, pc);
 

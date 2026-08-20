@@ -74,7 +74,6 @@ export class TrysteroTorrentTransport implements Transport {
     installWebSocketBridge();
 
     try {
-      console.log(`[WebRoom] Initializing decentralized room for hash: ${this.roomId.slice(0, 12)}...`);
       this.room = joinRoom(
         {
           appId: WEBROOM_APP_ID,
@@ -98,8 +97,6 @@ export class TrysteroTorrentTransport implements Transport {
       };
 
       this.room.onPeerJoin = (peerId: string) => {
-        console.log(`[WebRoom Trystero] Remote WebRTC peer joined room ${this.roomId}: ${peerId}`);
-        
         // Immediately dispatch peer discovery to all local handlers (PresenceManager, VoiceManager)
         for (const handler of this.handlers) {
           try {
@@ -116,8 +113,6 @@ export class TrysteroTorrentTransport implements Transport {
       };
 
       this.room.onPeerLeave = (peerId: string) => {
-        console.log(`[WebRoom Trystero] Remote WebRTC peer left room ${this.roomId}: ${peerId}`);
-        
         for (const handler of this.handlers) {
           try {
             handler({
@@ -210,8 +205,6 @@ export class TrysteroTorrentTransport implements Transport {
         if (val) this.seenMessageSignatures.delete(val);
       }
     }
-
-    console.log(`[WebRoom Trystero] Received ${(data as any).type} from remote peer ${remotePeerId} (payload peerId: ${pId})`);
 
     for (const handler of this.handlers) {
       try {
