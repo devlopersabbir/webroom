@@ -14,7 +14,6 @@ export const DEFAULT_RELAY_URLS = [
   "wss://nostr.mom",
   "wss://relay.snort.social",
   "wss://relay.primal.net",
-  "wss://nostr.bitcoiner.social",
 ];
 
 /**
