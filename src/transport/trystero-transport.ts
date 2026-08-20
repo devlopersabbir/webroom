@@ -11,9 +11,10 @@ export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 export const DEFAULT_RELAY_URLS = [
   "wss://nos.lol",
   "wss://purplerelay.com",
-  "wss://nostr.mom",
-  "wss://relay.snort.social",
   "wss://relay.primal.net",
+  "wss://relay.snort.social",
+  "wss://nostr.data.haus",
+  "wss://schnorr.me",
 ];
 
 /**
