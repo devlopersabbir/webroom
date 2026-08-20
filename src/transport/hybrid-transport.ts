@@ -112,7 +112,12 @@ export class HybridTransport implements Transport {
       (msg as any).followerId ||
       (msg as any).leaderId ||
       "unknown";
+    const target = (msg as any).targetPeerId ? `_tgt_${(msg as any).targetPeerId}` : "";
+    const sdpType = (msg as any).sdp?.type ? `_sdp_${(msg as any).sdp.type}` : "";
+    const cand = (msg as any).candidate
+      ? `_cand_${(msg as any).candidate.candidate || (msg as any).candidate.sdpMid || (msg as any).candidate.sdpMLineIndex || ""}`
+      : "";
     const extra = (msg as any).id || (msg as any).text || (msg as any).scrollY || "";
-    return `${msg.type}_${pId}_${msg.timestamp}_${extra}`;
+    return `${msg.type}_${pId}_${msg.timestamp}_${extra}${target}${sdpType}${cand}`;
   }
 }

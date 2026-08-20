@@ -1,4 +1,3 @@
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { Room } from "../room/room";
 import { installWebSocketBridge } from "../transport/background-ws-bridge";
