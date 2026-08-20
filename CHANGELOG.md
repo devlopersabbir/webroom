@@ -1,3 +1,10 @@
+## [1.11.1](https://github.com/devlopersabbir/webroom/compare/v1.11.0...v1.11.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* sanitize MQTT worker-timers to use native timers and avoid CSP violations ([de71316](https://github.com/devlopersabbir/webroom/commit/de713166e175fc84e308ba05594c952042f907bf))
+
 # [1.11.0](https://github.com/devlopersabbir/webroom/compare/v1.10.0...v1.11.0) (2026-08-20)
 
 
