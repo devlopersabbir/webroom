@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/devlopersabbir/webroom/compare/v1.8.0...v1.9.0) (2026-08-20)
+
+
+### Features
+
+* implement Trystero MQTT transport and enhance Vite security sanitizer for extension store compliance ([51d7b82](https://github.com/devlopersabbir/webroom/commit/51d7b8274abb34a2e0d148a83608f3318cb812a3))
+
 # [1.8.0](https://github.com/devlopersabbir/webroom/compare/v1.7.1...v1.8.0) (2026-08-20)
 
 
