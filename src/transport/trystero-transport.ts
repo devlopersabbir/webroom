@@ -1,4 +1,5 @@
-import { joinRoom, Room as TrysteroRoom } from "@trystero-p2p/torrent";
+import { joinRoom } from "@trystero-p2p/mqtt";
+import type { Room as TrysteroRoom } from "@trystero-p2p/core";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { MessageHandler, Transport } from "./transport";
@@ -6,13 +7,12 @@ import { MessageHandler, Transport } from "./transport";
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
 /**
- * Verified active WebTorrent WebRTC signaling trackers.
- * WebTorrent trackers match peers directly without Nostr timestamp expiration or MQTT worker constraints.
+ * Public high-availability decentralized MQTT WebRTC signaling broker pool.
+ * MQTT brokers support live bidirectional topic multiplexing without timestamp expirations.
  */
 export const DEFAULT_RELAY_URLS = [
-  "wss://tracker.openwebtorrent.com",
-  "wss://tracker.webtorrent.dev",
-  "wss://open.ftorrent.com",
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt",
 ];
 
 /**
