@@ -2,7 +2,7 @@
   "name": "webroom",
   "displayName": "WebRoom",
   "description": "Decentralized real-time presence layer for every webpage. See how many people are browsing the same page as you in real time.",
-  "version": "1.7.0",
+  "version": "1.7.2",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -38,7 +38,20 @@
       }
     ],
     "plugins": [
-      "@semantic-release/commit-analyzer",
+      [
+        "@semantic-release/commit-analyzer",
+        {
+          "preset": "angular",
+          "releaseRules": [
+            { "type": "fix", "release": "patch" },
+            { "type": "perf", "release": "patch" },
+            { "type": "refactor", "release": "patch" },
+            { "type": "style", "release": "patch" },
+            { "type": "docs", "release": "patch" },
+            { "type": "chore", "release": "patch" }
+          ]
+        }
+      ],
       "@semantic-release/release-notes-generator",
       [
         "@semantic-release/changelog",

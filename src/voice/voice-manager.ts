@@ -26,9 +26,15 @@ const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:global.stun.twilio.com:3478" },
 ];
 
+interface RemoteVoiceState {
+  isMicOn: boolean;
+  isSpeakerOn: boolean;
+}
+
 /**
  * Coordinates WebRTC real-time voice communication across peers in a WebRoom.
- * Supports independent microphone/speaker toggling, mesh signaling, and speech detection.
+ * Supports independent microphone/speaker toggling, on-demand lazy mesh scaling,
+ * WebRTC Perfect Negotiation (glare-free), and speech detection.
  */
 export class VoiceManager {
   public readonly roomId: string;
@@ -42,7 +48,10 @@ export class VoiceManager {
   private localStream: MediaStream | null = null;
   private localAnalyser: StreamAudioAnalyser | null = null;
 
+  private knownPeers = new Set<string>();
+  private remoteVoiceStates = new Map<string, RemoteVoiceState>();
   private peerConnections = new Map<string, RTCPeerConnection>();
+  private makingOffer = new Map<string, boolean>();
   private pendingCandidates = new Map<string, RTCIceCandidateInit[]>();
   private remoteAudioElements = new Map<string, HTMLAudioElement>();
   private remoteAnalysers = new Map<string, StreamAudioAnalyser>();
@@ -107,6 +116,7 @@ export class VoiceManager {
   /**
    * Toggles the user's microphone state.
    * If turning ON and stream does not exist, requests microphone permission.
+   * Lazily synchronizes WebRTC peer connections with all active peers.
    */
   public async toggleMicrophone(): Promise<boolean> {
     if (this.isDestroyed) {
@@ -125,6 +135,9 @@ export class VoiceManager {
       this.notifySpeakingListeners();
       this.broadcastVoiceState();
       this.notifyStateListeners();
+
+      // Synchronize connections (tear down idle connections if neither speaking nor listening)
+      this.syncAllPeerConnections();
       return false;
     }
 
@@ -171,27 +184,6 @@ export class VoiceManager {
           }
           this.notifySpeakingListeners();
         });
-
-        // Add tracks to all existing peer connections
-        if (audioTrack) {
-          for (const [targetPeerId, pc] of this.peerConnections) {
-            const senders = pc.getSenders();
-            const existingSender = senders.find((s) => s.track && s.track.kind === "audio");
-            if (existingSender) {
-              existingSender.replaceTrack(audioTrack).catch((err) => {
-                console.warn(`[WebRoom Voice] Error replacing audio track for peer ${targetPeerId}:`, err);
-              });
-            } else {
-              try {
-                pc.addTrack(audioTrack, stream);
-                // Renegotiate offer
-                this.initiateOffer(targetPeerId, pc);
-              } catch (err) {
-                console.warn(`[WebRoom Voice] Error adding audio track to peer ${targetPeerId}:`, err);
-              }
-            }
-          }
-        }
       } else {
         // Re-enable existing live tracks
         this.localStream.getAudioTracks().forEach((track) => {
@@ -203,6 +195,9 @@ export class VoiceManager {
       this.isMicAvailable = true;
       this.broadcastVoiceState();
       this.notifyStateListeners();
+
+      // Synchronize connections across all known peers
+      await this.syncAllPeerConnections();
       return true;
     } catch (err) {
       console.warn("[WebRoom Voice] Microphone access denied or unavailable:", err);
@@ -215,6 +210,7 @@ export class VoiceManager {
 
   /**
    * Toggles the user's speaker (remote audio playback) state.
+   * Lazily synchronizes WebRTC connections to receive streams.
    */
   public toggleSpeaker(): boolean {
     if (this.isDestroyed) {
@@ -238,7 +234,11 @@ export class VoiceManager {
       }
     }
 
+    this.broadcastVoiceState();
     this.notifyStateListeners();
+
+    // Synchronize connections across peers
+    this.syncAllPeerConnections();
     return this.isSpeakerOn;
   }
 
@@ -250,26 +250,104 @@ export class VoiceManager {
       return;
     }
 
-    if (this.peerConnections.has(remotePeerId)) {
-      return;
-    }
-
-    const pc = this.createPeerConnection(remotePeerId);
-    if (!pc) {
-      return;
-    }
-
-    // Deterministic tie-breaker: the peer with the lexicographically smaller peerId initiates the offer
-    if (this.peerId < remotePeerId) {
-      await this.initiateOffer(remotePeerId, pc);
-    }
+    this.knownPeers.add(remotePeerId);
+    await this.syncPeerConnection(remotePeerId);
   }
 
   /**
    * Called when presence notifies a peer left or timed out.
    */
   public handlePeerLeft(remotePeerId: string): void {
+    this.knownPeers.delete(remotePeerId);
+    this.remoteVoiceStates.delete(remotePeerId);
+    this.makingOffer.delete(remotePeerId);
     this.closePeer(remotePeerId);
+  }
+
+  /**
+   * Determines if a WebRTC connection should exist with a specific remote peer.
+   * Connection is established on-demand only if audio needs to flow in either direction.
+   */
+  private shouldConnect(remotePeerId: string): boolean {
+    const remote = this.remoteVoiceStates.get(remotePeerId);
+    const remoteMic = remote?.isMicOn ?? false;
+    const remoteSpeaker = remote?.isSpeakerOn ?? false;
+
+    // 1. We are speaking and remote can listen (or remote is undiscovered/default listening)
+    const localSending = this.isMicOn && (remoteSpeaker || remote === undefined);
+    // 2. Remote is speaking and we are listening
+    const localReceiving = this.isSpeakerOn && remoteMic;
+    // 3. Both are speaking
+    const bothSpeaking = this.isMicOn && remoteMic;
+
+    return localSending || localReceiving || bothSpeaking;
+  }
+
+  /**
+   * Synchronizes connection state with a specific remote peer.
+   */
+  private async syncPeerConnection(remotePeerId: string): Promise<void> {
+    if (this.isDestroyed || remotePeerId === this.peerId) {
+      return;
+    }
+
+    const needsConnection = this.shouldConnect(remotePeerId);
+    let pc = this.peerConnections.get(remotePeerId);
+
+    if (!needsConnection) {
+      if (pc) {
+        this.closePeer(remotePeerId);
+      }
+      return;
+    }
+
+    if (!pc) {
+      const newPc = this.createPeerConnection(remotePeerId);
+      if (!newPc) return;
+      pc = newPc;
+    }
+
+    // Update transceiver track and direction
+    const audioTrack =
+      this.isMicOn && this.localStream ? this.localStream.getAudioTracks()[0] : null;
+
+    try {
+      const transceivers = pc.getTransceivers ? pc.getTransceivers() : [];
+      const audioTransceiver = transceivers.find(
+        (t) =>
+          t.receiver?.track?.kind === "audio" ||
+          t.sender?.track?.kind === "audio" ||
+          (t as any).mid !== undefined
+      );
+
+      if (audioTransceiver) {
+        if (audioTrack && this.isMicOn) {
+          await audioTransceiver.sender.replaceTrack(audioTrack);
+          audioTransceiver.direction = "sendrecv";
+        } else {
+          await audioTransceiver.sender.replaceTrack(null);
+          audioTransceiver.direction = "recvonly";
+        }
+      } else if (audioTrack && this.isMicOn) {
+        pc.addTrack(audioTrack, this.localStream!);
+      }
+    } catch (err) {
+      console.warn(`[WebRoom Voice] Error updating transceivers for peer ${remotePeerId}:`, err);
+    }
+
+    // Deterministic Perfect Negotiation: polite peer initiates offers
+    const isPolite = this.peerId < remotePeerId;
+    if (isPolite) {
+      await this.initiateOffer(remotePeerId, pc);
+    }
+  }
+
+  private async syncAllPeerConnections(): Promise<void> {
+    const promises: Promise<void>[] = [];
+    for (const remotePeerId of this.knownPeers) {
+      promises.push(this.syncPeerConnection(remotePeerId));
+    }
+    await Promise.all(promises);
   }
 
   private createPeerConnection(remotePeerId: string): RTCPeerConnection | null {
@@ -280,9 +358,9 @@ export class VoiceManager {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this.peerConnections.set(remotePeerId, pc);
 
-    // Explicitly configure audio transceiver for bidirectional audio or subscribing/receiving mode
+    // Initial transceiver configuration
     try {
-      if (this.localStream && this.localStream.getAudioTracks().length > 0) {
+      if (this.isMicOn && this.localStream && this.localStream.getAudioTracks().length > 0) {
         const track = this.localStream.getAudioTracks()[0];
         if (track) {
           if ("contentHint" in track) {
@@ -294,7 +372,7 @@ export class VoiceManager {
         pc.addTransceiver("audio", { direction: "recvonly" });
       }
     } catch (err) {
-      console.warn(`[WebRoom Voice] Failed to configure audio transceiver for peer ${remotePeerId}:`, err);
+      console.warn(`[WebRoom Voice] Failed to configure initial transceiver for peer ${remotePeerId}:`, err);
     }
 
     pc.onicecandidate = (event) => {
@@ -327,10 +405,21 @@ export class VoiceManager {
   }
 
   private async initiateOffer(remotePeerId: string, pc: RTCPeerConnection): Promise<void> {
+    if (this.isDestroyed || !pc) {
+      return;
+    }
+
     try {
+      this.makingOffer.set(remotePeerId, true);
+
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
       });
+
+      if (pc.signalingState !== "stable" && pc.signalingState !== "have-local-offer") {
+        return;
+      }
+
       await pc.setLocalDescription(offer);
 
       const message: VoiceOfferMessage = {
@@ -344,6 +433,8 @@ export class VoiceManager {
       this.transport.send(message);
     } catch (err) {
       console.warn(`[WebRoom Voice] Failed to create/send offer to ${remotePeerId}:`, err);
+    } finally {
+      this.makingOffer.set(remotePeerId, false);
     }
   }
 
@@ -415,11 +506,31 @@ export class VoiceManager {
   }
 
   private async handleVoiceOffer(msg: VoiceOfferMessage): Promise<void> {
+    this.knownPeers.add(msg.peerId);
+
     let pc = this.peerConnections.get(msg.peerId);
     if (!pc) {
       const newPc = this.createPeerConnection(msg.peerId);
       if (!newPc) return;
       pc = newPc;
+    }
+
+    // WebRTC Perfect Negotiation: Glare Handling
+    const isPolite = this.peerId < msg.peerId;
+    const isMakingOffer = this.makingOffer.get(msg.peerId) || false;
+    const offerCollision = isMakingOffer || pc.signalingState !== "stable";
+
+    if (offerCollision) {
+      if (!isPolite) {
+        // Impolite peer ignores colliding offer
+        return;
+      }
+      // Polite peer rolls back local offer
+      try {
+        await pc.setLocalDescription({ type: "rollback" });
+      } catch (err) {
+        console.warn(`[WebRoom Voice] Rollback error for peer ${msg.peerId}:`, err);
+      }
     }
 
     try {
@@ -486,10 +597,20 @@ export class VoiceManager {
   }
 
   private handleVoiceState(msg: VoiceStateMessage): void {
+    this.knownPeers.add(msg.peerId);
+    this.remoteVoiceStates.set(msg.peerId, {
+      isMicOn: msg.isMicOn,
+      isSpeakerOn: msg.isSpeakerOn ?? false,
+    });
+
     if (!msg.isMicOn) {
-      this.speakingPeers.delete(msg.peerId);
-      this.notifySpeakingListeners();
+      if (this.speakingPeers.delete(msg.peerId)) {
+        this.notifySpeakingListeners();
+      }
     }
+
+    // Synchronize peer connection with this peer based on updated voice state
+    this.syncPeerConnection(msg.peerId);
   }
 
   private broadcastVoiceState(): void {
@@ -499,6 +620,7 @@ export class VoiceManager {
       roomId: this.roomId,
       peerId: this.peerId,
       isMicOn: this.isMicOn,
+      isSpeakerOn: this.isSpeakerOn,
       timestamp: Date.now(),
     };
     this.transport.send(msg);
@@ -514,6 +636,7 @@ export class VoiceManager {
     }
 
     this.pendingCandidates.delete(remotePeerId);
+    this.makingOffer.delete(remotePeerId);
 
     const analyser = this.remoteAnalysers.get(remotePeerId);
     if (analyser) {
@@ -593,6 +716,9 @@ export class VoiceManager {
       this.unsubscribeTransport = null;
     }
 
+    this.knownPeers.clear();
+    this.remoteVoiceStates.clear();
+    this.makingOffer.clear();
     this.stateListeners.clear();
     this.speakingListeners.clear();
     this.speakingPeers.clear();

@@ -139,7 +139,14 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     // Deduplicate identical packets
-    const signature = `${(data as any).type}_${(data as any).peerId || (data as any).followerId || (data as any).leaderId}_${(data as any).timestamp}_${remotePeerId}`;
+    const pId = (data as any).peerId || (data as any).followerId || (data as any).leaderId || "unknown";
+    const target = (data as any).targetPeerId ? `_tgt_${(data as any).targetPeerId}` : "";
+    const sdpType = (data as any).sdp?.type ? `_sdp_${(data as any).sdp.type}` : "";
+    const cand = (data as any).candidate
+      ? `_cand_${(data as any).candidate.candidate || (data as any).candidate.sdpMid || (data as any).candidate.sdpMLineIndex || ""}`
+      : "";
+    const extra = (data as any).id || (data as any).text || (data as any).scrollY || "";
+    const signature = `${(data as any).type}_${pId}_${(data as any).timestamp}_${remotePeerId}_${extra}${target}${sdpType}${cand}`;
     if (this.seenMessageSignatures.has(signature)) {
       return;
     }

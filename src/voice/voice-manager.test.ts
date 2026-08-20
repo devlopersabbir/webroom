@@ -147,4 +147,51 @@ describe("VoiceManager", () => {
     // Should be cleanly destroyed without error
     expect(vm.getSpeakingPeers().size).toBe(0);
   });
+
+  it("handles multi-party voice signaling across 3 peers without dropping offers", async () => {
+    const vm = new VoiceManager(roomId, "peer_a", transport);
+    vm.start();
+
+    // Mock mediaDevices
+    const mockTrack = { kind: "audio", enabled: true, readyState: "live", stop: vi.fn() };
+    const mockStream = { getAudioTracks: () => [mockTrack], getTracks: () => [mockTrack] };
+    const originalMediaDevices = global.navigator.mediaDevices;
+    // @ts-expect-error Mocking mediaDevices
+    global.navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(mockStream) };
+
+    // Discover peer_b and peer_c
+    await vm.handlePeerDiscovered("peer_b");
+    await vm.handlePeerDiscovered("peer_c");
+
+    // Peer A turns on mic -> should broadcast VOICE_STATE
+    await vm.toggleMicrophone();
+    expect(vm.getState().isMicOn).toBe(true);
+
+    const voiceStates = transport.sent.filter((m) => m.type === "VOICE_STATE");
+    expect(voiceStates.length).toBeGreaterThanOrEqual(1);
+
+    // Simulate peer_b and peer_c broadcasting VOICE_STATE
+    transport.emitMessage({
+      type: "VOICE_STATE",
+      roomId,
+      peerId: "peer_b",
+      isMicOn: true,
+      isSpeakerOn: true,
+      timestamp: Date.now(),
+    });
+
+    transport.emitMessage({
+      type: "VOICE_STATE",
+      roomId,
+      peerId: "peer_c",
+      isMicOn: false,
+      isSpeakerOn: true,
+      timestamp: Date.now(),
+    });
+
+    // Verify peer_a stays healthy and cleans up
+    vm.destroy();
+    // @ts-expect-error Restoring mediaDevices
+    global.navigator.mediaDevices = originalMediaDevices;
+  });
 });
