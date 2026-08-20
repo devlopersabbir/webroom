@@ -1,4 +1,4 @@
-import { joinRoom, Room as TrysteroRoom } from "@trystero-p2p/torrent";
+import { joinRoom, Room as TrysteroRoom } from "trystero";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { MessageHandler, Transport } from "./transport";
@@ -6,14 +6,16 @@ import { MessageHandler, Transport } from "./transport";
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
 /**
- * Public high-availability BitTorrent WebRTC tracker pool.
+ * Public high-availability decentralized WebRTC signaling relay pool.
  */
-export const DEFAULT_TRACKER_URLS = [
-  "wss://tracker.openwebtorrent.com",
-  "wss://tracker.webtorrent.dev",
-  "wss://tracker.btorrent.xyz",
-  "wss://tracker.files.fm:7073/announce",
-  "wss://open.tracker.cl:443/announce",
+export const DEFAULT_RELAY_URLS = [
+  "wss://relay.damus.io",
+  "wss://nos.lol",
+  "wss://relay.nostr.band",
+  "wss://purplerelay.com",
+  "wss://nostr.mom",
+  "wss://relay.snort.social",
+  "wss://offchain.pub",
 ];
 
 /**
@@ -28,7 +30,7 @@ export const DEFAULT_ICE_SERVERS = [
 ];
 
 /**
- * Serverless decentralized WebRTC transport powered by BitTorrent WebRTC trackers.
+ * Serverless decentralized WebRTC transport powered by resilient global relay network.
  * Connects peers across the internet without requiring dedicated servers or databases.
  * Uses the Background WebSocket bridge to guarantee immunity to webpage CSP restrictions.
  */
@@ -53,12 +55,13 @@ export class TrysteroTorrentTransport implements Transport {
     installWebSocketBridge();
 
     try {
+      console.log(`[WebRoom] Initializing decentralized room for hash: ${this.roomId.slice(0, 12)}...`);
       this.room = joinRoom(
         {
           appId: WEBROOM_APP_ID,
           relayConfig: {
-            urls: DEFAULT_TRACKER_URLS,
-            redundancy: 3,
+            urls: DEFAULT_RELAY_URLS,
+            redundancy: 5,
           },
           rtcConfig: {
             iceServers: DEFAULT_ICE_SERVERS,

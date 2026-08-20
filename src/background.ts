@@ -75,6 +75,7 @@ if (runtime && runtime.onConnect) {
 
             socket.onopen = () => {
               if (isPortClosed) return;
+              console.log("[WebRoom Background WS] Connected to relay:", url);
               try {
                 port.postMessage({
                   type: "open",
@@ -85,12 +86,16 @@ if (runtime && runtime.onConnect) {
               }
             };
 
-            socket.onmessage = (event: MessageEvent) => {
+            socket.onmessage = async (event: MessageEvent) => {
               if (isPortClosed) return;
               try {
+                let data = event.data;
+                if (typeof Blob !== "undefined" && data instanceof Blob) {
+                  data = await data.text();
+                }
                 port.postMessage({
                   type: "message",
-                  data: typeof event.data === "string" ? event.data : String(event.data),
+                  data: typeof data === "string" ? data : String(data),
                 });
               } catch {
                 // Port might be closed
@@ -99,6 +104,7 @@ if (runtime && runtime.onConnect) {
 
             socket.onerror = (event: Event) => {
               if (isPortClosed) return;
+              console.warn("[WebRoom Background WS] Relay connection error for:", url);
               try {
                 port.postMessage({
                   type: "error",
