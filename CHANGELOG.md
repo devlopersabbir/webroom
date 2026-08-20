@@ -1,3 +1,10 @@
+## [1.13.5](https://github.com/devlopersabbir/webroom/compare/v1.13.4...v1.13.5) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement cross-browser extension manifest generation and security sanitization plugin ([abef53d](https://github.com/devlopersabbir/webroom/commit/abef53df12c7fa48a74da8b6a2335178f7463ae6))
+
 ## [1.13.4](https://github.com/devlopersabbir/webroom/compare/v1.13.3...v1.13.4) (2026-08-20)
 
 
