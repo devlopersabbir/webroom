@@ -1,3 +1,10 @@
+## [1.13.3](https://github.com/devlopersabbir/webroom/compare/v1.13.2...v1.13.3) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement VoiceManager for WebRTC-based audio communication and peer connection orchestration ([f6d977d](https://github.com/devlopersabbir/webroom/commit/f6d977d01d4dba2851ae149ee34a65655e4ebea9))
+
 ## [1.13.2](https://github.com/devlopersabbir/webroom/compare/v1.13.1...v1.13.2) (2026-08-20)
 
 
