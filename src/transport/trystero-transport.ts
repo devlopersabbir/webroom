@@ -1,4 +1,5 @@
-import { joinRoom, Room as TrysteroRoom } from "trystero";
+import { joinRoom } from "@trystero-p2p/mqtt";
+import type { Room as TrysteroRoom } from "@trystero-p2p/core";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { MessageHandler, Transport } from "./transport";
@@ -6,16 +7,13 @@ import { MessageHandler, Transport } from "./transport";
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
 /**
- * Public high-availability decentralized WebRTC signaling relay pool.
+ * Public high-availability decentralized MQTT WebRTC signaling broker pool.
+ * MQTT brokers have no Web-of-Trust restrictions or rate-limiting on ephemeral rooms.
  */
 export const DEFAULT_RELAY_URLS = [
-  "wss://relay.damus.io",
-  "wss://nos.lol",
-  "wss://relay.nostr.band",
-  "wss://purplerelay.com",
-  "wss://nostr.mom",
-  "wss://relay.snort.social",
-  "wss://offchain.pub",
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt",
+  "wss://test.mosquitto.org:8081/mqtt",
 ];
 
 /**
@@ -61,7 +59,7 @@ export class TrysteroTorrentTransport implements Transport {
           appId: WEBROOM_APP_ID,
           relayConfig: {
             urls: DEFAULT_RELAY_URLS,
-            redundancy: 5,
+            redundancy: 3,
           },
           rtcConfig: {
             iceServers: DEFAULT_ICE_SERVERS,
