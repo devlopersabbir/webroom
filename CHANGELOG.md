@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/devlopersabbir/webroom/compare/v1.9.0...v1.10.0) (2026-08-20)
+
+
+### Features
+
+* implement serverless P2P transport using Trystero and a background WebSocket bridge for CSP-compliant signaling ([d2c5da6](https://github.com/devlopersabbir/webroom/commit/d2c5da6406ed87a59d7567b318acb889a84bdc56))
+
 # [1.9.0](https://github.com/devlopersabbir/webroom/compare/v1.8.0...v1.9.0) (2026-08-20)
 
 
