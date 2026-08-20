@@ -1,4 +1,4 @@
-import { joinRoom, Room as TrysteroRoom } from "trystero";
+import { joinRoom, Room as TrysteroRoom } from "@trystero-p2p/torrent";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { MessageHandler, Transport } from "./transport";
@@ -6,14 +6,13 @@ import { MessageHandler, Transport } from "./transport";
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
 /**
- * Curated high-availability public Nostr relays without Web-of-Trust or rate-limit restrictions.
+ * Verified active WebTorrent WebRTC signaling trackers.
+ * WebTorrent trackers match peers directly without Nostr timestamp expiration or MQTT worker constraints.
  */
 export const DEFAULT_RELAY_URLS = [
-  "wss://nos.lol",
-  "wss://purplerelay.com",
-  "wss://nostr.mom",
-  "wss://relay.snort.social",
-  "wss://relay.primal.net",
+  "wss://tracker.openwebtorrent.com",
+  "wss://tracker.webtorrent.dev",
+  "wss://open.ftorrent.com",
 ];
 
 /**
@@ -59,7 +58,7 @@ export class TrysteroTorrentTransport implements Transport {
           appId: WEBROOM_APP_ID,
           relayConfig: {
             urls: DEFAULT_RELAY_URLS,
-            redundancy: 4,
+            redundancy: 3,
           },
           rtcConfig: {
             iceServers: DEFAULT_ICE_SERVERS,
