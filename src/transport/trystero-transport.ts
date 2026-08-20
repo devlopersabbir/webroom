@@ -16,14 +16,34 @@ export const DEFAULT_RELAY_URLS = [
 ];
 
 /**
- * Public redundant STUN servers for reliable NAT/Firewall traversal.
+ * Public redundant STUN and TURN servers for reliable NAT/Firewall traversal.
+ * Includes OpenRelay global TURN servers so peers behind Symmetric NAT, router firewalls,
+ * and different Wi-Fi / cellular networks can establish direct WebRTC data channels.
  */
-export const DEFAULT_ICE_SERVERS = [
+export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+  // STUN for direct LAN and open NAT hole-punching
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
   { urls: "stun:global.stun.twilio.com:3478" },
+
+  // OpenRelay Global TURN Relays for strict Symmetric NAT / Wi-Fi Router Firewalls / 4G/5G
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
 ];
 
 /**
@@ -62,6 +82,7 @@ export class TrysteroTorrentTransport implements Transport {
           },
           rtcConfig: {
             iceServers: DEFAULT_ICE_SERVERS,
+            iceCandidatePoolSize: 10,
           },
         },
         this.roomId
