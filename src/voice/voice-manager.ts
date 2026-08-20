@@ -1,4 +1,5 @@
 import { Transport } from "../transport/transport";
+import { DEFAULT_ICE_SERVERS } from "../transport/trystero-transport";
 import { StreamAudioAnalyser } from "./audio-analyser";
 import {
   isValidVoiceSignalingMessage,
@@ -17,14 +18,6 @@ export interface VoiceState {
 
 export type VoiceStateListener = (state: VoiceState) => void;
 export type SpeakingPeersListener = (speakingPeerIds: Set<string>) => void;
-
-const ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun.cloudflare.com:3478" },
-  { urls: "stun:global.stun.twilio.com:3478" },
-];
 
 interface RemoteVoiceState {
   isMicOn: boolean;
@@ -355,7 +348,8 @@ export class VoiceManager {
       return null;
     }
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    console.log(`[WebRoom Voice] Initializing Voice RTCPeerConnection for peer: ${remotePeerId}`);
+    const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
     this.peerConnections.set(remotePeerId, pc);
 
     // Initial transceiver configuration
