@@ -98,10 +98,37 @@ export class TrysteroTorrentTransport implements Transport {
 
       this.room.onPeerJoin = (peerId: string) => {
         console.log(`[WebRoom Trystero] Remote WebRTC peer joined room ${this.roomId}: ${peerId}`);
+        
+        // Immediately dispatch peer discovery to all local handlers (PresenceManager, VoiceManager)
+        for (const handler of this.handlers) {
+          try {
+            handler({
+              type: "HELLO",
+              roomId: this.roomId,
+              peerId: peerId,
+              timestamp: Date.now(),
+            });
+          } catch (err) {
+            console.warn("[WebRoom Trystero] Error in onPeerJoin handler:", err);
+          }
+        }
       };
 
       this.room.onPeerLeave = (peerId: string) => {
         console.log(`[WebRoom Trystero] Remote WebRTC peer left room ${this.roomId}: ${peerId}`);
+        
+        for (const handler of this.handlers) {
+          try {
+            handler({
+              type: "GOODBYE",
+              roomId: this.roomId,
+              peerId: peerId,
+              timestamp: Date.now(),
+            });
+          } catch (err) {
+            console.warn("[WebRoom Trystero] Error in onPeerLeave handler:", err);
+          }
+        }
       };
     } catch (err) {
       console.error(`[WebRoom Trystero] Failed to join decentralized room ${this.roomId}:`, err);
