@@ -98,6 +98,10 @@ export class Room {
     const peerId = options.customPeerId || generatePeerId();
     const avatar = options.customAvatar || getRandomAvatar();
 
+    console.log(
+      `[WebRoom] Joining Room -> Raw URL: "${url}" | Canonical URL: "${canonicalUrl}" | Room ID: ${roomId} | Peer ID: ${peerId} | Avatar: ${avatar}`
+    );
+
     const transport = options.transportFactory
       ? options.transportFactory(roomId)
       : new HybridTransport(roomId);
@@ -115,10 +119,12 @@ export class Room {
 
     // Wire presence lifecycle to WebRTC voice mesh negotiation and follow cleanup
     presenceManager.onPeerJoin((remotePeerId) => {
+      console.log(`[WebRoom] Peer discovered in room: ${remotePeerId}`);
       voiceManager.handlePeerDiscovered(remotePeerId);
     });
 
     presenceManager.onPeerLeave((remotePeerId) => {
+      console.log(`[WebRoom] Peer left room: ${remotePeerId}`);
       voiceManager.handlePeerLeft(remotePeerId);
       followManager.handlePeerLeft(remotePeerId);
     });

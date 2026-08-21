@@ -40,6 +40,7 @@ export interface VoiceStateMessage {
   roomId: string;
   peerId: string;
   isMicOn: boolean;
+  isSpeakerOn?: boolean;
   timestamp: number;
 }
 
@@ -138,6 +139,12 @@ export function isValidVoiceSignalingMessage(
 
   if (msgType === "VOICE_STATE") {
     if (typeof candidate.isMicOn !== "boolean") {
+      return false;
+    }
+    if (
+      candidate.isSpeakerOn !== undefined &&
+      typeof candidate.isSpeakerOn !== "boolean"
+    ) {
       return false;
     }
   }

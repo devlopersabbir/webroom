@@ -1,4 +1,5 @@
-import { joinRoom, Room as TrysteroRoom } from "@trystero-p2p/torrent";
+import { joinRoom } from "@trystero-p2p/mqtt";
+import type { Room as TrysteroRoom } from "@trystero-p2p/core";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { MessageHandler, Transport } from "./transport";
@@ -6,29 +7,47 @@ import { MessageHandler, Transport } from "./transport";
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
 /**
- * Public high-availability BitTorrent WebRTC tracker pool.
+ * Public high-availability decentralized MQTT WebRTC signaling broker pool.
+ * MQTT brokers support live bidirectional topic multiplexing without timestamp expirations.
  */
-export const DEFAULT_TRACKER_URLS = [
-  "wss://tracker.openwebtorrent.com",
-  "wss://tracker.webtorrent.dev",
-  "wss://tracker.btorrent.xyz",
-  "wss://tracker.files.fm:7073/announce",
-  "wss://open.tracker.cl:443/announce",
+export const DEFAULT_RELAY_URLS = [
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt",
 ];
 
 /**
- * Public redundant STUN servers for reliable NAT/Firewall traversal.
+ * Public redundant STUN and TURN servers for reliable NAT/Firewall traversal.
+ * Includes OpenRelay global TURN servers so peers behind Symmetric NAT, router firewalls,
+ * and different Wi-Fi / cellular networks can establish direct WebRTC data channels.
  */
-export const DEFAULT_ICE_SERVERS = [
+export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+  // STUN for direct LAN and open NAT hole-punching
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
   { urls: "stun:global.stun.twilio.com:3478" },
+
+  // OpenRelay Global TURN Relays for strict Symmetric NAT / Wi-Fi Router Firewalls / 4G/5G
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
 ];
 
 /**
- * Serverless decentralized WebRTC transport powered by BitTorrent WebRTC trackers.
+ * Serverless decentralized WebRTC transport powered by resilient global relay network.
  * Connects peers across the internet without requiring dedicated servers or databases.
  * Uses the Background WebSocket bridge to guarantee immunity to webpage CSP restrictions.
  */
@@ -53,15 +72,17 @@ export class TrysteroTorrentTransport implements Transport {
     installWebSocketBridge();
 
     try {
+      console.log(`[WebRoom] Initializing decentralized room for hash: ${this.roomId.slice(0, 12)}...`);
       this.room = joinRoom(
         {
           appId: WEBROOM_APP_ID,
           relayConfig: {
-            urls: DEFAULT_TRACKER_URLS,
+            urls: DEFAULT_RELAY_URLS,
             redundancy: 3,
           },
           rtcConfig: {
             iceServers: DEFAULT_ICE_SERVERS,
+            iceCandidatePoolSize: 10,
           },
         },
         this.roomId
@@ -135,11 +156,19 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     if (!isValidWebRoomMessage(data, this.roomId)) {
+      console.warn(`[WebRoom Trystero] Received invalid message payload for room ${this.roomId}:`, data);
       return;
     }
 
     // Deduplicate identical packets
-    const signature = `${(data as any).type}_${(data as any).peerId || (data as any).followerId || (data as any).leaderId}_${(data as any).timestamp}_${remotePeerId}`;
+    const pId = (data as any).peerId || (data as any).followerId || (data as any).leaderId || "unknown";
+    const target = (data as any).targetPeerId ? `_tgt_${(data as any).targetPeerId}` : "";
+    const sdpType = (data as any).sdp?.type ? `_sdp_${(data as any).sdp.type}` : "";
+    const cand = (data as any).candidate
+      ? `_cand_${(data as any).candidate.candidate || (data as any).candidate.sdpMid || (data as any).candidate.sdpMLineIndex || ""}`
+      : "";
+    const extra = (data as any).id || (data as any).text || (data as any).scrollY || "";
+    const signature = `${(data as any).type}_${pId}_${(data as any).timestamp}_${remotePeerId}_${extra}${target}${sdpType}${cand}`;
     if (this.seenMessageSignatures.has(signature)) {
       return;
     }
@@ -152,6 +181,8 @@ export class TrysteroTorrentTransport implements Transport {
         if (val) this.seenMessageSignatures.delete(val);
       }
     }
+
+    console.log(`[WebRoom Trystero] Received ${(data as any).type} from remote peer ${remotePeerId} (payload peerId: ${pId})`);
 
     for (const handler of this.handlers) {
       try {

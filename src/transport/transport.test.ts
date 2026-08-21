@@ -89,4 +89,47 @@ describe("HybridTransport", () => {
 
     hybrid.close();
   });
+
+  it("does not drop simultaneous targeted voice signaling messages to different peers", () => {
+    const local = new MockTransport();
+    const remote = new MockTransport();
+    const hybrid = new HybridTransport("test_room", local as any, remote as any);
+
+    hybrid.start();
+
+    const received: WebRoomMessage[] = [];
+    hybrid.onMessage((msg) => {
+      received.push(msg);
+    });
+
+    const timestamp = 1700000000000;
+
+    const offerToPeerB: WebRoomMessage = {
+      type: "VOICE_OFFER",
+      roomId: "test_room",
+      peerId: "peer_a",
+      targetPeerId: "peer_b",
+      sdp: { type: "offer", sdp: "sdp_for_b" },
+      timestamp,
+    } as any;
+
+    const offerToPeerC: WebRoomMessage = {
+      type: "VOICE_OFFER",
+      roomId: "test_room",
+      peerId: "peer_a",
+      targetPeerId: "peer_c",
+      sdp: { type: "offer", sdp: "sdp_for_c" },
+      timestamp,
+    } as any;
+
+    local.emit(offerToPeerB);
+    local.emit(offerToPeerC);
+
+    // Both messages must be delivered because targetPeerId differs
+    expect(received.length).toBe(2);
+    expect((received[0] as any).targetPeerId).toBe("peer_b");
+    expect((received[1] as any).targetPeerId).toBe("peer_c");
+
+    hybrid.close();
+  });
 });

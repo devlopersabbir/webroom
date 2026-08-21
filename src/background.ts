@@ -72,9 +72,11 @@ if (runtime && runtime.onConnect) {
             socket = protocols && protocols.length > 0
               ? new WebSocket(url, protocols)
               : new WebSocket(url);
+            socket.binaryType = "arraybuffer";
 
             socket.onopen = () => {
               if (isPortClosed) return;
+              console.log("[WebRoom Background WS] Connected to relay:", url);
               try {
                 port.postMessage({
                   type: "open",
@@ -85,13 +87,30 @@ if (runtime && runtime.onConnect) {
               }
             };
 
-            socket.onmessage = (event: MessageEvent) => {
+            socket.onmessage = async (event: MessageEvent) => {
               if (isPortClosed) return;
               try {
-                port.postMessage({
-                  type: "message",
-                  data: typeof event.data === "string" ? event.data : String(event.data),
-                });
+                let data = event.data;
+                if (typeof Blob !== "undefined" && data instanceof Blob) {
+                  data = await data.arrayBuffer();
+                }
+                if (data instanceof ArrayBuffer) {
+                  const bytes = new Uint8Array(data);
+                  let binaryStr = "";
+                  for (let i = 0; i < bytes.length; i++) {
+                    binaryStr += String.fromCharCode(bytes[i]);
+                  }
+                  port.postMessage({
+                    type: "message",
+                    data: binaryStr,
+                    isBinary: true,
+                  });
+                } else {
+                  port.postMessage({
+                    type: "message",
+                    data: typeof data === "string" ? data : String(data),
+                  });
+                }
               } catch {
                 // Port might be closed
               }
@@ -99,6 +118,7 @@ if (runtime && runtime.onConnect) {
 
             socket.onerror = (event: Event) => {
               if (isPortClosed) return;
+              console.warn("[WebRoom Background WS] Relay connection error for:", url);
               try {
                 port.postMessage({
                   type: "error",

@@ -138,7 +138,16 @@ export class BackgroundWebSocket extends EventTarget {
         this.handleOpen();
         break;
       case "message":
-        this.handleMessage(msg.data);
+        if (msg.isBinary && typeof msg.data === "string") {
+          const len = msg.data.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = msg.data.charCodeAt(i);
+          }
+          this.handleMessage(bytes.buffer);
+        } else {
+          this.handleMessage(msg.data);
+        }
         break;
       case "error":
         this.handleError(msg.error || "WebSocket error in background");
@@ -152,6 +161,7 @@ export class BackgroundWebSocket extends EventTarget {
   private handleOpen(): void {
     if (this.readyState !== WS_CONNECTING) return;
     this.readyState = WS_OPEN;
+    console.log(`[WebRoom WS Bridge] Bridge WebSocket connected to: ${this.url}`);
 
     const event = new Event("open");
     if (this.onopen) {
@@ -171,6 +181,7 @@ export class BackgroundWebSocket extends EventTarget {
   }
 
   private handleError(errorDetails: any): void {
+    console.warn(`[WebRoom WS Bridge] Bridge WebSocket error on ${this.url}:`, errorDetails);
     const event = new Event("error");
     (event as any).error = errorDetails;
     if (this.onerror) {
@@ -183,6 +194,7 @@ export class BackgroundWebSocket extends EventTarget {
     if (this.readyState === WS_CLOSED) return;
     this.readyState = WS_CLOSED;
     this.isCleanClosed = wasClean;
+    console.log(`[WebRoom WS Bridge] Bridge WebSocket closed on ${this.url} (code: ${code}, reason: "${reason}")`);
 
     const event = new CloseEvent("close", {
       code,

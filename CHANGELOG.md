@@ -1,3 +1,171 @@
+<<<<<<< HEAD
+=======
+## [1.13.1](https://github.com/devlopersabbir/webroom/compare/v1.13.0...v1.13.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
+* implement TrysteroTorrentTransport for decentralized peer-to-peer WebRTC communication ([c7d5874](https://github.com/devlopersabbir/webroom/commit/c7d58745bb13e0f59f8ca76781790cdc86198d22))
+
+# [1.13.0](https://github.com/devlopersabbir/webroom/compare/v1.12.1...v1.13.0) (2026-08-20)
+
+
+### Features
+
+* implement decentralized WebRTC transport using Trystero and background WebSocket bridge ([f02d2c2](https://github.com/devlopersabbir/webroom/commit/f02d2c281c4132e72ad6c4b523140fff510190b8))
+
+## [1.12.1](https://github.com/devlopersabbir/webroom/compare/v1.12.0...v1.12.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* implement Trystero-based decentralized WebRTC transport with background relay support ([87d2534](https://github.com/devlopersabbir/webroom/commit/87d2534aa6315164ad588ed92611ef1b6e5a4ebb))
+
+# [1.12.0](https://github.com/devlopersabbir/webroom/compare/v1.11.1...v1.12.0) (2026-08-20)
+
+
+### Features
+
+* implement decentralized WebRTC transport using Trystero and Nostr relay discovery ([e2f448f](https://github.com/devlopersabbir/webroom/commit/e2f448f3aab86b94868a2b1ccb04a12aaacba23f))
+
+## [1.11.1](https://github.com/devlopersabbir/webroom/compare/v1.11.0...v1.11.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* sanitize MQTT worker-timers to use native timers and avoid CSP violations ([de71316](https://github.com/devlopersabbir/webroom/commit/de713166e175fc84e308ba05594c952042f907bf))
+
+# [1.11.0](https://github.com/devlopersabbir/webroom/compare/v1.10.0...v1.11.0) (2026-08-20)
+
+
+### Features
+
+* implement core room orchestration, transport layer, and presence management system ([72da0d4](https://github.com/devlopersabbir/webroom/commit/72da0d4c01efaa5be46f49683af7ea1754e2599a))
+
+# [1.10.0](https://github.com/devlopersabbir/webroom/compare/v1.9.0...v1.10.0) (2026-08-20)
+
+
+### Features
+
+* implement serverless P2P transport using Trystero and a background WebSocket bridge for CSP-compliant signaling ([d2c5da6](https://github.com/devlopersabbir/webroom/commit/d2c5da6406ed87a59d7567b318acb889a84bdc56))
+
+# [1.9.0](https://github.com/devlopersabbir/webroom/compare/v1.8.0...v1.9.0) (2026-08-20)
+
+
+### Features
+
+* implement Trystero MQTT transport and enhance Vite security sanitizer for extension store compliance ([51d7b82](https://github.com/devlopersabbir/webroom/commit/51d7b8274abb34a2e0d148a83608f3318cb812a3))
+
+# [1.8.0](https://github.com/devlopersabbir/webroom/compare/v1.7.1...v1.8.0) (2026-08-20)
+
+
+### Features
+
+* implement Trystero-based decentralized WebRTC transport with background WebSocket relay bridge ([89acdb8](https://github.com/devlopersabbir/webroom/commit/89acdb8c23075558b168b3605d09dfed07587600))
+
+## [1.7.1](https://github.com/devlopersabbir/webroom/compare/v1.7.0...v1.7.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* prepare release v1.7.1 ([d45fe76](https://github.com/devlopersabbir/webroom/commit/d45fe765bfd971bd4c94118685a4bfd6a764e70d))
+* trigger v1.7.1 release ([226a9b9](https://github.com/devlopersabbir/webroom/commit/226a9b95f998ff46e21570dc3e9b4267e8feca6e))
+* trigger v1.7.1 release ([96ad09c](https://github.com/devlopersabbir/webroom/commit/96ad09c3ae1d41fb9489ceef417242c706d92619))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* prepare release v1.7.1 ([d45fe76](https://github.com/devlopersabbir/webroom/commit/d45fe765bfd971bd4c94118685a4bfd6a764e70d))
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* add new logo, shadow icon, and resized icon assets to public directory ([e2f4f8a](https://github.com/devlopersabbir/webroom/commit/e2f4f8a1966483b6d9eb9f2fb5e061ef25d3dc9e))
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+* implement WebRTC-based VoiceManager with peer-to-peer signaling and state management ([51cd2b7](https://github.com/devlopersabbir/webroom/commit/51cd2b79b8640ee55ce6865ac49993ad08df8c24))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* add new logo, shadow icon, and resized icon assets to public directory ([e2f4f8a](https://github.com/devlopersabbir/webroom/commit/e2f4f8a1966483b6d9eb9f2fb5e061ef25d3dc9e))
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+* implement WebRTC-based VoiceManager with peer-to-peer signaling and state management ([51cd2b7](https://github.com/devlopersabbir/webroom/commit/51cd2b79b8640ee55ce6865ac49993ad08df8c24))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* add new logo, shadow icon, and resized icon assets to public directory ([e2f4f8a](https://github.com/devlopersabbir/webroom/commit/e2f4f8a1966483b6d9eb9f2fb5e061ef25d3dc9e))
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+* implement WebRTC-based VoiceManager with peer-to-peer signaling and state management ([51cd2b7](https://github.com/devlopersabbir/webroom/commit/51cd2b79b8640ee55ce6865ac49993ad08df8c24))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* add new logo, shadow icon, and resized icon assets to public directory ([e2f4f8a](https://github.com/devlopersabbir/webroom/commit/e2f4f8a1966483b6d9eb9f2fb5e061ef25d3dc9e))
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+
+# [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* remove obsolete file to clean up unused code assets ([3587825](https://github.com/devlopersabbir/webroom/commit/358782512c860dfc23eadaa7ad6462dc4fb54f1c))
+
+
+### Features
+
+* implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
+
+>>>>>>> fdc1db392768a33e8846b1771dcc21e33607484f
 # [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-19)
 
 
