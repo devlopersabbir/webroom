@@ -128,6 +128,8 @@ export class Room {
     voiceManager.start();
     followManager.start();
 
+    console.log(`[WebRoom] 🚪 Joined Room: ${roomId} (Peer: ${peerId}) for URL: ${canonicalUrl}`);
+
     return new Room(
       url,
       canonicalUrl,

@@ -75,6 +75,7 @@ function generateManifest() {
       "128": "icon/128.png",
     },
     background,
+    host_permissions: ["http://*/*", "https://*/*"],
     content_scripts: [
       {
         matches: ["http://*/*", "https://*/*"],

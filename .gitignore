@@ -30,3 +30,5 @@ release/
 
 secret.txt
 .env
+v*_chrome
+v*_firefox

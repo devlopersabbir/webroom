@@ -9,12 +9,13 @@ export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
  * Curated high-availability public Nostr relays without Web-of-Trust or rate-limit restrictions.
  */
 export const DEFAULT_RELAY_URLS = [
-  "wss://nos.lol",
-  "wss://purplerelay.com",
-  "wss://relay.primal.net",
-  "wss://relay.snort.social",
-  "wss://nostr.data.haus",
-  "wss://schnorr.me",
+  "wss://purplerelay.com", // Verified: ACCEPTED (Fast global edge)
+  "wss://relay.primal.net", // Verified: ACCEPTED (High availability)
+  "wss://nostr.mom", // Verified: ACCEPTED (Open high-speed)
+  "wss://nostr.data.haus", // Verified: ACCEPTED (High reliability)
+  "wss://relay.snort.social", // Verified: ACCEPTED (Open)
+  "wss://offchain.pub", // Verified: ACCEPTED (Open)
+  "wss://yabu.me", // Verified: ACCEPTED (Open)
 ];
 
 /**
@@ -86,7 +87,7 @@ export class TrysteroTorrentTransport implements Transport {
             iceCandidatePoolSize: 10,
           },
         },
-        this.roomId
+        this.roomId,
       );
 
       const msgAction = this.room.makeAction<any>("webroom_payload");
@@ -97,6 +98,7 @@ export class TrysteroTorrentTransport implements Transport {
       };
 
       this.room.onPeerJoin = (peerId: string) => {
+        console.log(`[WebRoom Trystero] 🎉 Peer joined room ${this.roomId}:`, peerId);
         // Immediately dispatch peer discovery to all local handlers (PresenceManager, VoiceManager)
         for (const handler of this.handlers) {
           try {
@@ -107,12 +109,16 @@ export class TrysteroTorrentTransport implements Transport {
               timestamp: Date.now(),
             });
           } catch (err) {
-            console.warn("[WebRoom Trystero] Error in onPeerJoin handler:", err);
+            console.warn(
+              "[WebRoom Trystero] Error in onPeerJoin handler:",
+              err,
+            );
           }
         }
       };
 
       this.room.onPeerLeave = (peerId: string) => {
+        console.log(`[WebRoom Trystero] 👋 Peer left room ${this.roomId}:`, peerId);
         for (const handler of this.handlers) {
           try {
             handler({
@@ -122,12 +128,18 @@ export class TrysteroTorrentTransport implements Transport {
               timestamp: Date.now(),
             });
           } catch (err) {
-            console.warn("[WebRoom Trystero] Error in onPeerLeave handler:", err);
+            console.warn(
+              "[WebRoom Trystero] Error in onPeerLeave handler:",
+              err,
+            );
           }
         }
       };
     } catch (err) {
-      console.error(`[WebRoom Trystero] Failed to join decentralized room ${this.roomId}:`, err);
+      console.error(
+        `[WebRoom Trystero] Failed to join decentralized room ${this.roomId}:`,
+        err,
+      );
     }
   }
 
@@ -180,18 +192,30 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     if (!isValidWebRoomMessage(data, this.roomId)) {
-      console.warn(`[WebRoom Trystero] Received invalid message payload for room ${this.roomId}:`, data);
+      console.warn(
+        `[WebRoom Trystero] Received invalid message payload for room ${this.roomId}:`,
+        data,
+      );
       return;
     }
 
     // Deduplicate identical packets
-    const pId = (data as any).peerId || (data as any).followerId || (data as any).leaderId || "unknown";
-    const target = (data as any).targetPeerId ? `_tgt_${(data as any).targetPeerId}` : "";
-    const sdpType = (data as any).sdp?.type ? `_sdp_${(data as any).sdp.type}` : "";
+    const pId =
+      (data as any).peerId ||
+      (data as any).followerId ||
+      (data as any).leaderId ||
+      "unknown";
+    const target = (data as any).targetPeerId
+      ? `_tgt_${(data as any).targetPeerId}`
+      : "";
+    const sdpType = (data as any).sdp?.type
+      ? `_sdp_${(data as any).sdp.type}`
+      : "";
     const cand = (data as any).candidate
       ? `_cand_${(data as any).candidate.candidate || (data as any).candidate.sdpMid || (data as any).candidate.sdpMLineIndex || ""}`
       : "";
-    const extra = (data as any).id || (data as any).text || (data as any).scrollY || "";
+    const extra =
+      (data as any).id || (data as any).text || (data as any).scrollY || "";
     const signature = `${(data as any).type}_${pId}_${(data as any).timestamp}_${remotePeerId}_${extra}${target}${sdpType}${cand}`;
     if (this.seenMessageSignatures.has(signature)) {
       return;
