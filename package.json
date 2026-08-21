@@ -1,8 +1,13 @@
 {
   "name": "webroom",
   "displayName": "WebRoom",
+<<<<<<< HEAD
   "description": "Decentralized real-time presence layer for every webpage. See how many people are browsing the same page as you in real time...",
   "version": "1.14.1",
+=======
+  "description": "Decentralized real-time presence layer for every webpage. See how many people are browsing the same page as you in real time.",
+  "version": "2.0.0",
+>>>>>>> 1ac98a081143d712d7352e762598eeebb44da695
   "private": true,
   "type": "module",
   "license": "MIT",

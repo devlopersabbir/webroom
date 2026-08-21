@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## [1.14.1](https://github.com/devlopersabbir/webroom/compare/v1.14.0...v1.14.1) (2026-08-20)
 
 # [1.14.0](https://github.com/devlopersabbir/webroom/compare/v1.13.6...v1.14.0) (2026-08-20)
@@ -36,17 +37,47 @@
 * implement VoiceManager for WebRTC-based audio communication and peer connection orchestration ([f6d977d](https://github.com/devlopersabbir/webroom/commit/f6d977d01d4dba2851ae149ee34a65655e4ebea9))
 
 ## [1.13.2](https://github.com/devlopersabbir/webroom/compare/v1.13.1...v1.13.2) (2026-08-20)
+=======
+# [2.0.0](https://github.com/devlopersabbir/webroom/compare/v1.13.0...v2.0.0) (2026-08-21)
+
+
+* feat!: release WebRoom v2.0.0 ([7eefab8](https://github.com/devlopersabbir/webroom/commit/7eefab82c6687865a2d17ea2724cc2750e749310))
+>>>>>>> 1ac98a081143d712d7352e762598eeebb44da695
 
 
 ### Bug Fixes
 
 * implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
+<<<<<<< HEAD
 
+=======
+* implement TrysteroTorrentTransport for decentralized peer-to-peer WebRTC communication ([c7d5874](https://github.com/devlopersabbir/webroom/commit/c7d58745bb13e0f59f8ca76781790cdc86198d22))
+
+
+### BREAKING CHANGES
+
+* Major upgrade to v2.0.0 with decentralized WebRTC voice chat, follow mode, cursor synchronization, and participant list.
+
+## [1.13.1](https://github.com/devlopersabbir/webroom/compare/v1.13.0...v1.13.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
+* implement TrysteroTorrentTransport for decentralized peer-to-peer WebRTC communication ([c7d5874](https://github.com/devlopersabbir/webroom/commit/c7d58745bb13e0f59f8ca76781790cdc86198d22))
+
+<<<<<<< HEAD
+=======
+>>>>>>> 1ac98a081143d712d7352e762598eeebb44da695
 ## [1.13.1](https://github.com/devlopersabbir/webroom/compare/v1.13.0...v1.13.1) (2026-08-20)
 
 
 ### Bug Fixes
 
+<<<<<<< HEAD
+=======
+* implement serverless WebRTC transport using Trystero and global relay network ([7bf562d](https://github.com/devlopersabbir/webroom/commit/7bf562d9de2b12c6bbe6ddfffadbb8b90c373840))
+>>>>>>> 1ac98a081143d712d7352e762598eeebb44da695
 * implement TrysteroTorrentTransport for decentralized peer-to-peer WebRTC communication ([c7d5874](https://github.com/devlopersabbir/webroom/commit/c7d58745bb13e0f59f8ca76781790cdc86198d22))
 
 # [1.13.0](https://github.com/devlopersabbir/webroom/compare/v1.12.1...v1.13.0) (2026-08-20)
@@ -206,6 +237,7 @@
 
 * implement follow manager, protocol, and cursor UI with associated styles for room coordination ([25537d5](https://github.com/devlopersabbir/webroom/commit/25537d59a461ee208e78a5cb6b8c839945000ed0))
 
+>>>>>>> fdc1db392768a33e8846b1771dcc21e33607484f
 # [1.7.0](https://github.com/devlopersabbir/webroom/compare/v1.6.0...v1.7.0) (2026-08-19)
 
 
