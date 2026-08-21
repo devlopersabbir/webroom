@@ -1,3 +1,21 @@
+# [2.1.0](https://github.com/devlopersabbir/webroom/compare/v2.0.0...v2.1.0) (2026-08-21)
+
+
+### Bug Fixes
+
+* implement cross-browser extension manifest generation and security sanitization plugin ([abef53d](https://github.com/devlopersabbir/webroom/commit/abef53df12c7fa48a74da8b6a2335178f7463ae6))
+* implement TrysteroTorrentTransport for decentralized WebRTC communication ([2872a0b](https://github.com/devlopersabbir/webroom/commit/2872a0b0fb704f2d25ce94db7866e7638d8dadb7))
+* implement VoiceManager for WebRTC-based audio communication and peer connection orchestration ([f6d977d](https://github.com/devlopersabbir/webroom/commit/f6d977d01d4dba2851ae149ee34a65655e4ebea9))
+* restrict content script execution to top-level frames and exclude about: URIs ([76f34d5](https://github.com/devlopersabbir/webroom/commit/76f34d5109b3b36aa4962e359d4ccd748d96d078))
+* update description text in package.json ([a2ffd14](https://github.com/devlopersabbir/webroom/commit/a2ffd14b7784752fc16672c2cc0a6f365e8d991f))
+
+
+### Features
+
+* bump version to 2.0.0, update Nostr relay list, add host permissions, and improve logging. ([901bf69](https://github.com/devlopersabbir/webroom/commit/901bf6991ac8f10a6522f708a3f74b789806e360))
+* implement background WebSocket relay and core room presence management system ([54c7cb5](https://github.com/devlopersabbir/webroom/commit/54c7cb566edae8dfafac4e2aaadfd64b2e788c9d))
+* implement serverless WebRTC transport using Trystero and global relay network ([f356705](https://github.com/devlopersabbir/webroom/commit/f356705ff058f9749322fb2b7faf317c48df11fa))
+
 <<<<<<< HEAD
 ## [1.14.1](https://github.com/devlopersabbir/webroom/compare/v1.14.0...v1.14.1) (2026-08-20)
 
