@@ -9,44 +9,25 @@ export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
  * Curated high-availability public Nostr relays without Web-of-Trust or rate-limit restrictions.
  */
 export const DEFAULT_RELAY_URLS = [
-  "wss://purplerelay.com", // Verified: ACCEPTED (Fast global edge)
-  "wss://relay.primal.net", // Verified: ACCEPTED (High availability)
+  "wss://relay.primal.net", // Verified: ACCEPTED (High availability, global CDN)
+  "wss://purplerelay.com", // Verified: ACCEPTED (Fast edge)
   "wss://nostr.mom", // Verified: ACCEPTED (Open high-speed)
   "wss://nostr.data.haus", // Verified: ACCEPTED (High reliability)
   "wss://relay.snort.social", // Verified: ACCEPTED (Open)
-  "wss://offchain.pub", // Verified: ACCEPTED (Open)
   "wss://yabu.me", // Verified: ACCEPTED (Open)
 ];
 
 /**
- * Public redundant STUN and TURN servers for reliable NAT/Firewall traversal.
- * Includes OpenRelay global TURN servers so peers behind Symmetric NAT, router firewalls,
- * and different Wi-Fi / cellular networks can establish direct WebRTC data channels.
+ * Redundant global STUN servers for reliable NAT/Firewall traversal.
  */
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  // STUN for direct LAN and open NAT hole-punching
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
   { urls: "stun:global.stun.twilio.com:3478" },
-
-  // OpenRelay Global TURN Relays for strict Symmetric NAT / Wi-Fi Router Firewalls / 4G/5G
-  {
-    urls: "turn:openrelay.metered.ca:80",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
-  {
-    urls: "turn:openrelay.metered.ca:443",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
-  {
-    urls: "turn:openrelay.metered.ca:443?transport=tcp",
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
 ];
 
 /**
