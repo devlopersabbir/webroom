@@ -81,6 +81,7 @@ function generateManifest() {
         matches: ["http://*/*", "https://*/*"],
         js: ["src/content/index.tsx"],
         run_at: "document_idle",
+        all_frames: false,
       },
     ],
     ...(browserSpecificSettings

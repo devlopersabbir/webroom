@@ -11,13 +11,17 @@ import { UrlListener } from "./url-listener";
  * and coordinates room transitions on navigation.
  */
 function initWebRoomContentScript(): void {
-  // Ensure WebSocket bridge is active before any networking is attempted
-  installWebSocketBridge();
-
-  // Only run in the top-level frame of the tab
-  if (window.top !== window) {
+  // Only run in the top-level frame of actual web pages (avoid sandboxed/about:blank iframes)
+  try {
+    if (typeof window === "undefined" || !window.location) return;
+    if (window.location.protocol === "about:" || window.location.href.startsWith("about:")) return;
+    if (window.top !== window) return;
+  } catch {
     return;
   }
+
+  // Ensure WebSocket bridge is active before any networking is attempted
+  installWebSocketBridge();
 
   // Prevent multiple initializations on the same document
   const HOST_ID = "webroom-extension-root";
