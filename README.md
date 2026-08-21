@@ -21,15 +21,15 @@
 - [x] Random emoji identities
 - [x] Real-time text chat
 - [x] Floating WebRoom panel
-- [ ] Peer-to-peer WebRTC transport
-- [ ] Voice chat
+- [x] Participant list
+- [x] Peer-to-peer WebRTC transport
+- [x] Voice chat
+- [x] Cursor sharing
+- [x] Follow another participant
+- [x] Shared scrolling / page interaction
 - [ ] Video chat
 - [ ] File sharing
 - [ ] Screen sharing
-- [ ] Participant list
-- [ ] Cursor sharing
-- [ ] Follow another participant
-- [ ] Shared scrolling / page interaction
 - [ ] More real-time collaboration features
 
 ## Installation
