@@ -44,7 +44,7 @@ WebRoom is available for Chrome:
 
 WebRoom is available for Firefox:
 
-[Firefox Add-ons](https://addons.mozilla.org/en-US/developers/addon/webroom)
+[Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/webroom)
 
 > Store links are currently placeholders and will be replaced with the official WebRoom listing URLs.
 
