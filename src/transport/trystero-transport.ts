@@ -18,17 +18,46 @@ export const DEFAULT_RELAY_URLS = [
 ];
 
 /**
- * Redundant global STUN servers for reliable NAT/Firewall traversal.
+ * Self-hosted Coturn STUN and TURN servers for reliable NAT/Firewall traversal and relay fallback.
  */
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun3.l.google.com:19302" },
-  { urls: "stun:stun4.l.google.com:19302" },
-  { urls: "stun:stun.cloudflare.com:3478" },
-  { urls: "stun:global.stun.twilio.com:3478" },
+  {
+    /**
+     * Our self-hosted Coturn STUN server.
+     */
+    urls: [
+      "stun:187.124.228.139:3478",
+    ],
+  },
+  {
+    /**
+     * Our self-hosted Coturn TURN server.
+     *
+     * UDP is preferred for performance.
+     * TCP acts as a fallback on restrictive networks.
+     */
+    urls: [
+      "turn:187.124.228.139:3478?transport=udp",
+      "turn:187.124.228.139:3478?transport=tcp",
+    ],
+
+    /**
+     * Development credentials.
+     *
+     * IMPORTANT:
+     * These credentials should eventually be replaced
+     * with short-lived TURN credentials.
+     */
+    username: "webroom",
+    credential: "4igKrQfsJgpjifzV9d55qR8r7CZfytI00r7pv3WX",
+  },
 ];
+
+export const DEFAULT_RTC_CONFIG: RTCConfiguration = {
+  iceServers: DEFAULT_ICE_SERVERS,
+  iceTransportPolicy: "all",
+  iceCandidatePoolSize: 10,
+};
 
 /**
  * Serverless decentralized WebRTC transport powered by resilient global relay network.
@@ -63,10 +92,7 @@ export class TrysteroTorrentTransport implements Transport {
             urls: DEFAULT_RELAY_URLS,
             redundancy: 3,
           },
-          rtcConfig: {
-            iceServers: DEFAULT_ICE_SERVERS,
-            iceCandidatePoolSize: 10,
-          },
+          rtcConfig: DEFAULT_RTC_CONFIG,
         },
         this.roomId,
       );

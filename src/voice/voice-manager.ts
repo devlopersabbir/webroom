@@ -1,5 +1,5 @@
 import { Transport } from "../transport/transport";
-import { DEFAULT_ICE_SERVERS } from "../transport/trystero-transport";
+import { DEFAULT_RTC_CONFIG } from "../transport/trystero-transport";
 import { StreamAudioAnalyser } from "./audio-analyser";
 import {
   isValidVoiceSignalingMessage,
@@ -348,7 +348,7 @@ export class VoiceManager {
       return null;
     }
 
-    const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
+    const pc = new RTCPeerConnection(DEFAULT_RTC_CONFIG);
     this.peerConnections.set(remotePeerId, pc);
 
     // Initial transceiver configuration
