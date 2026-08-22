@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/devlopersabbir/webroom/discussions
+    about: Ask questions, share feedback, or discuss general ideas with the community.
+  - name: 🛡️ Security Vulnerabilities
+    url: https://github.com/devlopersabbir/webroom/security/advisories/new
+    about: Please report sensitive security vulnerabilities privately.
