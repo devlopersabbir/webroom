@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client";
 import { Room } from "../room/room";
 import { installWebSocketBridge } from "../transport/background-ws-bridge";
+import { installWebRTCBridge } from "../transport/safe-webrtc";
 import { INDICATOR_STYLES } from "../ui/indicator-styles";
 import { WebRoomIndicator } from "../ui/WebRoomIndicator";
 import { UrlListener } from "./url-listener";
@@ -20,8 +21,9 @@ function initWebRoomContentScript(): void {
     return;
   }
 
-  // Ensure WebSocket bridge is active before any networking is attempted
+  // Ensure WebSocket and WebRTC bridges are active before any networking is attempted
   installWebSocketBridge();
+  installWebRTCBridge();
 
   // Prevent multiple initializations on the same document
   const HOST_ID = "webroom-extension-root";

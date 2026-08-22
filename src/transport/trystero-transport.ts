@@ -1,6 +1,7 @@
 import { joinRoom, Room as TrysteroRoom } from "trystero";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
+import { installWebRTCBridge, SafeRTCPeerConnection } from "./safe-webrtc";
 import { MessageHandler, Transport } from "./transport";
 
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
@@ -78,8 +79,9 @@ export class TrysteroTorrentTransport implements Transport {
       return;
     }
 
-    // Ensure WebSocket bridge is installed before Trystero opens connections
+    // Ensure WebSocket and WebRTC bridges are installed before Trystero opens connections
     installWebSocketBridge();
+    installWebRTCBridge();
 
     try {
       this.room = joinRoom(
@@ -90,6 +92,7 @@ export class TrysteroTorrentTransport implements Transport {
             redundancy: 3,
           },
           rtcConfig: DEFAULT_RTC_CONFIG,
+          rtcPolyfill: SafeRTCPeerConnection as any,
         },
         this.roomId,
       );
