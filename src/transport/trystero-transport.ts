@@ -30,7 +30,6 @@ export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   {
     /**
      * Our self-hosted Coturn TURN server.
-     *
      * UDP is preferred for performance.
      * TCP acts as a fallback on restrictive networks.
      */
