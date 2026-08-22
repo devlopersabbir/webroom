@@ -133,6 +133,8 @@ export class VoiceManager {
       this.handleTransportMessage(msg);
     });
 
+    // Announce initial voice state to the room so existing peers know our presence
+    this.broadcastVoiceState();
     this.notifyStateListeners();
   }
 
@@ -308,6 +310,13 @@ export class VoiceManager {
     }
 
     this.knownPeers.add(remotePeerId);
+
+    // If we have an active microphone or speaker, re-broadcast our voice state
+    // so the new peer immediately learns that we are currently talking or listening.
+    if (this.isMicOn || this.isSpeakerOn) {
+      this.broadcastVoiceState();
+    }
+
     await this.syncPeerConnection(remotePeerId);
   }
 
@@ -330,10 +339,10 @@ export class VoiceManager {
     const remoteMic = remote?.isMicOn ?? false;
     const remoteSpeaker = remote?.isSpeakerOn ?? false;
 
-    // 1. We are speaking and remote can listen (or remote is undiscovered/default listening)
+    // 1. We are speaking and remote can listen (or remote is newly joined/undiscovered)
     const localSending = this.isMicOn && (remoteSpeaker || remote === undefined);
-    // 2. Remote is speaking and we are listening
-    const localReceiving = this.isSpeakerOn && remoteMic;
+    // 2. Remote is speaking (or newly joined/undiscovered) and we have our speaker ON
+    const localReceiving = this.isSpeakerOn && (remoteMic || remote === undefined);
     // 3. Both are speaking
     const bothSpeaking = this.isMicOn && remoteMic;
 

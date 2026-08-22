@@ -116,8 +116,9 @@ describe("VoiceManager", () => {
     expect(micTurnedOn).toBe(true);
     expect(vm.getState().isMicOn).toBe(true);
 
-    // Verify VOICE_STATE was broadcast
-    const broadcastState = transport.sent.find((m) => m.type === "VOICE_STATE");
+    // Verify VOICE_STATE was broadcast with isMicOn: true
+    const voiceStates = transport.sent.filter((m) => m.type === "VOICE_STATE");
+    const broadcastState = voiceStates[voiceStates.length - 1];
     expect(broadcastState).toBeDefined();
     expect((broadcastState as { isMicOn?: boolean })?.isMicOn).toBe(true);
 
@@ -194,4 +195,46 @@ describe("VoiceManager", () => {
     // @ts-expect-error Restoring mediaDevices
     global.navigator.mediaDevices = originalMediaDevices;
   });
+
+  it("ensures a late joiner receives and hears audio from active talkers when opening speaker", async () => {
+    // Peer C joins late
+    const vmC = new VoiceManager(roomId, "peer_c", transport);
+    vmC.start();
+
+    // Peer A and Peer B are already talking in the room
+    await vmC.handlePeerDiscovered("peer_a");
+    await vmC.handlePeerDiscovered("peer_b");
+
+    // Peer A and B broadcast their active mic state
+    transport.emitMessage({
+      type: "VOICE_STATE",
+      roomId,
+      peerId: "peer_a",
+      isMicOn: true,
+      isSpeakerOn: true,
+      timestamp: Date.now(),
+    });
+    transport.emitMessage({
+      type: "VOICE_STATE",
+      roomId,
+      peerId: "peer_b",
+      isMicOn: true,
+      isSpeakerOn: true,
+      timestamp: Date.now(),
+    });
+
+    // Peer C opens speaker
+    const speakerState = vmC.toggleSpeaker();
+    expect(speakerState).toBe(true);
+    expect(vmC.getState().isSpeakerOn).toBe(true);
+
+    // Verify Peer C broadcasted its updated VOICE_STATE with isSpeakerOn: true
+    const peerCVoiceStates = transport.sent.filter(
+      (m) => m.type === "VOICE_STATE" && (m as { isSpeakerOn?: boolean }).isSpeakerOn === true
+    );
+    expect(peerCVoiceStates.length).toBeGreaterThanOrEqual(1);
+
+    vmC.destroy();
+  });
 });
+
