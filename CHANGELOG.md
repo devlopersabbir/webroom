@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/devlopersabbir/webroom/compare/v2.3.0...v2.4.0) (2026-08-22)
+
+
+### Features
+
+* implement BackgroundWebSocket bridge to bypass CSP connect-src restrictions in extensions ([6460783](https://github.com/devlopersabbir/webroom/commit/64607839120725787ddd37a4fcad127e3bc5ac13))
+
 # [2.3.0](https://github.com/devlopersabbir/webroom/compare/v2.2.0...v2.3.0) (2026-08-22)
 
 
