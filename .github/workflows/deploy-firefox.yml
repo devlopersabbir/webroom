@@ -64,4 +64,4 @@ jobs:
           releaseNotes: ${{ github.event.inputs.notes || '' }}
           apiKey: ${{ secrets.AMO_JWT_ISSUER }}
           apiSecret: ${{ secrets.AMO_JWT_SECRET }}
-          timeout: 180000 # 3 minutes maximum deadline (exits immediately once AMO finishes in ~30-60s)
+          timeout: 900000 # 15 minutes maximum deadline (exits immediately once AMO finishes in ~30-60s)
