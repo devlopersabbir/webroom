@@ -48,11 +48,11 @@ function createSafeMessageEvent(event: any): any {
   }
 
   return new Proxy(event, {
-    get(target, prop, receiver) {
+    get(target, prop) {
       if (prop === "data") {
         return safeData;
       }
-      const val = Reflect.get(target, prop, receiver);
+      const val = (target as any)[prop];
       return typeof val === "function" ? val.bind(target) : val;
     },
   });
@@ -70,7 +70,7 @@ export function wrapDataChannel(channel: any): any {
   const listenerMap = new WeakMap<Function, Function>();
 
   const wrapped = new Proxy(channel, {
-    get(target, prop, receiver) {
+    get(target, prop) {
       if (prop === "__webroom_safe_wrapped") {
         return true;
       }
@@ -120,14 +120,14 @@ export function wrapDataChannel(channel: any): any {
         };
       }
 
-      const value = Reflect.get(target, prop, receiver);
+      const value = (target as any)[prop];
       if (typeof value === "function") {
         return value.bind(target);
       }
       return value;
     },
 
-    set(target, prop, value, receiver) {
+    set(target, prop, value) {
       if (prop === "onmessage") {
         if (typeof value === "function") {
           target.onmessage = function (this: any, event: any) {
@@ -139,7 +139,8 @@ export function wrapDataChannel(channel: any): any {
         }
         return true;
       }
-      return Reflect.set(target, prop, value, receiver);
+      (target as any)[prop] = value;
+      return true;
     },
   });
 
@@ -167,7 +168,7 @@ export class SafeRTCPeerConnection {
     }
 
     return new Proxy(pc, {
-      get(target, prop, receiver) {
+      get(target, prop) {
         if (prop === "createDataChannel") {
           return function (label: string, dataChannelDict?: RTCDataChannelInit) {
             const rawChannel = target.createDataChannel(label, dataChannelDict);
@@ -185,11 +186,11 @@ export class SafeRTCPeerConnection {
               const safeListener = function (this: any, event: any) {
                 if (event && event.channel) {
                   const safeEvent = new Proxy(event, {
-                    get(evtTarget, evtProp, evtReceiver) {
+                    get(evtTarget, evtProp) {
                       if (evtProp === "channel") {
                         return wrapDataChannel(evtTarget.channel);
                       }
-                      const val = Reflect.get(evtTarget, evtProp, evtReceiver);
+                      const val = (evtTarget as any)[evtProp];
                       return typeof val === "function" ? val.bind(evtTarget) : val;
                     },
                   });
@@ -203,24 +204,24 @@ export class SafeRTCPeerConnection {
           };
         }
 
-        const value = Reflect.get(target, prop, receiver);
+        const value = (target as any)[prop];
         if (typeof value === "function") {
           return value.bind(target);
         }
         return value;
       },
 
-      set(target, prop, value, receiver) {
+      set(target, prop, value) {
         if (prop === "ondatachannel") {
           if (typeof value === "function") {
             target.ondatachannel = function (this: any, event: any) {
               if (event && event.channel) {
                 const safeEvent = new Proxy(event, {
-                  get(evtTarget, evtProp, evtReceiver) {
+                  get(evtTarget, evtProp) {
                     if (evtProp === "channel") {
                       return wrapDataChannel(evtTarget.channel);
                     }
-                    const val = Reflect.get(evtTarget, evtProp, evtReceiver);
+                    const val = (evtTarget as any)[evtProp];
                     return typeof val === "function" ? val.bind(evtTarget) : val;
                   },
                 });
@@ -233,7 +234,8 @@ export class SafeRTCPeerConnection {
           }
           return true;
         }
-        return Reflect.set(target, prop, value, receiver);
+        (target as any)[prop] = value;
+        return true;
       },
     });
   }

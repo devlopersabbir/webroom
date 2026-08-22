@@ -32,13 +32,13 @@ describe("VoiceManager", () => {
     transport = new MockTransport();
   });
 
-  it("initializes with microphone OFF and speaker OFF deterministically", () => {
+  it("initializes with microphone OFF and speaker ON deterministically", () => {
     const vm = new VoiceManager(roomId, peerId, transport);
     vm.start();
 
     const state = vm.getState();
     expect(state.isMicOn).toBe(false);
-    expect(state.isSpeakerOn).toBe(false);
+    expect(state.isSpeakerOn).toBe(true);
     expect(state.isMicAvailable).toBe(true);
 
     vm.destroy();
@@ -48,20 +48,20 @@ describe("VoiceManager", () => {
     const vm = new VoiceManager(roomId, peerId, transport);
     vm.start();
 
-    let observedSpeakerState = false;
+    let observedSpeakerState = true;
     vm.onStateChange((s) => {
       observedSpeakerState = s.isSpeakerOn;
     });
 
-    const newState = vm.toggleSpeaker();
-    expect(newState).toBe(true);
-    expect(vm.getState().isSpeakerOn).toBe(true);
-    expect(vm.getState().isMicOn).toBe(false);
-    expect(observedSpeakerState).toBe(true);
-
     const toggledOff = vm.toggleSpeaker();
     expect(toggledOff).toBe(false);
     expect(vm.getState().isSpeakerOn).toBe(false);
+    expect(vm.getState().isMicOn).toBe(false);
+    expect(observedSpeakerState).toBe(false);
+
+    const toggledOn = vm.toggleSpeaker();
+    expect(toggledOn).toBe(true);
+    expect(vm.getState().isSpeakerOn).toBe(true);
     expect(vm.getState().isMicOn).toBe(false);
 
     vm.destroy();
@@ -223,12 +223,10 @@ describe("VoiceManager", () => {
       timestamp: Date.now(),
     });
 
-    // Peer C opens speaker
-    const speakerState = vmC.toggleSpeaker();
-    expect(speakerState).toBe(true);
+    // Peer C starts with speaker ON
     expect(vmC.getState().isSpeakerOn).toBe(true);
 
-    // Verify Peer C broadcasted its updated VOICE_STATE with isSpeakerOn: true
+    // Verify Peer C broadcasted its initial VOICE_STATE with isSpeakerOn: true
     const peerCVoiceStates = transport.sent.filter(
       (m) => m.type === "VOICE_STATE" && (m as { isSpeakerOn?: boolean }).isSpeakerOn === true
     );

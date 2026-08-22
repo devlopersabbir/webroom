@@ -69,6 +69,52 @@ describe("SafeRTCPeerConnection & WebRTC sanitization", () => {
     expect(new Uint8Array(passedEvent.data)).toEqual(new Uint8Array([99, 100]));
   });
 
+  it("forwards WebIDL getters and setters with this bound to target object", () => {
+    let capturedThisInGetter: any = null;
+    let capturedThisInSetter: any = null;
+
+    class FakeNativeWebIDLPC {
+      private _signalingState = "stable";
+      public onicecandidate: any = null;
+
+      get signalingState() {
+        capturedThisInGetter = this;
+        if (!(this instanceof FakeNativeWebIDLPC)) {
+          throw new TypeError("'get signalingState' called on an object that does not implement interface RTCPeerConnection.");
+        }
+        return this._signalingState;
+      }
+
+      set onicecandidateHandler(val: any) {
+        capturedThisInSetter = this;
+        if (!(this instanceof FakeNativeWebIDLPC)) {
+          throw new TypeError("'set onicecandidate' called on an object that does not implement interface RTCPeerConnection.");
+        }
+        this.onicecandidate = val;
+      }
+    }
+
+    const originalPC = (globalThis as any).RTCPeerConnection;
+    try {
+      (globalThis as any).RTCPeerConnection = FakeNativeWebIDLPC;
+      (SafeRTCPeerConnection as any)._NativeRTCPeerConnection = FakeNativeWebIDLPC;
+
+      const pc: any = new SafeRTCPeerConnection();
+
+      // Access getter
+      expect(pc.signalingState).toBe("stable");
+      expect(capturedThisInGetter).toBeInstanceOf(FakeNativeWebIDLPC);
+
+      // Access setter
+      const fn = () => {};
+      pc.onicecandidateHandler = fn;
+      expect(capturedThisInSetter).toBeInstanceOf(FakeNativeWebIDLPC);
+    } finally {
+      (globalThis as any).RTCPeerConnection = originalPC;
+      (SafeRTCPeerConnection as any)._NativeRTCPeerConnection = originalPC;
+    }
+  });
+
   it("installs SafeRTCPeerConnection onto globalThis.RTCPeerConnection", () => {
     const originalPC = (globalThis as any).RTCPeerConnection;
     try {

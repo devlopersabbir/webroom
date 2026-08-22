@@ -93,7 +93,7 @@ export class VoiceManager {
   private readonly transport: Transport;
 
   private isMicOn = false;
-  private isSpeakerOn = false;
+  private isSpeakerOn = true;
   private isMicAvailable = true;
 
   private localStream: MediaStream | null = null;
@@ -405,9 +405,8 @@ export class VoiceManager {
       console.warn(`[WebRoom Voice] Error updating transceivers for peer ${remotePeerId}:`, err);
     }
 
-    // Deterministic Perfect Negotiation: polite peer initiates offers
-    const isPolite = this.peerId < remotePeerId;
-    if (isPolite) {
+    // WebRTC Perfect Negotiation: initiate offer if signaling is stable
+    if (pc.signalingState === "stable") {
       await this.initiateOffer(remotePeerId, pc);
     }
   }
@@ -560,8 +559,11 @@ export class VoiceManager {
       audioElement.autoplay = true;
       audioElement.setAttribute("playsinline", "true");
       audioElement.setAttribute("webkit-playsinline", "true");
-      audioElement.style.display = "none";
-      document.body.appendChild(audioElement);
+      const container =
+        (typeof document !== "undefined" && (document.body || document.documentElement || document.head)) || null;
+      if (container) {
+        container.appendChild(audioElement);
+      }
       this.remoteAudioElements.set(remotePeerId, audioElement);
     }
 
