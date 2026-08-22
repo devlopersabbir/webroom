@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/devlopersabbir/webroom/compare/v2.1.0...v2.1.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* implement WebRTC-based VoiceManager for real-time peer-to-peer audio communication ([619319b](https://github.com/devlopersabbir/webroom/commit/619319b1413330af8b7ba4c97b1839e8e55ced22))
+
 # [2.1.0](https://github.com/devlopersabbir/webroom/compare/v2.0.0...v2.1.0) (2026-08-21)
 
 ### Bug Fixes
