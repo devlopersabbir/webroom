@@ -1,3 +1,11 @@
+# [2.3.0](https://github.com/devlopersabbir/webroom/compare/v2.2.0...v2.3.0) (2026-08-22)
+
+
+### Features
+
+* implement VoiceManager for coordinated WebRTC audio signaling and state management ([402da4a](https://github.com/devlopersabbir/webroom/commit/402da4a4bb82b00b3e4818a9c10bb19cc0cca89b))
+* implement VoiceManager for WebRTC audio coordination with SDP optimization ([99af482](https://github.com/devlopersabbir/webroom/commit/99af4824ca2a4771e1eb3560f93f2a5cecbaf54a))
+
 # [2.2.0](https://github.com/devlopersabbir/webroom/compare/v2.1.1...v2.2.0) (2026-08-22)
 
 
