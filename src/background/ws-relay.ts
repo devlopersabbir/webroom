@@ -1,18 +1,3 @@
-declare const chrome: any;
-
-function getExtensionRuntime(): any {
-  if (typeof chrome !== "undefined" && chrome?.runtime) {
-    return chrome.runtime;
-  }
-  if (typeof (globalThis as any).browser !== "undefined" && (globalThis as any).browser?.runtime) {
-    return (globalThis as any).browser.runtime;
-  }
-  return null;
-}
-
-const runtime = getExtensionRuntime();
-
-
 /**
  * Background WebSocket Relay for Decentralized WebRTC Signaling.
  *
@@ -21,7 +6,11 @@ const runtime = getExtensionRuntime();
  * context guarantees that connections to BitTorrent trackers and signaling relays
  * are NEVER blocked by third-party website security policies.
  */
-if (runtime && runtime.onConnect) {
+export function initWebSocketRelayBridge(runtime: any): void {
+  if (!runtime || !runtime.onConnect) {
+    return;
+  }
+
   runtime.onConnect.addListener((port: any) => {
     if (port.name !== "webroom-ws-bridge") {
       return;
@@ -189,46 +178,3 @@ if (runtime && runtime.onConnect) {
     });
   });
 }
-
-/**
- * Proactive Auto-Update Handler for Firefox AMO & Chrome Web Store.
- * Automatically applies updates when available without requiring users to reinstall.
- */
-if (runtime && runtime.onUpdateAvailable) {
-  runtime.onUpdateAvailable.addListener((details: { version?: string }) => {
-    console.log(
-      `[WebRoom Auto-Update] New version available: ${details?.version || "latest"}. Applying update immediately...`,
-    );
-    if (typeof runtime.reload === "function") {
-      runtime.reload();
-    }
-  });
-}
-
-function checkExtensionUpdates(): void {
-  if (runtime && typeof runtime.requestUpdateCheck === "function") {
-    try {
-      runtime.requestUpdateCheck((status: string, details?: { version?: string }) => {
-        if (status === "update_available") {
-          console.log(
-            `[WebRoom Auto-Update] Update found (${details?.version || "new"}). Applying immediately...`,
-          );
-          if (typeof runtime.reload === "function") {
-            runtime.reload();
-          }
-        }
-      });
-    } catch {
-      // Ignore errors in development / unsupported environments
-    }
-  }
-}
-
-// Check for updates on startup
-checkExtensionUpdates();
-
-// Check for updates periodically (every 4 hours)
-if (typeof setInterval !== "undefined") {
-  setInterval(checkExtensionUpdates, 4 * 60 * 60 * 1000);
-}
-

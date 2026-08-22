@@ -44,8 +44,8 @@ function generateManifest() {
 
   const background =
     targetBrowser === "firefox"
-      ? { scripts: ["src/background.ts"] }
-      : { service_worker: "src/background.ts" };
+      ? { scripts: ["src/background/index.ts"] }
+      : { service_worker: "src/background/index.ts" };
 
   const browserSpecificSettings =
     targetBrowser === "firefox"
