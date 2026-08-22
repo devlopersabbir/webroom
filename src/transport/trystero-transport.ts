@@ -25,9 +25,7 @@ export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
     /**
      * Our self-hosted Coturn STUN server.
      */
-    urls: [
-      "stun:187.124.228.139:3478",
-    ],
+    urls: "stun:187.124.228.139:3480",
   },
   {
     /**
@@ -37,8 +35,8 @@ export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
      * TCP acts as a fallback on restrictive networks.
      */
     urls: [
-      "turn:187.124.228.139:3478?transport=udp",
-      "turn:187.124.228.139:3478?transport=tcp",
+      "turn:187.124.228.139:3480?transport=udp",
+      "turn:187.124.228.139:3480?transport=tcp",
     ],
 
     /**
@@ -105,7 +103,10 @@ export class TrysteroTorrentTransport implements Transport {
       };
 
       this.room.onPeerJoin = (peerId: string) => {
-        console.log(`[WebRoom Trystero] 🎉 Peer joined room ${this.roomId}:`, peerId);
+        console.log(
+          `[WebRoom Trystero] 🎉 Peer joined room ${this.roomId}:`,
+          peerId,
+        );
         // Immediately dispatch peer discovery to all local handlers (PresenceManager, VoiceManager)
         for (const handler of this.handlers) {
           try {
@@ -125,7 +126,10 @@ export class TrysteroTorrentTransport implements Transport {
       };
 
       this.room.onPeerLeave = (peerId: string) => {
-        console.log(`[WebRoom Trystero] 👋 Peer left room ${this.roomId}:`, peerId);
+        console.log(
+          `[WebRoom Trystero] 👋 Peer left room ${this.roomId}:`,
+          peerId,
+        );
         for (const handler of this.handlers) {
           try {
             handler({
