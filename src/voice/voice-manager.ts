@@ -25,6 +25,64 @@ interface RemoteVoiceState {
 }
 
 /**
+ * Optimizes SDP for high-definition, packet-loss-resilient speech communication.
+ * Enables Opus In-Band Forward Error Correction (FEC), Discontinuous Transmission (DTX),
+ * optimal audio bitrate (~64kbps) and low packetization delay.
+ */
+export function optimizeAudioSdp(sdp: string): string {
+  if (!sdp || !sdp.includes("opus/48000")) {
+    return sdp;
+  }
+
+  // Find opus payload type (e.g. 111 in "a=rtpmap:111 opus/48000/2")
+  const opusMatch = sdp.match(/a=rtpmap:(\d+)\s+opus\/48000/i);
+  if (!opusMatch) {
+    return sdp;
+  }
+
+  const opusPt = opusMatch[1];
+  const fmtpRegex = new RegExp(`a=fmtp:${opusPt}\\s+(.*)`, "i");
+  const optimalParams =
+    "minptime=10;useinbandfec=1;usedtx=1;stereo=0;sprop-stereo=0;maxaveragebitrate=64000;cbr=0";
+
+  if (fmtpRegex.test(sdp)) {
+    return sdp.replace(fmtpRegex, (_match, existingParams) => {
+      let params = existingParams;
+      if (!params.includes("useinbandfec")) params += ";useinbandfec=1";
+      if (!params.includes("usedtx")) params += ";usedtx=1";
+      if (!params.includes("maxaveragebitrate")) params += ";maxaveragebitrate=64000";
+      return `a=fmtp:${opusPt} ${params}`;
+    });
+  } else {
+    return sdp.replace(
+      new RegExp(`(a=rtpmap:${opusPt}\\s+opus\\/48000[^\\r\\n]*)`, "i"),
+      `$1\r\na=fmtp:${opusPt} ${optimalParams}`,
+    );
+  }
+}
+
+/**
+ * Configures RTCRtpSender audio encoding parameters for maximum packet priority.
+ */
+async function configureSenderParameters(sender: RTCRtpSender): Promise<void> {
+  try {
+    const params = sender.getParameters();
+    if (!params.encodings || params.encodings.length === 0) {
+      params.encodings = [{}];
+    }
+    for (const encoding of params.encodings) {
+      encoding.priority = "high";
+      (encoding as any).networkPriority = "high";
+      encoding.maxBitrate = 64000;
+    }
+    (params as any).degradationPreference = "maintain-framerate";
+    await sender.setParameters(params);
+  } catch {
+    // Non-critical fallback for environments where setParameters is not supported
+  }
+}
+
+/**
  * Coordinates WebRTC real-time voice communication across peers in a WebRoom.
  * Supports independent microphone/speaker toggling, on-demand lazy mesh scaling,
  * WebRTC Perfect Negotiation (glare-free), and speech detection.
@@ -148,7 +206,13 @@ export class VoiceManager {
             autoGainControl: true,
             channelCount: 1,
             sampleRate: 48000,
-          },
+            latency: 0,
+            googEchoCancellation: true,
+            googAutoGainControl: true,
+            googNoiseSuppression: true,
+            googHighpassFilter: true,
+            googTypingNoiseDetection: true,
+          } as any,
           video: false,
         });
 
@@ -310,19 +374,23 @@ export class VoiceManager {
         (t) =>
           t.receiver?.track?.kind === "audio" ||
           t.sender?.track?.kind === "audio" ||
-          (t as any).mid !== undefined
+          (t as any).mid !== undefined,
       );
 
       if (audioTransceiver) {
         if (audioTrack && this.isMicOn) {
           await audioTransceiver.sender.replaceTrack(audioTrack);
           audioTransceiver.direction = "sendrecv";
+          configureSenderParameters(audioTransceiver.sender);
         } else {
           await audioTransceiver.sender.replaceTrack(null);
           audioTransceiver.direction = "recvonly";
         }
       } else if (audioTrack && this.isMicOn) {
-        pc.addTrack(audioTrack, this.localStream!);
+        const sender = pc.addTrack(audioTrack, this.localStream!);
+        if (sender) {
+          configureSenderParameters(sender);
+        }
       }
     } catch (err) {
       console.warn(`[WebRoom Voice] Error updating transceivers for peer ${remotePeerId}:`, err);
@@ -359,7 +427,10 @@ export class VoiceManager {
           if ("contentHint" in track) {
             track.contentHint = "speech";
           }
-          pc.addTrack(track, this.localStream);
+          const sender = pc.addTrack(track, this.localStream);
+          if (sender) {
+            configureSenderParameters(sender);
+          }
         }
       } else if (pc.addTransceiver) {
         pc.addTransceiver("audio", { direction: "recvonly" });
@@ -388,13 +459,49 @@ export class VoiceManager {
       this.attachRemoteStream(remotePeerId, remoteStream);
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "failed") {
+        this.handleConnectionFailure(remotePeerId);
+      } else if (pc.iceConnectionState === "disconnected") {
+        setTimeout(() => {
+          if (pc.iceConnectionState === "disconnected" && !this.isDestroyed) {
+            this.handleConnectionFailure(remotePeerId);
+          }
+        }, 3000);
+      }
+    };
+
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+      if (pc.connectionState === "failed") {
+        this.handleConnectionFailure(remotePeerId);
+      } else if (pc.connectionState === "closed") {
         this.closePeer(remotePeerId);
       }
     };
 
     return pc;
+  }
+
+  private async handleConnectionFailure(remotePeerId: string): Promise<void> {
+    if (this.isDestroyed || !this.knownPeers.has(remotePeerId)) {
+      return;
+    }
+
+    const pc = this.peerConnections.get(remotePeerId);
+    if (!pc) return;
+
+    console.warn(`[WebRoom Voice] Re-stabilizing WebRTC connection with peer ${remotePeerId}...`);
+    try {
+      if (typeof pc.restartIce === "function") {
+        pc.restartIce();
+      }
+      if (this.peerId < remotePeerId) {
+        await this.initiateOffer(remotePeerId, pc);
+      }
+    } catch {
+      this.closePeer(remotePeerId);
+      await this.syncPeerConnection(remotePeerId);
+    }
   }
 
   private async initiateOffer(remotePeerId: string, pc: RTCPeerConnection): Promise<void> {
@@ -413,14 +520,20 @@ export class VoiceManager {
         return;
       }
 
-      await pc.setLocalDescription(offer);
+      const optimizedSdp = offer.sdp ? optimizeAudioSdp(offer.sdp) : offer.sdp;
+      const optimizedOffer: RTCSessionDescriptionInit = {
+        type: offer.type,
+        sdp: optimizedSdp,
+      };
+
+      await pc.setLocalDescription(optimizedOffer);
 
       const message: VoiceOfferMessage = {
         type: "VOICE_OFFER",
         roomId: this.roomId,
         peerId: this.peerId,
         targetPeerId: remotePeerId,
-        sdp: offer,
+        sdp: optimizedOffer,
         timestamp: Date.now(),
       };
       this.transport.send(message);
@@ -437,6 +550,7 @@ export class VoiceManager {
       audioElement = document.createElement("audio");
       audioElement.autoplay = true;
       audioElement.setAttribute("playsinline", "true");
+      audioElement.setAttribute("webkit-playsinline", "true");
       audioElement.style.display = "none";
       document.body.appendChild(audioElement);
       this.remoteAudioElements.set(remotePeerId, audioElement);
@@ -447,7 +561,20 @@ export class VoiceManager {
     audioElement.muted = !this.isSpeakerOn;
 
     if (this.isSpeakerOn) {
-      audioElement.play().catch(() => {});
+      const playPromise = audioElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          const resumeAudio = () => {
+            if (this.isSpeakerOn && !this.isDestroyed) {
+              audioElement?.play().catch(() => {});
+            }
+            window.removeEventListener("click", resumeAudio);
+            window.removeEventListener("keydown", resumeAudio);
+          };
+          window.addEventListener("click", resumeAudio, { once: true });
+          window.addEventListener("keydown", resumeAudio, { once: true });
+        });
+      }
     }
 
     // Attach speech analyser
@@ -537,14 +664,20 @@ export class VoiceManager {
       this.pendingCandidates.delete(msg.peerId);
 
       const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      const optimizedSdp = answer.sdp ? optimizeAudioSdp(answer.sdp) : answer.sdp;
+      const optimizedAnswer: RTCSessionDescriptionInit = {
+        type: answer.type,
+        sdp: optimizedSdp,
+      };
+
+      await pc.setLocalDescription(optimizedAnswer);
 
       const response: VoiceAnswerMessage = {
         type: "VOICE_ANSWER",
         roomId: this.roomId,
         peerId: this.peerId,
         targetPeerId: msg.peerId,
-        sdp: answer,
+        sdp: optimizedAnswer,
         timestamp: Date.now(),
       };
       this.transport.send(response);
