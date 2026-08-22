@@ -1,3 +1,10 @@
+## [2.4.1](https://github.com/devlopersabbir/webroom/compare/v2.4.0...v2.4.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* implement SafeRTCPeerConnection and data channel wrappers to sanitize cross-compartment WebRTC binary data ([0e96dac](https://github.com/devlopersabbir/webroom/commit/0e96dac8fda0be57f2c41c30f2f795712887993f))
+
 # [2.4.0](https://github.com/devlopersabbir/webroom/compare/v2.3.0...v2.4.0) (2026-08-22)
 
 
