@@ -90,6 +90,7 @@ export class TrysteroTorrentTransport implements Transport {
           relayConfig: {
             urls: DEFAULT_RELAY_URLS,
             redundancy: 3,
+            warnOnRelayFailure: false,
           },
           rtcConfig: DEFAULT_RTC_CONFIG,
           rtcPolyfill: SafeRTCPeerConnection as any,
