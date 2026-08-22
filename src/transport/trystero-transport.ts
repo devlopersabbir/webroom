@@ -24,9 +24,16 @@ export const DEFAULT_RELAY_URLS = [
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   {
     /**
-     * Our self-hosted Coturn STUN server.
+     * High-speed global STUN cluster for instant NAT discovery and lowest latency.
      */
-    urls: "stun:187.124.228.139:3480",
+    urls: [
+      "stun:187.124.228.139:3480",
+      "stun:stun.l.google.com:19302",
+      "stun:stun1.l.google.com:19302",
+      "stun:stun2.l.google.com:19302",
+      "stun:stun3.l.google.com:19302",
+      "stun:stun4.l.google.com:19302",
+    ],
   },
   {
     /**
