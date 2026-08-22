@@ -1,3 +1,11 @@
+## [2.4.3](https://github.com/devlopersabbir/webroom/compare/v2.4.2...v2.4.3) (2026-08-22)
+
+
+### Bug Fixes
+
+* implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
+* implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
+
 ## [2.4.2](https://github.com/devlopersabbir/webroom/compare/v2.4.1...v2.4.2) (2026-08-22)
 
 ## [2.4.1](https://github.com/devlopersabbir/webroom/compare/v2.4.0...v2.4.1) (2026-08-22)
