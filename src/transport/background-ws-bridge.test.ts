@@ -55,8 +55,46 @@ describe("BackgroundWebSocket", () => {
     expect(ws.readyState).toBe(WS_CLOSED);
   });
 
+  it("supports addEventListener, removeEventListener, and EventListenerObject", () => {
+    const ws = new BackgroundWebSocket("wss://test.relay.com");
+    const received: string[] = [];
+
+    const fnListener = (e: any) => {
+      received.push(`fn:${e.type}`);
+    };
+
+    const objListener = {
+      handleEvent: (e: any) => {
+        received.push(`obj:${e.type}`);
+      },
+    };
+
+    ws.addEventListener("message", fnListener);
+    ws.addEventListener("message", objListener);
+
+    (ws as any).readyState = WS_OPEN;
+    (ws as any).handleMessage("test1");
+    expect(received).toEqual(["fn:message", "obj:message"]);
+
+    // Test removeEventListener
+    ws.removeEventListener("message", fnListener);
+    (ws as any).handleMessage("test2");
+    expect(received).toEqual(["fn:message", "obj:message", "obj:message"]);
+  });
+
+  it("ensures all standard WebSocket and Bridge methods exist on instance", () => {
+    const ws = new BackgroundWebSocket("wss://test.relay.com");
+    expect(typeof (ws as any).connectPort).toBe("function");
+    expect(typeof ws.send).toBe("function");
+    expect(typeof ws.close).toBe("function");
+    expect(typeof ws.addEventListener).toBe("function");
+    expect(typeof ws.removeEventListener).toBe("function");
+    expect(typeof ws.dispatchEvent).toBe("function");
+  });
+
   it("installs WebSocket bridge globally onto globalThis", () => {
     installWebSocketBridge();
     expect(globalThis.WebSocket).toBe(BackgroundWebSocket as any);
   });
 });
+

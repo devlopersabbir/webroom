@@ -37,7 +37,41 @@ export interface BridgeCloseEvent {
  * This completely bypasses the host webpage's Content Security Policy (CSP)
  * connect-src restrictions in content scripts.
  */
-export class BackgroundWebSocket extends EventTarget {
+function createCustomEvent(type: string): Event {
+  try {
+    return new Event(type);
+  } catch {
+    return { type, defaultPrevented: false } as Event;
+  }
+}
+
+function createCustomMessageEvent(data: any): MessageEvent {
+  try {
+    return new MessageEvent("message", { data });
+  } catch {
+    return { type: "message", data, defaultPrevented: false } as MessageEvent;
+  }
+}
+
+function createCustomCloseEvent(code: number, reason: string, wasClean: boolean): CloseEvent {
+  try {
+    return new CloseEvent("close", { code, reason, wasClean });
+  } catch {
+    return { type: "close", code, reason, wasClean, defaultPrevented: false } as CloseEvent;
+  }
+}
+
+/**
+ * A standard-compliant WebSocket proxy that delegates network connections to the
+ * background extension service worker via runtime ports.
+ *
+ * This completely bypasses the host webpage's Content Security Policy (CSP)
+ * connect-src restrictions in content scripts.
+ *
+ * Implements EventTarget directly in pure JS to avoid Firefox WebExtension
+ * content script Xray wrapper prototype bugs when subclassing native DOM classes.
+ */
+export class BackgroundWebSocket implements EventTarget {
   public static readonly CONNECTING = WS_CONNECTING;
   public static readonly OPEN = WS_OPEN;
   public static readonly CLOSING = WS_CLOSING;
@@ -61,12 +95,56 @@ export class BackgroundWebSocket extends EventTarget {
 
   private port: any = null;
   private isCleanClosed = false;
+  private listeners: Map<string, Set<EventListenerOrEventListenerObject>> = new Map();
 
   constructor(url: string | URL, protocols?: string | string[]) {
-    super();
     this.url = typeof url === "string" ? url : url.toString();
 
     this.connectPort(protocols);
+  }
+
+  public addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    _options?: boolean | AddEventListenerOptions,
+  ): void {
+    if (!callback) return;
+    let set = this.listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(type, set);
+    }
+    set.add(callback);
+  }
+
+  public removeEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    _options?: boolean | EventListenerOptions,
+  ): void {
+    if (!callback) return;
+    const set = this.listeners.get(type);
+    if (set) {
+      set.delete(callback);
+    }
+  }
+
+  public dispatchEvent(event: Event): boolean {
+    const set = this.listeners.get(event.type);
+    if (set) {
+      for (const listener of Array.from(set)) {
+        try {
+          if (typeof listener === "function") {
+            listener.call(this, event);
+          } else if (listener && typeof (listener as EventListenerObject).handleEvent === "function") {
+            (listener as EventListenerObject).handleEvent(event);
+          }
+        } catch (err) {
+          console.error(`[WebRoom WS Bridge] Error in ${event.type} listener:`, err);
+        }
+      }
+    }
+    return !event.defaultPrevented;
   }
 
   private connectPort(protocols?: string | string[]): void {
@@ -162,9 +240,13 @@ export class BackgroundWebSocket extends EventTarget {
     if (this.readyState !== WS_CONNECTING) return;
     this.readyState = WS_OPEN;
 
-    const event = new Event("open");
+    const event = createCustomEvent("open");
     if (this.onopen) {
-      this.onopen(event);
+      try {
+        this.onopen(event);
+      } catch (err) {
+        console.error("[WebRoom WS Bridge] Error in onopen callback:", err);
+      }
     }
     this.dispatchEvent(event);
   }
@@ -172,19 +254,27 @@ export class BackgroundWebSocket extends EventTarget {
   private handleMessage(data: any): void {
     if (this.readyState !== WS_OPEN) return;
 
-    const event = new MessageEvent("message", { data });
+    const event = createCustomMessageEvent(data);
     if (this.onmessage) {
-      this.onmessage(event);
+      try {
+        this.onmessage(event);
+      } catch (err) {
+        console.error("[WebRoom WS Bridge] Error in onmessage callback:", err);
+      }
     }
     this.dispatchEvent(event);
   }
 
   private handleError(errorDetails: any): void {
     console.warn(`[WebRoom WS Bridge] Bridge WebSocket error on ${this.url}:`, errorDetails);
-    const event = new Event("error");
+    const event = createCustomEvent("error");
     (event as any).error = errorDetails;
     if (this.onerror) {
-      this.onerror(event);
+      try {
+        this.onerror(event);
+      } catch (err) {
+        console.error("[WebRoom WS Bridge] Error in onerror callback:", err);
+      }
     }
     this.dispatchEvent(event);
   }
@@ -194,14 +284,14 @@ export class BackgroundWebSocket extends EventTarget {
     this.readyState = WS_CLOSED;
     this.isCleanClosed = wasClean;
 
-    const event = new CloseEvent("close", {
-      code,
-      reason,
-      wasClean,
-    });
+    const event = createCustomCloseEvent(code, reason, wasClean);
 
     if (this.onclose) {
-      this.onclose(event);
+      try {
+        this.onclose(event);
+      } catch (err) {
+        console.error("[WebRoom WS Bridge] Error in onclose callback:", err);
+      }
     }
     this.dispatchEvent(event);
 
