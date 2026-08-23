@@ -209,17 +209,20 @@ export class MembershipManager {
   }
 
   /**
-   * Gracefully leaves the room and releases all timers and channels.
+   * Gracefully leaves the overlay, cleans up timers and listeners.
+   * Only broadcasts NODE_GOODBYE if explicitly requested (e.g. voluntary leave).
    */
-  public async destroy(): Promise<void> {
+  public async destroy(sendGoodbye: boolean = false): Promise<void> {
     if (this.isDestroyed) {
       return;
     }
 
     this.isDestroyed = true;
 
-    // Send signed departure message before teardown
-    await this.broadcastMembershipMessage("NODE_GOODBYE");
+    // Only send signed departure message if explicitly requested (not on transient tab reloads)
+    if (sendGoodbye) {
+      await this.broadcastMembershipMessage("NODE_GOODBYE");
+    }
 
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);

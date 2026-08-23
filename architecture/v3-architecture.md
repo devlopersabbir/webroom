@@ -100,6 +100,12 @@ Requirements:
 - Do not require login.
 - Do not require a centralized identity service.
 
+### Browser-Anchored Node Lifecycle:
+- The WebRoom node is tied to the **Browser Instance / Extension Lifetime**, NOT individual transient webpage tabs.
+- Tabs are lightweight, ephemeral viewports into specific webpage rooms.
+- Reloading a tab (`F5`), opening a new tab, or navigating pages must NEVER destroy the cryptographic node identity, reset sequence counters, or disrupt voluntary resource contribution.
+- The node remains actively participating and contributing as long as the browser is open and the user has not disabled resource sharing.
+
 Use the browser's secure local storage mechanism already appropriate for the project.
 
 Create a clean abstraction such as:
@@ -144,13 +150,12 @@ Responsibilities:
 
 Each node should periodically announce that it is alive.
 
-Do NOT rely on browser tab closing events.
-
-The distributed system must assume:
-
-> A node can disappear without warning.
-
-A node should therefore be considered dead based on heartbeat/liveness timeout rather than explicit browser lifecycle events.
+### Liveness & Tab Reload Safety:
+- Do NOT rely on browser tab closing or reload events to evict a node.
+- Tab reloads and page navigations are transient ($1\text{–}3\text{s}$). They must NOT broadcast destructive goodbye packets that drop the node from the cluster.
+- The distributed system must assume:
+  > A node can disappear without warning.
+- A node should therefore be considered dead strictly based on heartbeat/liveness timeouts ($5\text{s}$ suspected $\to 10\text{s}$ offline) rather than explicit tab unload events.
 
 Use configurable constants:
 
@@ -293,7 +298,7 @@ standby
 
 Important:
 
-Roles are temporary.
+Roles are temporary and dynamic.
 
 A node may transition:
 
@@ -302,9 +307,17 @@ participant → relay
 relay → participant
 standby → relay
 relay → standby
+standby → coordinator
+coordinator → standby / participant
 ```
 
 Do not permanently assign a node to a role.
+
+### Sticky Role Protocol & Reload Immunity:
+- Roles must NOT flap or churn on simple tab reloads or momentary network blips.
+- **Incumbent Coordinator Stickiness**: If an incumbent node is already actively serving as coordinator and remains online with contribution enabled, it retains its coordinator status. Other nodes joining or refreshing do not steal the role based purely on hash comparisons.
+- **Failover**: Coordinator re-election only occurs when the incumbent coordinator actually becomes `suspected` or `offline`, or when the user disables resource contribution.
+- When the coordinator fails, the highest-ranked standby contributor deterministically promotes to coordinator.
 
 Create:
 

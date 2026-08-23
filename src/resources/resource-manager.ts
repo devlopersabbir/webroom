@@ -83,6 +83,7 @@ export class ResourceManager {
       console.warn("[WebRoom Resources] Failed to persist contribution preference:", err);
     }
 
+    console.log(`[WebRoom Resources] ⚙️ Resource contribution: ${enabled ? "ENABLED" : "DISABLED"}`);
     this.notifyListeners();
   }
 

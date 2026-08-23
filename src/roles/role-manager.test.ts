@@ -110,4 +110,25 @@ describe("RoleManager & Deterministic Coordination (WebRoom v3 Phase 4)", () => 
     expect(receivedRoles).toContain("coordinator");
     expect(receivedRoles).toContain("participant");
   });
+
+  it("preserves incumbent coordinator across new node joins and tab reloads (Sticky Role Protocol)", () => {
+    const roleManager = new RoleManager();
+
+    // Node B is initial coordinator in the room
+    const initResult = roleManager.evaluateRoles([nodeB], nodeB.nodeId);
+    expect(initResult.coordinatorNodeId).toBe(nodeB.nodeId);
+    expect(initResult.selfRole).toBe("coordinator");
+
+    // Node A (which has more available slots and lower hash) joins
+    // Node B MUST remain coordinator due to incumbent stickiness
+    const stickyResult = roleManager.evaluateRoles([nodeB, nodeA], nodeB.nodeId);
+    expect(stickyResult.coordinatorNodeId).toBe(nodeB.nodeId);
+    expect(stickyResult.selfRole).toBe("coordinator");
+    expect(stickyResult.roleAssignments.get(nodeA.nodeId)).toBe("standby");
+
+    // When Node B goes offline, Node A promotes to coordinator
+    const failoverResult = roleManager.evaluateRoles([{ ...nodeB, status: "offline" }, nodeA], nodeA.nodeId);
+    expect(failoverResult.coordinatorNodeId).toBe(nodeA.nodeId);
+    expect(failoverResult.selfRole).toBe("coordinator");
+  });
 });

@@ -380,8 +380,8 @@ export class Room {
   /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
-  public leave(): void {
-    this.membershipManager.destroy();
+  public leave(sendGoodbye: boolean = true): void {
+    this.membershipManager.destroy(sendGoodbye);
     this.followManager.destroy();
     this.voiceManager.destroy();
     this.presenceManager.destroy();

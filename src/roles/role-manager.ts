@@ -57,8 +57,23 @@ export class RoleManager {
       return a.nodeId.localeCompare(b.nodeId);
     });
 
-    // Elect the highest-ranking candidate as coordinator
-    const electedCoordinator = rankedCandidates[0];
+    // Check if incumbent coordinator is still online and contributing (Sticky Role Protocol)
+    let electedCoordinator: NetworkNode;
+    const incumbentCoordinator = this.coordinatorNodeId
+      ? onlineNodes.find(
+          (n) => n.nodeId === this.coordinatorNodeId && n.contributionEnabled
+        )
+      : null;
+
+    if (incumbentCoordinator) {
+      // Incumbent coordinator retains role across tab reloads and peer joins
+      electedCoordinator = incumbentCoordinator;
+    } else {
+      // Re-elect highest-ranking eligible candidate
+      electedCoordinator = rankedCandidates[0];
+    }
+
+    const previousCoordinator = this.coordinatorNodeId;
     this.coordinatorNodeId = electedCoordinator.nodeId;
 
     // Assign roles to each node
@@ -89,6 +104,12 @@ export class RoleManager {
     }
 
     this.selfRole = roleAssignments.get(selfNodeId) || "participant";
+
+    if (this.selfRole !== previousSelfRole || previousCoordinator !== this.coordinatorNodeId) {
+      console.log(
+        `[WebRoom Roles] 👑 Role: ${this.selfRole.toUpperCase()} (Coordinator: ${this.coordinatorNodeId})`
+      );
+    }
 
     this.notifyListeners();
 
