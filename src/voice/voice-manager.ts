@@ -6,7 +6,6 @@ import {
   VoiceAnswerMessage,
   VoiceIceCandidateMessage,
   VoiceOfferMessage,
-  VoiceSignalingMessage,
   VoiceStateMessage,
 } from "./voice-protocol";
 
@@ -50,7 +49,8 @@ export function optimizeAudioSdp(sdp: string): string {
       let params = existingParams;
       if (!params.includes("useinbandfec")) params += ";useinbandfec=1";
       if (!params.includes("usedtx")) params += ";usedtx=1";
-      if (!params.includes("maxaveragebitrate")) params += ";maxaveragebitrate=64000";
+      if (!params.includes("maxaveragebitrate"))
+        params += ";maxaveragebitrate=64000";
       return `a=fmtp:${opusPt} ${params}`;
     });
   } else {
@@ -93,7 +93,7 @@ export class VoiceManager {
   private readonly transport: Transport;
 
   private isMicOn = false;
-  private isSpeakerOn = true;
+  private isSpeakerOn = false;
   private isMicAvailable = true;
 
   private localStream: MediaStream | null = null;
@@ -196,8 +196,14 @@ export class VoiceManager {
 
     // Turning ON
     try {
-      if (!this.localStream || this.localStream.getAudioTracks().every((t) => t.readyState === "ended")) {
-        if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      if (
+        !this.localStream ||
+        this.localStream.getAudioTracks().every((t) => t.readyState === "ended")
+      ) {
+        if (
+          typeof navigator === "undefined" ||
+          !navigator.mediaDevices?.getUserMedia
+        ) {
           throw new Error("getUserMedia is not supported in this environment");
         }
 
@@ -252,6 +258,21 @@ export class VoiceManager {
 
       this.isMicOn = true;
       this.isMicAvailable = true;
+
+      // Automatically enable speaker when mic is turned on so user can hear responses
+      if (!this.isSpeakerOn) {
+        this.isSpeakerOn = true;
+        const ctx = StreamAudioAnalyser.getAudioContext();
+        if (ctx && ctx.state === "suspended") {
+          ctx.resume().catch(() => {});
+        }
+        for (const audioElement of this.remoteAudioElements.values()) {
+          audioElement.muted = false;
+          audioElement.volume = 1.0;
+          audioElement.play().catch(() => {});
+        }
+      }
+
       this.broadcastVoiceState();
       this.notifyStateListeners();
 
@@ -259,7 +280,10 @@ export class VoiceManager {
       await this.syncAllPeerConnections();
       return true;
     } catch (err) {
-      console.warn("[WebRoom Voice] Microphone access denied or unavailable:", err);
+      console.warn(
+        "[WebRoom Voice] Microphone access denied or unavailable:",
+        err,
+      );
       this.isMicOn = false;
       this.isMicAvailable = false;
       this.notifyStateListeners();
@@ -340,9 +364,11 @@ export class VoiceManager {
     const remoteSpeaker = remote?.isSpeakerOn ?? false;
 
     // 1. We are speaking and remote can listen (or remote is newly joined/undiscovered)
-    const localSending = this.isMicOn && (remoteSpeaker || remote === undefined);
+    const localSending =
+      this.isMicOn && (remoteSpeaker || remote === undefined);
     // 2. Remote is speaking (or newly joined/undiscovered) and we have our speaker ON
-    const localReceiving = this.isSpeakerOn && (remoteMic || remote === undefined);
+    const localReceiving =
+      this.isSpeakerOn && (remoteMic || remote === undefined);
     // 3. Both are speaking
     const bothSpeaking = this.isMicOn && remoteMic;
 
@@ -375,7 +401,9 @@ export class VoiceManager {
 
     // Update transceiver track and direction
     const audioTrack =
-      this.isMicOn && this.localStream ? this.localStream.getAudioTracks()[0] : null;
+      this.isMicOn && this.localStream
+        ? this.localStream.getAudioTracks()[0]
+        : null;
 
     try {
       const transceivers = pc.getTransceivers ? pc.getTransceivers() : [];
@@ -402,7 +430,10 @@ export class VoiceManager {
         }
       }
     } catch (err) {
-      console.warn(`[WebRoom Voice] Error updating transceivers for peer ${remotePeerId}:`, err);
+      console.warn(
+        `[WebRoom Voice] Error updating transceivers for peer ${remotePeerId}:`,
+        err,
+      );
     }
 
     // WebRTC Perfect Negotiation: initiate offer if signaling is stable
@@ -429,7 +460,11 @@ export class VoiceManager {
 
     // Initial transceiver configuration
     try {
-      if (this.isMicOn && this.localStream && this.localStream.getAudioTracks().length > 0) {
+      if (
+        this.isMicOn &&
+        this.localStream &&
+        this.localStream.getAudioTracks().length > 0
+      ) {
         const track = this.localStream.getAudioTracks()[0];
         if (track) {
           if ("contentHint" in track) {
@@ -444,7 +479,10 @@ export class VoiceManager {
         pc.addTransceiver("audio", { direction: "recvonly" });
       }
     } catch (err) {
-      console.warn(`[WebRoom Voice] Failed to configure initial transceiver for peer ${remotePeerId}:`, err);
+      console.warn(
+        `[WebRoom Voice] Failed to configure initial transceiver for peer ${remotePeerId}:`,
+        err,
+      );
     }
 
     pc.onicecandidate = (event) => {
@@ -498,7 +536,9 @@ export class VoiceManager {
     const pc = this.peerConnections.get(remotePeerId);
     if (!pc) return;
 
-    console.warn(`[WebRoom Voice] Re-stabilizing WebRTC connection with peer ${remotePeerId}...`);
+    console.warn(
+      `[WebRoom Voice] Re-stabilizing WebRTC connection with peer ${remotePeerId}...`,
+    );
     try {
       if (typeof pc.restartIce === "function") {
         pc.restartIce();
@@ -512,7 +552,10 @@ export class VoiceManager {
     }
   }
 
-  private async initiateOffer(remotePeerId: string, pc: RTCPeerConnection): Promise<void> {
+  private async initiateOffer(
+    remotePeerId: string,
+    pc: RTCPeerConnection,
+  ): Promise<void> {
     if (this.isDestroyed || !pc) {
       return;
     }
@@ -524,7 +567,10 @@ export class VoiceManager {
         offerToReceiveAudio: true,
       });
 
-      if (pc.signalingState !== "stable" && pc.signalingState !== "have-local-offer") {
+      if (
+        pc.signalingState !== "stable" &&
+        pc.signalingState !== "have-local-offer"
+      ) {
         return;
       }
 
@@ -546,7 +592,10 @@ export class VoiceManager {
       };
       this.transport.send(message);
     } catch (err) {
-      console.warn(`[WebRoom Voice] Failed to create/send offer to ${remotePeerId}:`, err);
+      console.warn(
+        `[WebRoom Voice] Failed to create/send offer to ${remotePeerId}:`,
+        err,
+      );
     } finally {
       this.makingOffer.set(remotePeerId, false);
     }
@@ -560,7 +609,9 @@ export class VoiceManager {
       audioElement.setAttribute("playsinline", "true");
       audioElement.setAttribute("webkit-playsinline", "true");
       const container =
-        (typeof document !== "undefined" && (document.body || document.documentElement || document.head)) || null;
+        (typeof document !== "undefined" &&
+          (document.body || document.documentElement || document.head)) ||
+        null;
       if (container) {
         container.appendChild(audioElement);
       }
@@ -660,7 +711,10 @@ export class VoiceManager {
       try {
         await pc.setLocalDescription({ type: "rollback" });
       } catch (err) {
-        console.warn(`[WebRoom Voice] Rollback error for peer ${msg.peerId}:`, err);
+        console.warn(
+          `[WebRoom Voice] Rollback error for peer ${msg.peerId}:`,
+          err,
+        );
       }
     }
 
@@ -670,12 +724,16 @@ export class VoiceManager {
       // Flush pending ICE candidates if any were buffered
       const pending = this.pendingCandidates.get(msg.peerId) || [];
       for (const candidate of pending) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        await pc
+          .addIceCandidate(new RTCIceCandidate(candidate))
+          .catch(() => {});
       }
       this.pendingCandidates.delete(msg.peerId);
 
       const answer = await pc.createAnswer();
-      const optimizedSdp = answer.sdp ? optimizeAudioSdp(answer.sdp) : answer.sdp;
+      const optimizedSdp = answer.sdp
+        ? optimizeAudioSdp(answer.sdp)
+        : answer.sdp;
       const optimizedAnswer: RTCSessionDescriptionInit = {
         type: answer.type,
         sdp: optimizedSdp,
@@ -693,7 +751,10 @@ export class VoiceManager {
       };
       this.transport.send(response);
     } catch (err) {
-      console.warn(`[WebRoom Voice] Error handling offer from ${msg.peerId}:`, err);
+      console.warn(
+        `[WebRoom Voice] Error handling offer from ${msg.peerId}:`,
+        err,
+      );
     }
   }
 
@@ -709,15 +770,22 @@ export class VoiceManager {
       // Flush pending ICE candidates
       const pending = this.pendingCandidates.get(msg.peerId) || [];
       for (const candidate of pending) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        await pc
+          .addIceCandidate(new RTCIceCandidate(candidate))
+          .catch(() => {});
       }
       this.pendingCandidates.delete(msg.peerId);
     } catch (err) {
-      console.warn(`[WebRoom Voice] Error setting remote description from answer from ${msg.peerId}:`, err);
+      console.warn(
+        `[WebRoom Voice] Error setting remote description from answer from ${msg.peerId}:`,
+        err,
+      );
     }
   }
 
-  private async handleVoiceIceCandidate(msg: VoiceIceCandidateMessage): Promise<void> {
+  private async handleVoiceIceCandidate(
+    msg: VoiceIceCandidateMessage,
+  ): Promise<void> {
     const pc = this.peerConnections.get(msg.peerId);
     if (!pc || !pc.remoteDescription) {
       const current = this.pendingCandidates.get(msg.peerId) || [];
@@ -729,7 +797,10 @@ export class VoiceManager {
     try {
       await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
     } catch (err) {
-      console.warn(`[WebRoom Voice] Error adding ICE candidate from ${msg.peerId}:`, err);
+      console.warn(
+        `[WebRoom Voice] Error adding ICE candidate from ${msg.peerId}:`,
+        err,
+      );
     }
   }
 
