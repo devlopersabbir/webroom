@@ -1,4 +1,5 @@
 import { NodeIdentity } from "../identity/node-identity";
+import { NodeCapabilities } from "../resources/resource-budget";
 
 /**
  * WebRoom v3 — Distributed Membership Protocol Definitions & Cryptographic Verification
@@ -21,6 +22,7 @@ export interface MembershipMessage {
   sequence: number;
   status: NodeLivenessStatus;
   contributionEnabled: boolean;
+  capabilities?: NodeCapabilities;
   avatar?: string;
 }
 

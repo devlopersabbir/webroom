@@ -12,6 +12,7 @@ import { FollowPeerInfo } from "../follow/follow-store";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { NodeIdentity } from "../identity/node-identity";
 import { MembershipManager } from "../membership/membership-manager";
+import { ResourceManager } from "../resources/resource-manager";
 import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
@@ -28,6 +29,7 @@ export interface RoomOptions {
   customPeerId?: string;
   customAvatar?: string;
   identity?: NodeIdentity;
+  resourceManager?: ResourceManager;
 }
 
 export interface Participant {
@@ -60,6 +62,7 @@ export class Room {
   public readonly peerId: string;
   public readonly avatar: string;
   public readonly identity: NodeIdentity;
+  public readonly resourceManager: ResourceManager;
   public readonly membershipManager: MembershipManager;
   private readonly transport: Transport;
   private readonly presenceManager: PresenceManager;
@@ -74,6 +77,7 @@ export class Room {
     peerId: string,
     avatar: string,
     identity: NodeIdentity,
+    resourceManager: ResourceManager,
     membershipManager: MembershipManager,
     transport: Transport,
     presenceManager: PresenceManager,
@@ -87,6 +91,7 @@ export class Room {
     this.peerId = peerId;
     this.avatar = avatar;
     this.identity = identity;
+    this.resourceManager = resourceManager;
     this.membershipManager = membershipManager;
     this.transport = transport;
     this.presenceManager = presenceManager;
@@ -105,6 +110,7 @@ export class Room {
     const canonicalUrl = canonicalizeUrl(url);
     const roomId = await getRoomId(canonicalUrl);
     const identity = options.identity || (await NodeIdentity.initialize());
+    const resourceManager = options.resourceManager || (await ResourceManager.initialize());
     const peerId = options.customPeerId || generatePeerId();
     const avatar = options.customAvatar || getRandomAvatar();
 
@@ -125,6 +131,7 @@ export class Room {
       peerId,
       transport,
       avatar,
+      resourceManager,
     );
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
     const voiceManager = new VoiceManager(roomId, peerId, transport);
@@ -157,6 +164,7 @@ export class Room {
       peerId,
       avatar,
       identity,
+      resourceManager,
       membershipManager,
       transport,
       presenceManager,

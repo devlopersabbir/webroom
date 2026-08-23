@@ -1,4 +1,6 @@
 import { NodeIdentity } from "../identity/node-identity";
+import { NodeCapabilities } from "../resources/resource-budget";
+import { ResourceManager } from "../resources/resource-manager";
 import {
   CLEANUP_INTERVAL_MS,
   HEARTBEAT_INTERVAL_MS,
@@ -28,7 +30,7 @@ export class MembershipManager {
   public readonly identity: NodeIdentity;
   public readonly peerId: string;
   public readonly avatar: string;
-  public readonly contributionEnabled: boolean;
+  public readonly resourceManager?: ResourceManager;
 
   private readonly transport: Transport;
   private readonly store: MembershipStore;
@@ -36,6 +38,7 @@ export class MembershipManager {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private livenessTimer: ReturnType<typeof setInterval> | null = null;
   private unsubscribeTransport: (() => void) | null = null;
+  private unsubscribeResources: (() => void) | null = null;
 
   private sequenceNumber = 0;
   private isDestroyed = false;
@@ -52,7 +55,7 @@ export class MembershipManager {
     peerId: string,
     transport: Transport,
     avatar: string = "🐸",
-    contributionEnabled: boolean = true,
+    resourceManager?: ResourceManager,
     store = new MembershipStore()
   ) {
     this.roomId = roomId;
@@ -60,8 +63,12 @@ export class MembershipManager {
     this.peerId = peerId;
     this.transport = transport;
     this.avatar = avatar;
-    this.contributionEnabled = contributionEnabled;
+    this.resourceManager = resourceManager;
     this.store = store;
+  }
+
+  public get contributionEnabled(): boolean {
+    return this.resourceManager ? this.resourceManager.isContributionEnabled() : true;
   }
 
   /**
@@ -77,6 +84,16 @@ export class MembershipManager {
     this.unsubscribeTransport = this.transport.onMessage((raw) => {
       this.handleIncomingMessage(raw);
     });
+
+    // Listen to resource capability / contribution toggle changes
+    if (this.resourceManager) {
+      this.unsubscribeResources = this.resourceManager.onCapabilitiesChange(() => {
+        if (!this.isDestroyed) {
+          this.broadcastMembershipMessage("NODE_HEARTBEAT");
+          this.emitMembershipChange();
+        }
+      });
+    }
 
     this.transport.start();
 
@@ -118,6 +135,7 @@ export class MembershipManager {
       sequence: this.sequenceNumber,
       status: "online",
       contributionEnabled: this.contributionEnabled,
+      capabilities: this.resourceManager?.getCapabilities(),
       avatar: this.avatar,
     };
 
@@ -200,6 +218,11 @@ export class MembershipManager {
       this.unsubscribeTransport = null;
     }
 
+    if (this.unsubscribeResources) {
+      this.unsubscribeResources();
+      this.unsubscribeResources = null;
+    }
+
     this.transport.close();
     this.store.clear();
 
@@ -246,6 +269,7 @@ export class MembershipManager {
           sequence: msg.sequence,
           status: "online",
           contributionEnabled: msg.contributionEnabled,
+          capabilities: msg.capabilities,
           avatar: msg.avatar,
         };
 
@@ -275,6 +299,7 @@ export class MembershipManager {
           sequence: msg.sequence,
           status: "online",
           contributionEnabled: msg.contributionEnabled,
+          capabilities: msg.capabilities,
           avatar: msg.avatar,
         };
 
@@ -335,6 +360,7 @@ export class MembershipManager {
       ...unsignedPayload,
       publicKey: this.identity.getPublicKey(),
       signature,
+      capabilities: this.resourceManager?.getCapabilities(),
       avatar: this.avatar,
     };
 

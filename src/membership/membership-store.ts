@@ -1,3 +1,4 @@
+import { NodeCapabilities } from "../resources/resource-budget";
 import { NodeLivenessStatus } from "./membership-protocol";
 
 /**
@@ -12,6 +13,7 @@ export interface NetworkNode {
   sequence: number;
   status: NodeLivenessStatus;
   contributionEnabled: boolean;
+  capabilities?: NodeCapabilities;
   avatar?: string;
 }
 

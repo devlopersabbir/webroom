@@ -6,6 +6,7 @@ import { VoiceState } from "../voice/voice-manager";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { MessageComposer } from "./MessageComposer";
 import { ParticipantList } from "./ParticipantList";
+import { SettingsModal } from "./SettingsModal";
 
 interface WebRoomPanelProps {
   room: Room;
@@ -19,6 +20,7 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
   const [speakingPeers, setSpeakingPeers] = useState<Set<string>>(room.getSpeakingPeers());
   const [followingLeader, setFollowingLeader] = useState<FollowPeerInfo | null>(room.getFollowing());
   const [showParticipants, setShowParticipants] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef<boolean>(true);
 
@@ -118,7 +120,9 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
 
     if (e.key === "Escape") {
       e.preventDefault();
-      if (showParticipants) {
+      if (showSettings) {
+        setShowSettings(false);
+      } else if (showParticipants) {
         setShowParticipants(false);
       } else if (onClose) {
         onClose();
@@ -144,7 +148,7 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
         <div className="webroom-header-left">
           <div className="webroom-header-title-row">
             <span className="webroom-header-title">WebRoom</span>
-            <span className="webroom-header-badge">V2</span>
+            <span className="webroom-header-badge">V3</span>
           </div>
           <button
             type="button"
@@ -182,18 +186,23 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
             <span className="webroom-btn-icon">{voiceState.isSpeakerOn ? "🔊" : "🔇"}</span>
           </button>
 
-          {/* Settings Placeholder */}
+          {/* Settings Button */}
           <button
             type="button"
-            className="webroom-settings-btn"
-            title="Settings (coming soon)"
+            className={`webroom-settings-btn ${showSettings ? "webroom-settings-btn-active" : ""}`}
+            onClick={() => setShowSettings((prev) => !prev)}
+            title="Settings & Resource Contribution"
             aria-label="Settings"
-            tabIndex={-1}
           >
             ⚙️
           </button>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal room={room} onClose={() => setShowSettings(false)} />
+      )}
 
       {/* Participant List Overlay / Modal */}
       {showParticipants && (
