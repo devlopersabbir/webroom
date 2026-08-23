@@ -1,80 +1,70 @@
 ## [2.4.3](https://github.com/devlopersabbir/webroom/compare/v2.4.2...v2.4.3) (2026-08-23)
 
-
 ### Bug Fixes
 
-* implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
-* implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
+- implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
+- implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
 
 ## [2.4.3](https://github.com/devlopersabbir/webroom/compare/v2.4.2...v2.4.3) (2026-08-23)
 
-
 ### Bug Fixes
 
-* implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
-* implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
+- implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
+- implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
 
 ## [2.4.3](https://github.com/devlopersabbir/webroom/compare/v2.4.2...v2.4.3) (2026-08-22)
 
-
 ### Bug Fixes
 
-* implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
-* implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
+- implement decentralized transport layer using Trystero with secure WebRTC bridging ([8321410](https://github.com/devlopersabbir/webroom/commit/83214100b45fe1f746376eeaa4c2db86d25cd20a))
+- implement VoiceManager for WebRTC audio streaming with Opus optimization and peer synchronization ([d888d0a](https://github.com/devlopersabbir/webroom/commit/d888d0a38fc092a3ae22faa31514fb6d9b7a6012))
 
 ## [2.4.2](https://github.com/devlopersabbir/webroom/compare/v2.4.1...v2.4.2) (2026-08-22)
 
 ## [2.4.1](https://github.com/devlopersabbir/webroom/compare/v2.4.0...v2.4.1) (2026-08-22)
 
-
 ### Bug Fixes
 
-* implement SafeRTCPeerConnection and data channel wrappers to sanitize cross-compartment WebRTC binary data ([0e96dac](https://github.com/devlopersabbir/webroom/commit/0e96dac8fda0be57f2c41c30f2f795712887993f))
+- implement SafeRTCPeerConnection and data channel wrappers to sanitize cross-compartment WebRTC binary data ([0e96dac](https://github.com/devlopersabbir/webroom/commit/0e96dac8fda0be57f2c41c30f2f795712887993f))
 
 # [2.4.0](https://github.com/devlopersabbir/webroom/compare/v2.3.0...v2.4.0) (2026-08-22)
 
-
 ### Features
 
-* implement BackgroundWebSocket bridge to bypass CSP connect-src restrictions in extensions ([6460783](https://github.com/devlopersabbir/webroom/commit/64607839120725787ddd37a4fcad127e3bc5ac13))
+- implement BackgroundWebSocket bridge to bypass CSP connect-src restrictions in extensions ([6460783](https://github.com/devlopersabbir/webroom/commit/64607839120725787ddd37a4fcad127e3bc5ac13))
 
 # [2.3.0](https://github.com/devlopersabbir/webroom/compare/v2.2.0...v2.3.0) (2026-08-22)
 
-
 ### Features
 
-* implement VoiceManager for coordinated WebRTC audio signaling and state management ([402da4a](https://github.com/devlopersabbir/webroom/commit/402da4a4bb82b00b3e4818a9c10bb19cc0cca89b))
-* implement VoiceManager for WebRTC audio coordination with SDP optimization ([99af482](https://github.com/devlopersabbir/webroom/commit/99af4824ca2a4771e1eb3560f93f2a5cecbaf54a))
+- implement VoiceManager for coordinated WebRTC audio signaling and state management ([402da4a](https://github.com/devlopersabbir/webroom/commit/402da4a4bb82b00b3e4818a9c10bb19cc0cca89b))
+- implement VoiceManager for WebRTC audio coordination with SDP optimization ([99af482](https://github.com/devlopersabbir/webroom/commit/99af4824ca2a4771e1eb3560f93f2a5cecbaf54a))
 
 # [2.2.0](https://github.com/devlopersabbir/webroom/compare/v2.1.1...v2.2.0) (2026-08-22)
 
-
 ### Bug Fixes
 
-* implement TrysteroTorrentTransport for decentralized peer discovery and WebRTC signaling ([db72cd2](https://github.com/devlopersabbir/webroom/commit/db72cd272040b24284ac7c16e42ec59cb76b5745))
-
+- implement TrysteroTorrentTransport for decentralized peer discovery and WebRTC signaling ([db72cd2](https://github.com/devlopersabbir/webroom/commit/db72cd272040b24284ac7c16e42ec59cb76b5745))
 
 ### Features
 
-* add GitHub Actions workflow for automated Firefox Add-on deployment ([9a5472b](https://github.com/devlopersabbir/webroom/commit/9a5472b09befe2183967f1c97f2f631c22fe31ab))
-* implement background WebSocket relay and automatic extension updates ([ae0d028](https://github.com/devlopersabbir/webroom/commit/ae0d0283ebc7afa36bbe6a444e65e2b3936a38c8))
-* implement Trystero-based decentralized WebRTC transport with relay fallback ([ca671c3](https://github.com/devlopersabbir/webroom/commit/ca671c3acee6863bdb709516009d3e603d6783de))
-* implement VoiceManager for coordinated WebRTC audio signaling and state management ([402da4a](https://github.com/devlopersabbir/webroom/commit/402da4a4bb82b00b3e4818a9c10bb19cc0cca89b))
-* implement VoiceManager for WebRTC audio coordination with SDP optimization ([99af482](https://github.com/devlopersabbir/webroom/commit/99af4824ca2a4771e1eb3560f93f2a5cecbaf54a))
+- add GitHub Actions workflow for automated Firefox Add-on deployment ([9a5472b](https://github.com/devlopersabbir/webroom/commit/9a5472b09befe2183967f1c97f2f631c22fe31ab))
+- implement background WebSocket relay and automatic extension updates ([ae0d028](https://github.com/devlopersabbir/webroom/commit/ae0d0283ebc7afa36bbe6a444e65e2b3936a38c8))
+- implement Trystero-based decentralized WebRTC transport with relay fallback ([ca671c3](https://github.com/devlopersabbir/webroom/commit/ca671c3acee6863bdb709516009d3e603d6783de))
+- implement VoiceManager for coordinated WebRTC audio signaling and state management ([402da4a](https://github.com/devlopersabbir/webroom/commit/402da4a4bb82b00b3e4818a9c10bb19cc0cca89b))
+- implement VoiceManager for WebRTC audio coordination with SDP optimization ([99af482](https://github.com/devlopersabbir/webroom/commit/99af4824ca2a4771e1eb3560f93f2a5cecbaf54a))
 
 # [2.2.0](https://github.com/devlopersabbir/webroom/compare/v2.1.1...v2.2.0) (2026-08-22)
 
-
 ### Bug Fixes
 
-* implement TrysteroTorrentTransport for decentralized peer discovery and WebRTC signaling ([db72cd2](https://github.com/devlopersabbir/webroom/commit/db72cd272040b24284ac7c16e42ec59cb76b5745))
-
+- implement TrysteroTorrentTransport for decentralized peer discovery and WebRTC signaling ([db72cd2](https://github.com/devlopersabbir/webroom/commit/db72cd272040b24284ac7c16e42ec59cb76b5745))
 
 ### Features
 
-* add GitHub Actions workflow for automated Firefox Add-on deployment ([9a5472b](https://github.com/devlopersabbir/webroom/commit/9a5472b09befe2183967f1c97f2f631c22fe31ab))
-* implement background WebSocket relay and automatic extension updates ([ae0d028](https://github.com/devlopersabbir/webroom/commit/ae0d0283ebc7afa36bbe6a444e65e2b3936a38c8))
-* implement Trystero-based decentralized WebRTC transport with relay fallback ([ca671c3](https://github.com/devlopersabbir/webroom/commit/ca671c3acee6863bdb709516009d3e603d6783de))
+- add GitHub Actions workflow for automated Firefox Add-on deployment ([9a5472b](https://github.com/devlopersabbir/webroom/commit/9a5472b09befe2183967f1c97f2f631c22fe31ab))
+- implement background WebSocket relay and automatic extension updates ([ae0d028](https://github.com/devlopersabbir/webroom/commit/ae0d0283ebc7afa36bbe6a444e65e2b3936a38c8))
+- implement Trystero-based decentralized WebRTC transport with relay fallback ([ca671c3](https://github.com/devlopersabbir/webroom/commit/ca671c3acee6863bdb709516009d3e603d6783de))
 
 # [2.2.1](https://github.com/devlopersabbir/webroom/compare/v2.1.1...v2.2.0) (2026-08-22)
 
