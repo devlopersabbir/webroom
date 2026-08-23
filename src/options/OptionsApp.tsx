@@ -10,7 +10,7 @@ import { APP_VERSION } from "../shared/constants";
 
 declare const chrome: any;
 
-const DEFAULT_MONITOR_URL = "https://devlopersabbir.github.io/";
+const GLOBAL_CLUSTER_MESH_URL = "webroom://global-cluster-mesh";
 
 interface PacketLog {
   id: string;
@@ -21,8 +21,10 @@ interface PacketLog {
 }
 
 export const OptionsApp: React.FC = () => {
-  const [monitorUrl, setMonitorUrl] = useState<string>(DEFAULT_MONITOR_URL);
-  const [activeUrl, setActiveUrl] = useState<string>(DEFAULT_MONITOR_URL);
+  const [networkMode, setNetworkMode] = useState<"global" | "custom">("global");
+  const [customUrl, setCustomUrl] = useState<string>("https://devlopersabbir.github.io/");
+  const [activeUrl, setActiveUrl] = useState<string>(GLOBAL_CLUSTER_MESH_URL);
+
   const [identity, setIdentity] = useState<NodeIdentity | null>(null);
   const [resourceManager, setResourceManager] = useState<ResourceManager | null>(null);
   const [nodeId, setNodeId] = useState<string>("Initializing...");
@@ -57,9 +59,26 @@ export const OptionsApp: React.FC = () => {
     ]);
   };
 
-  // 1-second ticker for last-seen
+  // 1-second ticker for real-time ping / lastSeen & polling latest cluster state
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => {
+      const currentNow = Date.now();
+      setNow(currentNow);
+
+      if (roomRef.current) {
+        const liveMembers = roomRef.current.membershipManager.getMembers();
+        const liveRoles = roomRef.current.roleManager.getAllRoles();
+        const liveSelfRole = roomRef.current.getSelfRole();
+        const livePlan = roomRef.current.getRoutingPlan();
+
+        setMembers([...liveMembers]);
+        setRoles(new Map(liveRoles));
+        setSelfRole(liveSelfRole);
+        if (livePlan) {
+          setRoutingPlan({ ...livePlan });
+        }
+      }
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -85,12 +104,12 @@ export const OptionsApp: React.FC = () => {
         setContributionEnabled(resMgr.isContributionEnabled());
         setCapabilities(resMgr.getCapabilities());
 
-        addLog("SYS", `Initialized Node Identity: ${id.getNodeId().slice(0, 16)}... (ECDSA P-256)`);
+        addLog("SYS", `Node Identity initialized: ${id.getNodeId().slice(0, 16)}... (ECDSA NIST P-256)`);
 
         resMgr.onCapabilitiesChange((caps) => {
           setCapabilities(caps);
           setContributionEnabled(caps.contributionEnabled);
-          addLog("SYS", `Resource budget updated: ${caps.contributionEnabled ? "CONTRIBUTING" : "DISABLED"} (${caps.availableRelaySlots}/${caps.maxRelaySlots} slots)`);
+          addLog("SYS", `Resource budget: ${caps.contributionEnabled ? "CONTRIBUTING" : "DISABLED"} (${caps.availableRelaySlots}/${caps.maxRelaySlots} slots)`);
         });
       } catch (err) {
         addLog("SYS", `Error initializing identity: ${String(err)}`);
@@ -116,7 +135,9 @@ export const OptionsApp: React.FC = () => {
 
     async function connectRoom() {
       try {
-        addLog("SYS", `Connecting overlay to URL: ${activeUrl}`);
+        const isGlobal = activeUrl === GLOBAL_CLUSTER_MESH_URL;
+        addLog("SYS", isGlobal ? "Connecting to Global Decentralized Cluster Mesh..." : `Connecting to Subnet Room: ${activeUrl}`);
+
         const liveRoom = await Room.join(activeUrl, {
           identity: identity || undefined,
           resourceManager: resourceManager || undefined,
@@ -134,13 +155,13 @@ export const OptionsApp: React.FC = () => {
         setMembers(liveRoom.membershipManager.getMembers());
         setRoutingPlan(liveRoom.getRoutingPlan());
 
-        addLog("SYS", `Joined room ${liveRoom.roomId.slice(0, 16)}... as Peer ${liveRoom.peerId}`);
+        addLog("SYS", `Connected to Mesh ${liveRoom.roomId.slice(0, 16)}... (Peer: ${liveRoom.peerId})`);
 
         // Subscribe to live membership changes
         liveRoom.membershipManager.onMembershipChange((updatedMembers) => {
           if (!isCancelled) {
             setMembers([...updatedMembers]);
-            addLog("IN", `Cluster membership updated: ${updatedMembers.length} nodes online`);
+            addLog("IN", `Cluster membership updated: ${updatedMembers.length} active node(s) discovered`);
           }
         });
 
@@ -149,7 +170,8 @@ export const OptionsApp: React.FC = () => {
           if (!isCancelled) {
             setSelfRole(newSelfRole);
             setRoles(new Map(allRoles));
-            addLog("ROLE", `Role updated: Local is ${newSelfRole.toUpperCase()} (Coordinator: ${liveRoom.roleManager.getCoordinatorNodeId()?.slice(0, 12)}...)`);
+            const coordId = liveRoom.roleManager.getCoordinatorNodeId();
+            addLog("ROLE", `Role updated: Local is ${newSelfRole.toUpperCase()} (Coordinator: ${coordId?.slice(0, 14)}...)`);
           }
         });
 
@@ -157,11 +179,11 @@ export const OptionsApp: React.FC = () => {
         liveRoom.onRoutingChange((newPlan) => {
           if (!isCancelled) {
             setRoutingPlan({ ...newPlan });
-            addLog("ROUTE", `Routing plan computed: ${newPlan.directRouteCount} direct, ${newPlan.relayRouteCount} relayed`);
+            addLog("ROUTE", `Routing plan: ${newPlan.directRouteCount} direct, ${newPlan.relayRouteCount} relayed`);
           }
         });
       } catch (err) {
-        addLog("SYS", `Failed to join room: ${String(err)}`);
+        addLog("SYS", `Failed to join mesh: ${String(err)}`);
       }
     }
 
@@ -193,54 +215,81 @@ export const OptionsApp: React.FC = () => {
     }
   };
 
-  const handleApplyUrl = (e: React.FormEvent) => {
+  const handleSwitchToGlobal = () => {
+    setNetworkMode("global");
+    setActiveUrl(GLOBAL_CLUSTER_MESH_URL);
+  };
+
+  const handleApplyCustomUrl = (e: React.FormEvent) => {
     e.preventDefault();
-    if (monitorUrl.trim() && monitorUrl !== activeUrl) {
-      setActiveUrl(monitorUrl.trim());
+    if (customUrl.trim()) {
+      setNetworkMode("custom");
+      setActiveUrl(customUrl.trim());
     }
   };
 
   const copyToClipboard = (text: string) => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      addLog("SYS", `Copied to clipboard: ${text.slice(0, 20)}...`);
+      addLog("SYS", `Copied: ${text.slice(0, 24)}...`);
     }
   };
 
   const selfRoleConfig = ROLE_DISPLAY_CONFIG[selfRole] || ROLE_DISPLAY_CONFIG.participant;
+  const coordinatorNodeId = room?.roleManager.getCoordinatorNodeId();
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] p-4 font-mono text-xs selection:bg-[#1f6feb] selection:text-white">
-      {/* DevTools Top Bar */}
+      {/* Top Header */}
       <header className="border-b border-[#30363d] pb-3 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="px-2 py-1 bg-[#238636] text-white font-bold text-xs rounded">
-            WEBROOM DEVTOOLS
+            WEBROOM CLUSTER DEVTOOLS
           </div>
           <span className="text-[#8b949e]">v{APP_VERSION}</span>
           <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            OVERLAY LIVE
+            REAL-TIME MESH ACTIVE
           </span>
           <span className="text-[#8b949e] border-l border-[#30363d] pl-3">
-            Room: <code className="text-[#58a6ff]">{room?.roomId ? room.roomId.slice(0, 16) : "connecting"}...</code>
+            Mesh ID: <code className="text-[#58a6ff]">{room?.roomId ? room.roomId.slice(0, 16) : "connecting"}...</code>
           </span>
         </div>
 
-        {/* URL Switcher */}
-        <form onSubmit={handleApplyUrl} className="flex items-center gap-2">
-          <input
-            type="text"
-            value={monitorUrl}
-            onChange={(e) => setMonitorUrl(e.target.value)}
-            className="bg-[#161b22] border border-[#30363d] focus:border-[#58a6ff] focus:outline-none rounded px-2.5 py-1 text-xs text-[#c9d1d9] w-64"
-          />
+        {/* Network Mode Switcher */}
+        <div className="flex items-center gap-2">
           <button
-            type="submit"
-            className="px-2.5 py-1 bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] rounded text-[#c9d1d9] font-medium transition"
+            type="button"
+            onClick={handleSwitchToGlobal}
+            className={`px-2.5 py-1 border rounded text-xs font-medium transition ${
+              networkMode === "global"
+                ? "bg-[#1f6feb] border-[#1f6feb] text-white font-bold"
+                : "bg-[#21262d] hover:bg-[#30363d] border-[#30363d] text-[#c9d1d9]"
+            }`}
           >
-            Connect URL
+            🌐 Global Cluster (All Nodes)
           </button>
+
+          <form onSubmit={handleApplyCustomUrl} className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={customUrl}
+              onChange={(e) => setCustomUrl(e.target.value)}
+              placeholder="Specific Room / URL..."
+              className="bg-[#161b22] border border-[#30363d] focus:border-[#58a6ff] focus:outline-none rounded px-2 py-1 text-xs text-[#c9d1d9] w-52"
+            />
+            <button
+              type="submit"
+              className={`px-2 py-1 border rounded text-xs font-medium transition ${
+                networkMode === "custom"
+                  ? "bg-[#1f6feb] border-[#1f6feb] text-white font-bold"
+                  : "bg-[#21262d] hover:bg-[#30363d] border-[#30363d] text-[#c9d1d9]"
+              }`}
+            >
+              Filter Room
+            </button>
+          </form>
+
           <button
             type="button"
             onClick={() => setShowJsonState(!showJsonState)}
@@ -250,29 +299,35 @@ export const OptionsApp: React.FC = () => {
                 : "bg-[#21262d] hover:bg-[#30363d] border-[#30363d] text-[#c9d1d9]"
             }`}
           >
-            {showJsonState ? "Hide State JSON" : "Inspect State JSON"}
+            {showJsonState ? "Hide JSON" : "Inspect JSON"}
           </button>
-        </form>
+        </div>
       </header>
 
-      {/* Quick Metrics Strip */}
+      {/* Cluster Overview Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase">Local Node ID</div>
+          <div className="text-[#8b949e] text-[10px] uppercase">This Browser Client (Self)</div>
           <div className="text-[#58a6ff] font-bold truncate mt-0.5" title={nodeId}>
             {nodeId}
           </div>
-          <div className="text-[10px] text-[#8b949e] mt-1">Browser-Anchored Keypair</div>
+          <div className="text-[10px] text-[#8b949e] mt-1">ECDSA NIST P-256 Keypair</div>
         </div>
 
         <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase">Cluster Role</div>
+          <div className="text-[#8b949e] text-[10px] uppercase">Elected Coordinator</div>
           <div className="font-bold text-white mt-0.5 flex items-center gap-1.5">
-            <span>{selfRoleConfig.icon}</span>
-            <span>{selfRole.toUpperCase()}</span>
+            <span className="text-amber-400">👑</span>
+            <span className="truncate text-amber-300">
+              {coordinatorNodeId
+                ? coordinatorNodeId === nodeId
+                  ? "YOU (Coordinator)"
+                  : `${coordinatorNodeId.slice(0, 14)}...`
+                : "Electing..."}
+            </span>
           </div>
           <div className="text-[10px] text-[#8b949e] mt-1">
-            Coordinator: {room?.roleManager.getCoordinatorNodeId()?.slice(0, 10) || "none"}...
+            Local Role: <span className="font-bold text-slate-200">{selfRole.toUpperCase()}</span>
           </div>
         </div>
 
@@ -300,27 +355,27 @@ export const OptionsApp: React.FC = () => {
         </div>
 
         <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase">Active Streams & Nodes</div>
+          <div className="text-[#8b949e] text-[10px] uppercase">Decentralized Mesh Scope</div>
           <div className="font-bold text-white mt-0.5">
-            {members.length} Nodes &bull; {routingPlan?.routes.size ?? 0} Routes
+            {members.length} Discovered Node(s)
           </div>
-          <div className="text-[10px] text-[#8b949e] mt-1">
-            Topology: {members.length <= 3 ? "Direct Mesh" : "Relay Tree"}
+          <div className="text-[10px] text-[#8b949e] mt-1 truncate" title={activeUrl}>
+            Mode: {networkMode === "global" ? "Global Cluster" : activeUrl}
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Cluster Table & Live Log Stream */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Live Nodes Table (7 cols) */}
+        {/* Left Column: Discovered Cluster Nodes Table (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           <div className="bg-[#161b22] border border-[#30363d] rounded overflow-hidden">
             <div className="bg-[#21262d] px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
-              <span className="font-bold text-white text-xs">
-                DISCOVERED CLUSTER NODES ({members.length})
+              <span className="font-bold text-white text-xs flex items-center gap-2">
+                <span>ALL DISCOVERED CLIENTS IN CLUSTER ({members.length})</span>
               </span>
               <span className="text-[#8b949e] text-[10px]">
-                Heartbeat: 2.5s &bull; Timeout: 10s
+                Real-Time ECDSA Signed Heartbeats
               </span>
             </div>
 
@@ -328,12 +383,12 @@ export const OptionsApp: React.FC = () => {
               <table className="w-full text-left text-[11px]">
                 <thead className="bg-[#0d1117] text-[#8b949e] border-b border-[#30363d]">
                   <tr>
-                    <th className="p-2">Node ID / Peer</th>
+                    <th className="p-2">Client / Node ID</th>
                     <th className="p-2">Role</th>
                     <th className="p-2">Status</th>
-                    <th className="p-2">Seq</th>
-                    <th className="p-2">Last Seen</th>
-                    <th className="p-2">Relay</th>
+                    <th className="p-2">Heartbeat</th>
+                    <th className="p-2">Ping</th>
+                    <th className="p-2">Relay Slots</th>
                     <th className="p-2">Action</th>
                   </tr>
                 </thead>
@@ -353,11 +408,11 @@ export const OptionsApp: React.FC = () => {
                             <span className="text-[#58a6ff]">{node.nodeId.slice(0, 14)}...</span>
                             {isSelf && (
                               <span className="px-1 bg-[#1f6feb] text-white text-[9px] rounded font-bold">
-                                SELF
+                                YOU
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-[#8b949e]">{node.peerId}</div>
+                          <div className="text-[10px] text-[#8b949e] font-mono">{node.peerId}</div>
                         </td>
                         <td className="p-2">
                           <span
@@ -388,7 +443,7 @@ export const OptionsApp: React.FC = () => {
                           )}
                         </td>
                         <td className="p-2 text-[#8b949e]">#{node.sequence}</td>
-                        <td className="p-2 text-[#8b949e]">{isSelf ? "0s" : `${elapsed}s ago`}</td>
+                        <td className="p-2 text-[#8b949e]">{isSelf ? "0s (local)" : `${elapsed}s ago`}</td>
                         <td className="p-2">
                           {node.contributionEnabled ? (
                             <span className="text-emerald-400 font-semibold">
@@ -414,21 +469,21 @@ export const OptionsApp: React.FC = () => {
             </div>
           </div>
 
-          {/* Media Routing Streams Table */}
+          {/* Media Routing Streams Matrix */}
           <div className="bg-[#161b22] border border-[#30363d] rounded overflow-hidden">
             <div className="bg-[#21262d] px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
               <span className="font-bold text-white text-xs">
-                ROUTING PLAN & FORWARDING MATRIX ({routingPlan?.routes.size ?? 0} ACTIVE)
+                MEDIA ROUTING & STREAM FORWARDING MATRIX ({routingPlan?.routes.size ?? 0})
               </span>
               <span className="text-[#8b949e] text-[10px]">
-                Loop-Free Tree Protocol
+                Adaptive Direct / Relay Topology
               </span>
             </div>
 
             <div className="p-3">
               {!routingPlan || routingPlan.routes.size === 0 ? (
                 <div className="text-center py-4 text-[#8b949e] text-xs">
-                  Zero active audio streams. Speaking in any connected tab activates live routes.
+                  Zero active media streams. Speaking in any connected tab activates live loop-free routes.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -436,7 +491,7 @@ export const OptionsApp: React.FC = () => {
                     <thead className="bg-[#0d1117] text-[#8b949e]">
                       <tr>
                         <th className="p-2">Speaker</th>
-                        <th className="p-2">Route Type</th>
+                        <th className="p-2">Type</th>
                         <th className="p-2">Forwarding Traversal Path</th>
                         <th className="p-2">Listener</th>
                       </tr>
@@ -527,7 +582,7 @@ export const OptionsApp: React.FC = () => {
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#30363d]">
             <span className="font-bold text-white text-xs">RAW CLUSTER STATE JSON</span>
             <button
-              onClick={() => copyToClipboard(JSON.stringify({ nodeId, selfRole, members, routingPlan }, null, 2))}
+              onClick={() => copyToClipboard(JSON.stringify({ nodeId, selfRole, members, roles: Object.fromEntries(roles), routingPlan }, null, 2))}
               className="px-2 py-0.5 bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] rounded text-[10px] text-[#c9d1d9]"
             >
               Copy JSON
@@ -544,7 +599,9 @@ export const OptionsApp: React.FC = () => {
                 },
                 cluster: {
                   room: room?.roomId,
+                  meshUrl: activeUrl,
                   onlineCount: members.length,
+                  coordinator: coordinatorNodeId,
                   members,
                   roles: Object.fromEntries(roles.entries()),
                 },

@@ -133,12 +133,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ room, onClose }) =
             </div>
           </div>
         </div>
-
-        <div className="webroom-settings-footer">
-          <button type="button" className="webroom-btn-primary" onClick={onClose}>
-            Done
-          </button>
-        </div>
       </div>
     </div>
   );
