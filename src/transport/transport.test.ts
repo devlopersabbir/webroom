@@ -133,3 +133,35 @@ describe("HybridTransport", () => {
     hybrid.close();
   });
 });
+
+describe("WebRTC ICE Configuration & Network Traversal", () => {
+  it("restricts STUN servers to high-availability global anycast endpoints (Google & Twilio)", async () => {
+    const { DEFAULT_ICE_SERVERS, DEFAULT_RTC_CONFIG } = await import(
+      "./trystero-transport"
+    );
+
+    const stunEntry = DEFAULT_ICE_SERVERS.find((s) =>
+      Array.isArray(s.urls)
+        ? s.urls.some((u) => u.startsWith("stun:"))
+        : (s.urls as string)?.startsWith("stun:"),
+    );
+    expect(stunEntry).toBeDefined();
+
+    const stunUrls = Array.isArray(stunEntry!.urls)
+      ? stunEntry!.urls
+      : [stunEntry!.urls];
+
+    // Must be lean (<= 2) to avoid candidate flooding and slow discovery
+    expect(stunUrls.length).toBeLessThanOrEqual(2);
+    expect(stunUrls.some((u) => u.includes("stun.l.google.com"))).toBe(true);
+    expect(stunUrls.some((u) => u.includes("twilio.com"))).toBe(true);
+  });
+
+  it("configures RTCConfiguration for immediate on-demand candidate gathering", async () => {
+    const { DEFAULT_RTC_CONFIG } = await import("./trystero-transport");
+
+    expect(DEFAULT_RTC_CONFIG.iceTransportPolicy).toBe("all");
+    expect(DEFAULT_RTC_CONFIG.iceCandidatePoolSize).toBe(0);
+  });
+});
+
