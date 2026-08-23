@@ -98,6 +98,22 @@ export class RoleManager {
       roleAssignments.set(node.nodeId, role);
     }
 
+    let hasChanged =
+      this.selfRole !== previousSelfRole || previousCoordinator !== this.coordinatorNodeId;
+
+    if (!hasChanged) {
+      if (this.rolesByNodeId.size !== roleAssignments.size) {
+        hasChanged = true;
+      } else {
+        for (const [nodeId, role] of roleAssignments.entries()) {
+          if (this.rolesByNodeId.get(nodeId) !== role) {
+            hasChanged = true;
+            break;
+          }
+        }
+      }
+    }
+
     this.rolesByNodeId.clear();
     for (const [nodeId, role] of roleAssignments.entries()) {
       this.rolesByNodeId.set(nodeId, role);
@@ -105,13 +121,14 @@ export class RoleManager {
 
     this.selfRole = roleAssignments.get(selfNodeId) || "participant";
 
-    if (this.selfRole !== previousSelfRole || previousCoordinator !== this.coordinatorNodeId) {
-      console.log(
-        `[WebRoom Roles] 👑 Role: ${this.selfRole.toUpperCase()} (Coordinator: ${this.coordinatorNodeId})`
-      );
+    if (hasChanged) {
+      if (this.selfRole !== previousSelfRole || previousCoordinator !== this.coordinatorNodeId) {
+        console.log(
+          `[WebRoom Roles] 👑 Role: ${this.selfRole.toUpperCase()} (Coordinator: ${this.coordinatorNodeId})`
+        );
+      }
+      this.notifyListeners();
     }
-
-    this.notifyListeners();
 
     return {
       selfRole: this.selfRole,

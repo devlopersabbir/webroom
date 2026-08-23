@@ -53,15 +53,14 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
     e.stopPropagation();
   };
 
-  // Find node role by peerId
+  // Find node role by peerId without re-triggering cluster evaluations
   const getRoleForPeer = (p: Participant): NodeRole => {
     if (p.isSelf) {
       return room.getSelfRole();
     }
-    const members = room.membershipManager.getMembers();
-    const match = members.find((m) => m.peerId === p.peerId);
-    if (match && match.role) {
-      return match.role;
+    const node = room.membershipManager.getNodeByPeerId(p.peerId);
+    if (node) {
+      return roles.get(node.nodeId) || node.role || "participant";
     }
     return "participant";
   };

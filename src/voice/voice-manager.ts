@@ -150,6 +150,10 @@ export class VoiceManager {
     return new Set(this.speakingPeers);
   }
 
+  public isPeerSpeaking(peerId: string): boolean {
+    return this.speakingPeers.has(peerId);
+  }
+
   public onStateChange(listener: VoiceStateListener): () => void {
     this.stateListeners.add(listener);
     listener(this.getState());

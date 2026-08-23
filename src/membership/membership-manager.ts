@@ -161,6 +161,27 @@ export class MembershipManager {
   }
 
   /**
+   * Retrieves a node by its peerId without triggering full role re-evaluations.
+   */
+  public getNodeByPeerId(peerId: string): NetworkNode | undefined {
+    if (peerId === this.peerId) {
+      return {
+        nodeId: this.identity.getNodeId(),
+        peerId: this.peerId,
+        publicKey: this.identity.getPublicKey(),
+        lastSeen: Date.now(),
+        sequence: this.sequenceNumber,
+        status: "online",
+        contributionEnabled: this.contributionEnabled,
+        capabilities: this.resourceManager?.getCapabilities(),
+        role: this.getSelfRole(),
+        avatar: this.avatar,
+      };
+    }
+    return this.store.getNodeByPeerId(peerId);
+  }
+
+  /**
    * Returns count of online/suspected nodes in this room (self + remote).
    */
   public getMemberCount(): number {

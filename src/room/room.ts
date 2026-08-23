@@ -15,6 +15,8 @@ import { MembershipManager } from "../membership/membership-manager";
 import { ResourceManager } from "../resources/resource-manager";
 import { RoleManager } from "../roles/role-manager";
 import { NodeRole, RoleChangeListener } from "../roles/role-types";
+import { MediaRoutingLayer } from "../routing/media-routing-layer";
+import { RoutingPlan, RoutingPlanListener } from "../routing/routing-types";
 import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
@@ -47,7 +49,7 @@ export type ParticipantsListener = (participants: Participant[]) => void;
  */
 export function generatePeerId(): string {
   const uuid =
-    typeof crypto !== "undefined" && crypto.randomUUID
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : Math.random().toString(36).substring(2, 15) +
         Math.random().toString(36).substring(2, 15);
@@ -66,6 +68,7 @@ export class Room {
   public readonly identity: NodeIdentity;
   public readonly resourceManager: ResourceManager;
   public readonly membershipManager: MembershipManager;
+  public readonly routingLayer: MediaRoutingLayer;
   private readonly transport: Transport;
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
@@ -81,6 +84,7 @@ export class Room {
     identity: NodeIdentity,
     resourceManager: ResourceManager,
     membershipManager: MembershipManager,
+    routingLayer: MediaRoutingLayer,
     transport: Transport,
     presenceManager: PresenceManager,
     chatManager: ChatManager,
@@ -95,6 +99,7 @@ export class Room {
     this.identity = identity;
     this.resourceManager = resourceManager;
     this.membershipManager = membershipManager;
+    this.routingLayer = routingLayer;
     this.transport = transport;
     this.presenceManager = presenceManager;
     this.chatManager = chatManager;
@@ -135,6 +140,7 @@ export class Room {
       avatar,
       resourceManager,
     );
+    const routingLayer = new MediaRoutingLayer();
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
     const voiceManager = new VoiceManager(roomId, peerId, transport);
     const followManager = new FollowManager(roomId, peerId, avatar, transport);
@@ -147,6 +153,21 @@ export class Room {
     presenceManager.onPeerLeave((remotePeerId) => {
       voiceManager.handlePeerLeft(remotePeerId);
       followManager.handlePeerLeft(remotePeerId);
+    });
+
+    // Wire membership updates to media routing layer for automatic route reassignment
+    membershipManager.onMembershipChange((members) => {
+      const activeSpeakers = new Set<string>();
+      for (const m of members) {
+        if (voiceManager.isPeerSpeaking(m.peerId)) {
+          activeSpeakers.add(m.nodeId);
+        }
+      }
+      routingLayer.computeRoutingPlan(members, activeSpeakers);
+    });
+
+    membershipManager.onNodeLeave((leftNode) => {
+      routingLayer.handleNodeFailure(leftNode.nodeId, membershipManager.getMembers(), new Set());
     });
 
     presenceManager.start();
@@ -168,6 +189,7 @@ export class Room {
       identity,
       resourceManager,
       membershipManager,
+      routingLayer,
       transport,
       presenceManager,
       chatManager,
@@ -378,9 +400,24 @@ export class Room {
   }
 
   /**
+   * Returns current active media routing plan.
+   */
+  public getRoutingPlan(): RoutingPlan {
+    return this.routingLayer.getRoutingPlan();
+  }
+
+  /**
+   * Subscribes to media routing plan updates.
+   */
+  public onRoutingChange(listener: RoutingPlanListener): () => void {
+    return this.routingLayer.onRouteChange(listener);
+  }
+
+  /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(sendGoodbye: boolean = true): void {
+    this.routingLayer.destroy();
     this.membershipManager.destroy(sendGoodbye);
     this.followManager.destroy();
     this.voiceManager.destroy();
