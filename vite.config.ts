@@ -179,6 +179,11 @@ function extensionSecuritySanitizerPlugin() {
 }
 
 export default defineConfig({
+  build: {
+    // Disable minification for Firefox to provide clean, readable code to AMO reviewers and avoid obfuscation flags
+    minify: targetBrowser === "firefox" ? false : "esbuild",
+    sourcemap: false,
+  },
   plugins: [
     extensionSecuritySanitizerPlugin(),
     react(),
