@@ -1,0 +1,86 @@
+name: "⚡ Improvement"
+description: "Suggest an improvement to an existing feature, UI/UX, performance, or codebase in WebRoom."
+title: "[Improvement]: "
+labels: ["improvement", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping make WebRoom better! Use this template to propose enhancements, performance optimizations, UX refinements, or refactoring to existing features.
+
+  - type: dropdown
+    id: improvement-area
+    attributes:
+      label: Improvement Area
+      description: Which area does this improvement primarily focus on?
+      options:
+        - "🎨 UI / UX Refinement"
+        - "⚡ Performance & Optimization"
+        - "🌐 WebRTC & Peer-to-Peer Networking"
+        - "🧹 Code Quality & Refactoring"
+        - "🛠️ Developer Experience (DX) & Build Tooling"
+        - "📚 Documentation & Examples"
+        - "🔒 Privacy & Security Hardening"
+        - "Other (specify below)"
+    validations:
+      required: true
+
+  - type: input
+    id: component
+    attributes:
+      label: Target Component / File / Feature
+      description: What specific component or feature is this improvement targeting?
+      placeholder: "e.g. Peer connection manager, room chat drawer, theme toggle"
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-state
+    attributes:
+      label: Current Behavior / State
+      description: Describe the current behavior, implementation, or limitations.
+      placeholder: "Currently, when multiple peers connect at once, the connection handshake..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-improvement
+    attributes:
+      label: Proposed Improvement
+      description: Describe the proposed enhancement in detail and how it should work.
+      placeholder: "We can optimize the connection handshake by..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact-benefits
+    attributes:
+      label: Benefits & Impact
+      description: What value does this change bring (e.g. faster load times, cleaner codebase, better UX)?
+      placeholder: "Reduces latency by ~20% and prevents redundant signaling messages."
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives-or-tradeoffs
+    attributes:
+      label: Alternatives or Trade-offs
+      description: Have you considered other solutions? Are there any potential breaking changes or trade-offs?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any mockups, benchmark results, logs, or references here.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have searched existing issues and pull requests to ensure this is not a duplicate.
+          required: true
