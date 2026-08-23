@@ -10,6 +10,7 @@ import {
 } from "../follow/follow-manager";
 import { FollowPeerInfo } from "../follow/follow-store";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
+import { NodeIdentity } from "../identity/node-identity";
 import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
@@ -25,6 +26,7 @@ export interface RoomOptions {
   transportFactory?: (roomId: string) => Transport;
   customPeerId?: string;
   customAvatar?: string;
+  identity?: NodeIdentity;
 }
 
 export interface Participant {
@@ -56,6 +58,7 @@ export class Room {
   public readonly roomId: string;
   public readonly peerId: string;
   public readonly avatar: string;
+  public readonly identity: NodeIdentity;
   private readonly transport: Transport;
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
@@ -68,6 +71,7 @@ export class Room {
     roomId: string,
     peerId: string,
     avatar: string,
+    identity: NodeIdentity,
     transport: Transport,
     presenceManager: PresenceManager,
     chatManager: ChatManager,
@@ -79,6 +83,7 @@ export class Room {
     this.roomId = roomId;
     this.peerId = peerId;
     this.avatar = avatar;
+    this.identity = identity;
     this.transport = transport;
     this.presenceManager = presenceManager;
     this.chatManager = chatManager;
@@ -95,6 +100,7 @@ export class Room {
   ): Promise<Room> {
     const canonicalUrl = canonicalizeUrl(url);
     const roomId = await getRoomId(canonicalUrl);
+    const identity = options.identity || (await NodeIdentity.initialize());
     const peerId = options.customPeerId || generatePeerId();
     const avatar = options.customAvatar || getRandomAvatar();
 
@@ -128,7 +134,9 @@ export class Room {
     voiceManager.start();
     followManager.start();
 
-    console.log(`[WebRoom] 🚪 Joined Room: ${roomId} (Peer: ${peerId}) for URL: ${canonicalUrl}`);
+    console.log(
+      `[WebRoom] 🚪 Joined Room: ${roomId} (Node: ${identity.getNodeId()}, Peer: ${peerId}) for URL: ${canonicalUrl}`
+    );
 
     return new Room(
       url,
@@ -136,6 +144,7 @@ export class Room {
       roomId,
       peerId,
       avatar,
+      identity,
       transport,
       presenceManager,
       chatManager,
