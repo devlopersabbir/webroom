@@ -76,6 +76,10 @@ function generateManifest() {
     },
     background,
     host_permissions: ["http://*/*", "https://*/*"],
+    options_ui: {
+      page: "src/options/index.html",
+      open_in_tab: true,
+    },
     content_scripts: [
       {
         matches: ["http://*/*", "https://*/*"],
