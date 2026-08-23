@@ -1,3 +1,5 @@
+## [2.4.5](https://github.com/devlopersabbir/webroom/compare/v2.4.4...v2.4.5) (2026-08-23)
+
 ## [2.4.3](https://github.com/devlopersabbir/webroom/compare/v2.4.2...v2.4.3) (2026-08-23)
 
 ### Bug Fixes
