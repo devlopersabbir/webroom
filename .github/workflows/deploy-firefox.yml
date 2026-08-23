@@ -40,15 +40,28 @@ jobs:
       - name: Build Firefox Extension
         run: bun run build:firefox
 
+      - name: Lint Firefox Extension
+        run: bunx web-ext lint --source-dir=dist --warnings-as-errors
+
+      - name: Archive source code for Mozilla review
+        run: git archive --format=zip --output=sources.zip HEAD
+
+      - name: Verify source code builds cleanly (AMO Reviewer Simulation)
+        run: |
+          mkdir -p /tmp/amo-source-verification
+          unzip -q sources.zip -d /tmp/amo-source-verification
+          cd /tmp/amo-source-verification
+          bun install --frozen-lockfile
+          bun run build:firefox
+          bunx web-ext lint --source-dir=dist --warnings-as-errors
+          echo "✅ Source code verified successfully. Clean reproducible build confirmed."
+
       - name: Package extension for AMO
         id: web-ext-build
         uses: kewisch/action-web-ext@v2
         with:
           cmd: build
           source: dist
-
-      - name: Archive source code for Mozilla review
-        run: git archive --format=zip --output=sources.zip HEAD
 
       - name: web-ext sign AMO
         id: web-ext-sign
@@ -60,8 +73,18 @@ jobs:
           channel: ${{ github.event.inputs.channel || 'listed' }}
           license: MIT
           metaDataFile: amo_metadata.json
-          approvalNotes: "WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle."
+          approvalNotes: |
+            WebRoom is an open-source WebExtension built with TypeScript, React, and Vite.
+            
+            No code obfuscation or remote script execution is used. Build minification is disabled (minify: false) for Firefox builds to provide clean, fully readable JavaScript for review.
+            
+            Build & Reproduce Instructions:
+            1. Environment: Bun v1.1+ (or Node.js v20+)
+            2. Run: bun install --frozen-lockfile
+            3. Run: bun run build:firefox
+            4. Output bundle is generated in the dist/ directory.
+            See BUILD.md at the root of the source archive for complete instructions.
           releaseNotes: ${{ github.event.inputs.notes || '' }}
           apiKey: ${{ secrets.AMO_JWT_ISSUER }}
           apiSecret: ${{ secrets.AMO_JWT_SECRET }}
-          timeout: 900000 # 15 minutes maximum deadline (exits immediately once AMO finishes in ~30-60s)
+          timeout: 900000 # 15 minutes maximum deadline

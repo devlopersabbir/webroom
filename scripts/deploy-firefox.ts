@@ -72,6 +72,18 @@ async function main() {
 
   // 4. Submit / Sign to Mozilla Add-ons (AMO)
   const channel = (process.env.AMO_CHANNEL as "listed" | "unlisted") || "listed";
+  const approvalNotes = [
+    "WebRoom is an open-source WebExtension built with TypeScript, React, and Vite.",
+    "",
+    "No code obfuscation or remote script execution is used. Build minification is disabled (minify: false) for Firefox builds to provide clean, fully readable JavaScript for review.",
+    "",
+    "Build & Reproduce Instructions:",
+    "1. Environment: Bun v1.1+ (or Node.js v20+)",
+    "2. Run: bun install --frozen-lockfile",
+    "3. Run: bun run build:firefox",
+    "4. Output bundle is generated in the dist/ directory.",
+    "See BUILD.md at the root of the source archive for complete instructions.",
+  ].join("\n");
 
   console.log(`📤 Submitting to Mozilla Add-ons (Channel: ${channel})...`);
   const signArgs = [
@@ -83,7 +95,7 @@ async function main() {
     `--api-key=${issuer}`,
     `--api-secret=${secret}`,
     `--id=${id}`,
-    "--approval-notes=WebRoom is built with TypeScript and Vite. Run 'bun install && bun run build:firefox' to generate the dist bundle.",
+    `--approval-notes=${approvalNotes}`,
   ].filter(Boolean);
 
   const signResult = spawnSync("bunx", signArgs, {
