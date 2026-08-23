@@ -137,19 +137,28 @@ function extensionSecuritySanitizerPlugin() {
       if (updatedCode.includes('Function("binder"')) {
         updatedCode = updatedCode.replace(
           /Function\s*\(\s*["']binder["']\s*,[\s\S]*?binder\.apply\(this,\s*arguments\);?\s*\}["']\s*\)/g,
-          '(function(binder){ return function(){ return binder.apply(this, arguments); }; })',
+          "(function(binder){ return function(){ return binder.apply(this, arguments); }; })",
         );
         hasReplacements = true;
       }
 
       // 4. Sanitize "%eval%":eval in get-intrinsic polyfill
-      if (updatedCode.includes('"%eval%":eval') || updatedCode.includes("'%eval%':eval")) {
-        updatedCode = updatedCode.replace(/["']%eval%["']\s*:\s*eval\b/g, '"%eval%":undefined');
+      if (
+        updatedCode.includes('"%eval%":eval') ||
+        updatedCode.includes("'%eval%':eval")
+      ) {
+        updatedCode = updatedCode.replace(
+          /["']%eval%["']\s*:\s*eval\b/g,
+          '"%eval%":undefined',
+        );
         hasReplacements = true;
       }
 
       // 5. Sanitize worker-timers in MQTT to use native timers instead of blob: workers (avoids webpage CSP violations)
-      if (updatedCode.includes("isReactNativeBrowser") && updatedCode.includes("isWebWorker")) {
+      if (
+        updatedCode.includes("isReactNativeBrowser") &&
+        updatedCode.includes("isWebWorker")
+      ) {
         updatedCode = updatedCode.replace(
           /return\s+([a-zA-Z0-9_$]+)\.default\s*&&\s*!\1\.isWebWorker\s*&&\s*!\1\.isReactNativeBrowser\s*\?\s*([a-zA-Z0-9_$]+)\s*:\s*([a-zA-Z0-9_$]+)/g,
           "return $3",

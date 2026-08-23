@@ -19,49 +19,18 @@ export const DEFAULT_RELAY_URLS = [
 ];
 
 /**
- * Self-hosted Coturn STUN and TURN servers for reliable NAT/Firewall traversal and relay fallback.
+ * High-availability global STUN servers for instant NAT traversal and low latency.
  */
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   {
-    /**
-     * High-speed global STUN cluster for instant NAT discovery and lowest latency.
-     */
-    urls: [
-      "stun:187.124.228.139:3480",
-      "stun:stun.l.google.com:19302",
-      "stun:stun1.l.google.com:19302",
-      "stun:stun2.l.google.com:19302",
-      "stun:stun3.l.google.com:19302",
-      "stun:stun4.l.google.com:19302",
-    ],
-  },
-  {
-    /**
-     * Our self-hosted Coturn TURN server.
-     * UDP is preferred for performance.
-     * TCP acts as a fallback on restrictive networks.
-     */
-    urls: [
-      "turn:187.124.228.139:3480?transport=udp",
-      "turn:187.124.228.139:3480?transport=tcp",
-    ],
-
-    /**
-     * Development credentials.
-     *
-     * IMPORTANT:
-     * These credentials should eventually be replaced
-     * with short-lived TURN credentials.
-     */
-    username: "webroom",
-    credential: "4igKrQfsJgpjifzV9d55qR8r7CZfytI00r7pv3WX",
+    urls: ["stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"],
   },
 ];
 
 export const DEFAULT_RTC_CONFIG: RTCConfiguration = {
   iceServers: DEFAULT_ICE_SERVERS,
   iceTransportPolicy: "all",
-  iceCandidatePoolSize: 10,
+  iceCandidatePoolSize: 0,
 };
 
 /**
