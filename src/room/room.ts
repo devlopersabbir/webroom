@@ -11,6 +11,7 @@ import {
 import { FollowPeerInfo } from "../follow/follow-store";
 import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { NodeIdentity } from "../identity/node-identity";
+import { MembershipManager } from "../membership/membership-manager";
 import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
@@ -59,6 +60,7 @@ export class Room {
   public readonly peerId: string;
   public readonly avatar: string;
   public readonly identity: NodeIdentity;
+  public readonly membershipManager: MembershipManager;
   private readonly transport: Transport;
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
@@ -72,6 +74,7 @@ export class Room {
     peerId: string,
     avatar: string,
     identity: NodeIdentity,
+    membershipManager: MembershipManager,
     transport: Transport,
     presenceManager: PresenceManager,
     chatManager: ChatManager,
@@ -84,6 +87,7 @@ export class Room {
     this.peerId = peerId;
     this.avatar = avatar;
     this.identity = identity;
+    this.membershipManager = membershipManager;
     this.transport = transport;
     this.presenceManager = presenceManager;
     this.chatManager = chatManager;
@@ -115,6 +119,13 @@ export class Room {
       undefined,
       avatar,
     );
+    const membershipManager = new MembershipManager(
+      roomId,
+      identity,
+      peerId,
+      transport,
+      avatar,
+    );
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
     const voiceManager = new VoiceManager(roomId, peerId, transport);
     const followManager = new FollowManager(roomId, peerId, avatar, transport);
@@ -130,6 +141,7 @@ export class Room {
     });
 
     presenceManager.start();
+    membershipManager.start();
     chatManager.start();
     voiceManager.start();
     followManager.start();
@@ -145,6 +157,7 @@ export class Room {
       peerId,
       avatar,
       identity,
+      membershipManager,
       transport,
       presenceManager,
       chatManager,
@@ -337,6 +350,7 @@ export class Room {
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(): void {
+    this.membershipManager.destroy();
     this.followManager.destroy();
     this.voiceManager.destroy();
     this.presenceManager.destroy();

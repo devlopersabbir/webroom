@@ -10,9 +10,13 @@ export const APP_VERSION = pkg.version;
 // Heartbeat transmission interval in milliseconds (2.5 seconds)
 export const HEARTBEAT_INTERVAL_MS = 2500;
 
+// Suspected peer failure threshold in milliseconds (5 seconds = 2 missed heartbeats)
+export const SUSPECTED_TIMEOUT_MS = 5000;
+
 // Peer inactivity timeout threshold in milliseconds (10 seconds)
 // Generous 4x heartbeat window ensures internet jitter never causes false disconnects.
 export const PEER_TIMEOUT_MS = 10000;
+export const NODE_TIMEOUT_MS = 10000;
 
 // Peer store cleanup scan interval in milliseconds (1 second)
 export const CLEANUP_INTERVAL_MS = 1000;
