@@ -1,12 +1,12 @@
 name: "✨ Feature Request"
-description: "Suggest a new feature, improvement, or idea for WebRoom."
+description: "Suggest a brand-new feature or capability for WebRoom."
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Have an idea or enhancement for WebRoom? We'd love to hear it! Please fill out this form to propose new features or improvements.
+        Have an idea for a new feature in WebRoom? We'd love to hear it! Please fill out this form to propose new features or capabilities.
 
   - type: textarea
     id: problem
