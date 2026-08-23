@@ -15,6 +15,7 @@ dist-ssr
 sources.zip
 release/
 
+temp_auto_push.bat
 # Editor directories and files
 .idea
 .DS_Store
@@ -32,3 +33,5 @@ secret.txt
 .env
 v*_chrome
 v*_firefox
+.gitignore
+branch_structure.json
