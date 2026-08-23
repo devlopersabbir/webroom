@@ -1,3 +1,11 @@
+## [2.4.6](https://github.com/devlopersabbir/webroom/compare/v2.4.5...v2.4.6) (2026-08-23)
+
+
+### Bug Fixes
+
+* enable speaker automatically when microphone is turned on and default to speaker off at startup ([89216b2](https://github.com/devlopersabbir/webroom/commit/89216b2ef73d04b342f487016fac934f4efa7c27))
+* implement reproducible Firefox build process with source verification, documentation, and disabled minification for AMO review transparency ([8072900](https://github.com/devlopersabbir/webroom/commit/80729008183622d42f1d99e6e97bbb7b201a385c))
+
 ## [2.4.5](https://github.com/devlopersabbir/webroom/compare/v2.4.4...v2.4.5) (2026-08-23)
 
 ## [2.4.3](https://github.com/devlopersabbir/webroom/compare/v2.4.2...v2.4.3) (2026-08-23)
