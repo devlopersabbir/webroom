@@ -98,7 +98,6 @@ export class NodeIdentity {
           );
 
           const { nodeId, publicKeyBase64 } = await NodeIdentity.deriveIdentityAttributes(publicKey);
-          console.log(`[WebRoom Identity] 🔑 Loaded existing cryptographic identity: ${nodeId}`);
           return new NodeIdentity(nodeId, publicKeyBase64, publicKey, privateKey);
         }
       } catch (err) {
@@ -107,7 +106,6 @@ export class NodeIdentity {
     }
 
     // Generate fresh cryptographic keypair
-    console.log("[WebRoom Identity] 🆕 Generating fresh cryptographic keypair...");
     const keyPair = await crypto.subtle.generateKey(
       ALGORITHM_CONFIG,
       true, // extractable so we can persist locally
@@ -126,7 +124,6 @@ export class NodeIdentity {
     await storage.set(IDENTITY_STORAGE_KEY, JSON.stringify(serialized));
 
     const { nodeId, publicKeyBase64 } = await NodeIdentity.deriveIdentityAttributes(keyPair.publicKey);
-    console.log(`[WebRoom Identity] ✅ Generated and persisted new identity: ${nodeId}`);
     return new NodeIdentity(nodeId, publicKeyBase64, keyPair.publicKey, keyPair.privateKey);
   }
 
@@ -141,31 +138,26 @@ export class NodeIdentity {
     publicKey: CryptoKey
   ): Promise<{ nodeId: string; publicKeyBase64: string }> {
     const spkiBuffer = await crypto.subtle.exportKey("spki", publicKey);
-    const spkiBytes = new Uint8Array(spkiBuffer);
+    const publicKeyBase64 = NodeIdentity.arrayBufferToBase64(spkiBuffer);
 
-    // Compute SHA-256 digest of public key to derive stable nodeId
-    const hashBuffer = await crypto.subtle.digest("SHA-256", spkiBytes);
+    // Compute SHA-256 hash of SPKI public key
+    const hashBuffer = await crypto.subtle.digest("SHA-256", spkiBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hexHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
-    // Standardized prefix indicating a WebRoom node ID (32 chars for compact identifier)
-    const nodeId = `node_${hexHash.slice(0, 32)}`;
-
-    // Standard base64 encoding of SPKI public key for wire exchange
-    const publicKeyBase64 = NodeIdentity.arrayBufferToBase64(spkiBuffer);
-
+    const nodeId = `node_${hexHash.substring(0, 32)}`;
     return { nodeId, publicKeyBase64 };
   }
 
   /**
-   * Returns the stable, unique identifier for this node.
+   * Returns deterministic identifier derived from public key hash.
    */
   public getNodeId(): string {
     return this.nodeId;
   }
 
   /**
-   * Returns the exportable public key in Base64 format for network advertisement to peers.
+   * Returns base64 encoded SPKI public key for wire exchange.
    */
   public getPublicKey(): string {
     return this.publicKeyBase64;
@@ -182,26 +174,23 @@ export class NodeIdentity {
   }
 
   /**
-   * Cryptographically signs an arbitrary string or Uint8Array payload using the node's private key.
+   * Cryptographically signs a string or byte array payload using ECDSA SHA-256.
    * 
    * WHY:
-   * Enables peer-to-peer message authenticity and prevents tampering or impersonation in distributed control signals.
+   * Ensures authenticity and non-repudiation of all control messages (membership, heartbeats, routing).
    * 
-   * @param data The payload string or raw byte array to sign.
-   * @returns Base64-encoded signature string.
+   * @param data The payload string or byte buffer to sign.
+   * @returns Base64 encoded digital signature.
    */
   public async sign(data: Uint8Array | string): Promise<string> {
     const rawData = NodeIdentity.toUint8Array(data);
+
     const signatureBuffer = await crypto.subtle.sign(
       SIGN_ALGORITHM,
       this.privateKey,
       rawData as unknown as BufferSource
     );
-    const signatureBase64 = NodeIdentity.arrayBufferToBase64(signatureBuffer);
-    console.log(
-      `[WebRoom Identity] ✍️ Signed payload (${typeof data === "string" ? "string" : "bytes"}, len=${rawData.byteLength}) with ${this.nodeId}`
-    );
-    return signatureBase64;
+    return NodeIdentity.arrayBufferToBase64(signatureBuffer);
   }
 
   /**
@@ -235,16 +224,12 @@ export class NodeIdentity {
         keyToVerify = this.publicKey;
       }
 
-      const isValid = await crypto.subtle.verify(
+      return await crypto.subtle.verify(
         SIGN_ALGORITHM,
         keyToVerify,
         signatureBytes as unknown as BufferSource,
         rawData as unknown as BufferSource
       );
-      console.log(
-        `[WebRoom Identity] 🔍 Verify signature (${isRemote ? "remote" : "self"} key): ${isValid ? "VALID ✅" : "INVALID ❌"}`
-      );
-      return isValid;
     } catch (err) {
       console.warn("[WebRoom Identity] Error during signature verification:", err);
       return false;
@@ -266,14 +251,12 @@ export class NodeIdentity {
       const rawData = NodeIdentity.toUint8Array(data);
       const signatureBytes = NodeIdentity.base64ToArrayBuffer(signatureBase64);
       const keyToVerify = await NodeIdentity.importPublicKeyFromBase64(publicKeyBase64);
-      const isValid = await crypto.subtle.verify(
+      return await crypto.subtle.verify(
         SIGN_ALGORITHM,
         keyToVerify,
         signatureBytes as unknown as BufferSource,
         rawData as unknown as BufferSource
       );
-      console.log(`[WebRoom Identity] 🔍 Static verify signature: ${isValid ? "VALID ✅" : "INVALID ❌"}`);
-      return isValid;
     } catch (err) {
       console.warn("[WebRoom Identity] Error in static verifySignature:", err);
       return false;

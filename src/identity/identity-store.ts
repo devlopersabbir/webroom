@@ -53,7 +53,6 @@ export class UniversalIdentityStorage implements IdentityStorage {
       ) {
         const result = await chrome.storage.local.get(key);
         if (result && typeof result[key] === "string") {
-          console.log(`[WebRoom Identity Storage] 📦 Retrieved key '${key}' from chrome.storage.local`);
           return result[key];
         }
         return null;
@@ -65,22 +64,14 @@ export class UniversalIdentityStorage implements IdentityStorage {
     // 2. Try window.localStorage
     try {
       if (typeof window !== "undefined" && window.localStorage) {
-        const item = window.localStorage.getItem(key);
-        if (item) {
-          console.log(`[WebRoom Identity Storage] 📦 Retrieved key '${key}' from localStorage`);
-        }
-        return item;
+        return window.localStorage.getItem(key);
       }
     } catch {
       // Fall through if localStorage access is denied (e.g., restricted iframe)
     }
 
     // 3. Fall back to in-memory store
-    const memItem = await this.fallbackMemory.get(key);
-    if (memItem) {
-      console.log(`[WebRoom Identity Storage] 📦 Retrieved key '${key}' from memory store`);
-    }
-    return memItem;
+    return this.fallbackMemory.get(key);
   }
 
   public async set(key: string, value: string): Promise<void> {
@@ -93,7 +84,6 @@ export class UniversalIdentityStorage implements IdentityStorage {
         typeof chrome.storage.local.set === "function"
       ) {
         await chrome.storage.local.set({ [key]: value });
-        console.log(`[WebRoom Identity Storage] 💾 Persisted key '${key}' into chrome.storage.local`);
         return;
       }
     } catch {
@@ -104,7 +94,6 @@ export class UniversalIdentityStorage implements IdentityStorage {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.setItem(key, value);
-        console.log(`[WebRoom Identity Storage] 💾 Persisted key '${key}' into localStorage`);
         return;
       }
     } catch {
@@ -113,7 +102,6 @@ export class UniversalIdentityStorage implements IdentityStorage {
 
     // 3. Fall back to in-memory store
     await this.fallbackMemory.set(key, value);
-    console.log(`[WebRoom Identity Storage] 💾 Persisted key '${key}' into memory store`);
   }
 
   public async remove(key: string): Promise<void> {
@@ -125,7 +113,6 @@ export class UniversalIdentityStorage implements IdentityStorage {
         typeof chrome.storage.local.remove === "function"
       ) {
         await chrome.storage.local.remove(key);
-        console.log(`[WebRoom Identity Storage] 🗑️ Removed key '${key}' from chrome.storage.local`);
         return;
       }
     } catch {
@@ -135,7 +122,6 @@ export class UniversalIdentityStorage implements IdentityStorage {
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.removeItem(key);
-        console.log(`[WebRoom Identity Storage] 🗑️ Removed key '${key}' from localStorage`);
         return;
       }
     } catch {
@@ -143,6 +129,5 @@ export class UniversalIdentityStorage implements IdentityStorage {
     }
 
     await this.fallbackMemory.remove(key);
-    console.log(`[WebRoom Identity Storage] 🗑️ Removed key '${key}' from memory store`);
   }
 }

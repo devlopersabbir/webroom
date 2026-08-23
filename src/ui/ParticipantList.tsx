@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FollowPeerInfo } from "../follow/follow-store";
+import { NodeRole, ROLE_DISPLAY_CONFIG } from "../roles/role-types";
 import { Participant, Room } from "../room/room";
 
 interface ParticipantListProps {
@@ -16,10 +17,18 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
   speakingPeers,
 }) => {
   const [participants, setParticipants] = useState<Participant[]>(room.getParticipants());
+  const [roles, setRoles] = useState<Map<string, NodeRole>>(room.roleManager.getAllRoles());
 
   useEffect(() => {
     const unsubscribe = room.onParticipantsChange((updated) => {
       setParticipants(updated);
+    });
+    return () => unsubscribe();
+  }, [room]);
+
+  useEffect(() => {
+    const unsubscribe = room.onRoleChange((_, allRoles) => {
+      setRoles(allRoles);
     });
     return () => unsubscribe();
   }, [room]);
@@ -42,6 +51,19 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
 
   const stopEventPropagation = (e: React.SyntheticEvent) => {
     e.stopPropagation();
+  };
+
+  // Find node role by peerId
+  const getRoleForPeer = (p: Participant): NodeRole => {
+    if (p.isSelf) {
+      return room.getSelfRole();
+    }
+    const members = room.membershipManager.getMembers();
+    const match = members.find((m) => m.peerId === p.peerId);
+    if (match && match.role) {
+      return match.role;
+    }
+    return "participant";
   };
 
   return (
@@ -75,13 +97,15 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
         {participants.map((p) => {
           const isCurrentlyFollowing = followingLeader?.peerId === p.peerId;
           const isSpeaking = speakingPeers.has(p.peerId);
+          const role = getRoleForPeer(p);
+          const roleConfig = ROLE_DISPLAY_CONFIG[role];
 
           return (
             <div
               key={p.peerId}
               className={`webroom-participant-item ${p.isSelf ? "webroom-participant-item-self" : "webroom-participant-item-clickable"} ${isCurrentlyFollowing ? "webroom-participant-item-following" : ""}`}
               onClick={() => !p.isSelf && handleToggleFollow(p)}
-              title={p.isSelf ? "You" : isCurrentlyFollowing ? `Following ${p.avatar} (click to stop)` : `Click to follow ${p.avatar}`}
+              title={p.isSelf ? `You (${roleConfig.label})` : isCurrentlyFollowing ? `Following ${p.avatar} (click to stop)` : `Click to follow ${p.avatar}`}
             >
               <div className="webroom-participant-avatar-wrap">
                 <span className="webroom-participant-avatar">{p.avatar}</span>
@@ -89,10 +113,18 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
               </div>
 
               <div className="webroom-participant-info">
-                <span className="webroom-participant-label">
-                  {p.isSelf ? "You" : `Participant ${p.avatar}`}
-                </span>
-                {p.isSelf && <span className="webroom-you-badge">YOU</span>}
+                <div className="webroom-participant-name-row">
+                  <span className="webroom-participant-label">
+                    {p.isSelf ? "You" : `Participant ${p.avatar}`}
+                  </span>
+                  {p.isSelf && <span className="webroom-you-badge">YOU</span>}
+                  <span
+                    className={`webroom-participant-role-badge ${roleConfig.badgeClass}`}
+                    title={roleConfig.description}
+                  >
+                    {roleConfig.icon} {roleConfig.label}
+                  </span>
+                </div>
                 {isCurrentlyFollowing && (
                   <span className="webroom-following-tag">👁 Following</span>
                 )}

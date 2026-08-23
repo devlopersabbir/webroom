@@ -1,5 +1,6 @@
 import { NodeIdentity } from "../identity/node-identity";
 import { NodeCapabilities } from "../resources/resource-budget";
+import { NodeRole } from "../roles/role-types";
 
 /**
  * WebRoom v3 — Distributed Membership Protocol Definitions & Cryptographic Verification
@@ -23,6 +24,7 @@ export interface MembershipMessage {
   status: NodeLivenessStatus;
   contributionEnabled: boolean;
   capabilities?: NodeCapabilities;
+  role?: NodeRole;
   avatar?: string;
 }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NodeCapabilities } from "../resources/resource-budget";
+import { NodeRole, ROLE_DISPLAY_CONFIG } from "../roles/role-types";
 import { Room } from "../room/room";
 
 interface SettingsModalProps {
@@ -11,11 +12,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ room, onClose }) =
   const [capabilities, setCapabilities] = useState<NodeCapabilities>(
     room.resourceManager.getCapabilities()
   );
+  const [selfRole, setSelfRole] = useState<NodeRole>(room.getSelfRole());
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = room.resourceManager.onCapabilitiesChange((caps) => {
       setCapabilities(caps);
+    });
+    return () => unsubscribe();
+  }, [room]);
+
+  useEffect(() => {
+    const unsubscribe = room.onRoleChange((newRole) => {
+      setSelfRole(newRole);
     });
     return () => unsubscribe();
   }, [room]);
@@ -31,6 +40,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ room, onClose }) =
 
   const nodeId = room.identity.getNodeId();
   const truncatedNodeId = `${nodeId.slice(0, 14)}...${nodeId.slice(-8)}`;
+  const roleConfig = ROLE_DISPLAY_CONFIG[selfRole];
 
   return (
     <div className="webroom-settings-overlay" onClick={onClose}>
@@ -61,6 +71,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ room, onClose }) =
                 <span className="webroom-settings-label">Node ID</span>
                 <span className="webroom-settings-value" title={nodeId}>
                   <code>{truncatedNodeId}</code>
+                </span>
+              </div>
+              <div className="webroom-settings-row">
+                <span className="webroom-settings-label">Cluster Role</span>
+                <span className={`webroom-settings-badge ${roleConfig.badgeClass}`}>
+                  {roleConfig.icon} {roleConfig.label}
                 </span>
               </div>
               <div className="webroom-settings-row">

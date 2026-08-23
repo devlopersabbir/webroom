@@ -13,6 +13,8 @@ import { PresenceCountListener, PresenceManager } from "../presence/presence";
 import { NodeIdentity } from "../identity/node-identity";
 import { MembershipManager } from "../membership/membership-manager";
 import { ResourceManager } from "../resources/resource-manager";
+import { RoleManager } from "../roles/role-manager";
+import { NodeRole, RoleChangeListener } from "../roles/role-types";
 import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
@@ -352,6 +354,27 @@ export class Room {
    */
   public onFollowSelection(listener: FollowSelectionListener): () => void {
     return this.followManager.onSelectionChange(listener);
+  }
+
+  /**
+   * Returns current role of this local node.
+   */
+  public getSelfRole(): NodeRole {
+    return this.membershipManager.getSelfRole();
+  }
+
+  /**
+   * Returns RoleManager instance for cluster role introspection.
+   */
+  public get roleManager(): RoleManager {
+    return this.membershipManager.roleManager;
+  }
+
+  /**
+   * Subscribes to cluster role assignments changes.
+   */
+  public onRoleChange(listener: RoleChangeListener): () => void {
+    return this.membershipManager.roleManager.onRoleChange(listener);
   }
 
   /**

@@ -56,10 +56,6 @@ export class ResourceManager {
       console.warn("[WebRoom Resources] Could not read contribution preference from storage:", err);
     }
 
-    console.log(
-      `[WebRoom Resources] ⚙️ Resource contribution initialized (Enabled: ${contributionEnabled}, Max Relay Slots: ${budget.maxRelaySlots}, Network Budget: ${budget.networkBudgetKbps} Kbps)`
-    );
-
     return new ResourceManager(storage, budget, contributionEnabled);
   }
 
@@ -87,7 +83,6 @@ export class ResourceManager {
       console.warn("[WebRoom Resources] Failed to persist contribution preference:", err);
     }
 
-    console.log(`[WebRoom Resources] 🔄 Resource contribution updated to: ${enabled ? "ON" : "OFF"}`);
     this.notifyListeners();
   }
 
@@ -136,16 +131,10 @@ export class ResourceManager {
     }
 
     if (this.activeRelays >= this.budget.maxRelaySlots) {
-      console.warn(
-        `[WebRoom Resources] ⚠️ Relay capacity exhausted (${this.activeRelays}/${this.budget.maxRelaySlots} slots in use)`
-      );
       return false;
     }
 
     this.activeRelays += 1;
-    console.log(
-      `[WebRoom Resources] 🟢 Reserved relay slot (${this.activeRelays}/${this.budget.maxRelaySlots} active)`
-    );
     this.notifyListeners();
     return true;
   }
@@ -156,9 +145,6 @@ export class ResourceManager {
   public releaseRelaySlot(): void {
     if (this.activeRelays > 0) {
       this.activeRelays -= 1;
-      console.log(
-        `[WebRoom Resources] ⚪ Released relay slot (${this.activeRelays}/${this.budget.maxRelaySlots} active)`
-      );
       this.notifyListeners();
     }
   }

@@ -1,6 +1,8 @@
 import { NodeIdentity } from "../identity/node-identity";
 import { NodeCapabilities } from "../resources/resource-budget";
 import { ResourceManager } from "../resources/resource-manager";
+import { RoleManager } from "../roles/role-manager";
+import { NodeRole } from "../roles/role-types";
 import {
   CLEANUP_INTERVAL_MS,
   HEARTBEAT_INTERVAL_MS,
@@ -31,6 +33,7 @@ export class MembershipManager {
   public readonly peerId: string;
   public readonly avatar: string;
   public readonly resourceManager?: ResourceManager;
+  public readonly roleManager: RoleManager;
 
   private readonly transport: Transport;
   private readonly store: MembershipStore;
@@ -56,6 +59,7 @@ export class MembershipManager {
     transport: Transport,
     avatar: string = "🐸",
     resourceManager?: ResourceManager,
+    roleManager = new RoleManager(),
     store = new MembershipStore()
   ) {
     this.roomId = roomId;
@@ -64,11 +68,20 @@ export class MembershipManager {
     this.transport = transport;
     this.avatar = avatar;
     this.resourceManager = resourceManager;
+    this.roleManager = roleManager;
     this.store = store;
   }
 
   public get contributionEnabled(): boolean {
     return this.resourceManager ? this.resourceManager.isContributionEnabled() : true;
+  }
+
+  public getSelfRole(): NodeRole {
+    return this.roleManager.getSelfRole();
+  }
+
+  public getNodeRole(nodeId: string): NodeRole {
+    return this.roleManager.getNodeRole(nodeId);
   }
 
   /**
@@ -117,14 +130,10 @@ export class MembershipManager {
     this.livenessTimer = setInterval(() => {
       this.evaluateLiveness();
     }, CLEANUP_INTERVAL_MS);
-
-    console.log(
-      `[WebRoom Membership] 🌐 Started membership overlay for node ${this.identity.getNodeId()} in room ${this.roomId}`
-    );
   }
 
   /**
-   * Snapshot of all active network nodes (self + remote peers).
+   * Snapshot of all active network nodes (self + remote peers) with updated dynamic roles.
    */
   public getMembers(): NetworkNode[] {
     const selfNode: NetworkNode = {
@@ -139,7 +148,16 @@ export class MembershipManager {
       avatar: this.avatar,
     };
 
-    return [selfNode, ...this.store.getAllNodes()];
+    const rawMembers = [selfNode, ...this.store.getAllNodes()];
+    const { roleAssignments } = this.roleManager.evaluateRoles(
+      rawMembers,
+      this.identity.getNodeId()
+    );
+
+    return rawMembers.map((n) => ({
+      ...n,
+      role: roleAssignments.get(n.nodeId) || "participant",
+    }));
   }
 
   /**
@@ -231,8 +249,6 @@ export class MembershipManager {
     this.recoveredListeners.clear();
     this.leaveListeners.clear();
     this.changeListeners.clear();
-
-    console.log(`[WebRoom Membership] 👋 Left membership overlay for room ${this.roomId}`);
   }
 
   /**
@@ -255,7 +271,6 @@ export class MembershipManager {
     // Verify digital signature
     const isSignatureValid = await verifyMembershipMessageSignature(msg);
     if (!isSignatureValid) {
-      console.warn(`[WebRoom Membership] ⚠️ Dropped invalid/tampered signature from node ${msg.nodeId}`);
       return;
     }
 
@@ -279,11 +294,9 @@ export class MembershipManager {
         this.broadcastMembershipMessage("NODE_HEARTBEAT");
 
         if (isNew) {
-          console.log(`[WebRoom Membership] 🤝 Discovered new node: ${node.nodeId} (Peer: ${node.peerId})`);
           this.emitNodeJoin(node);
           this.emitMembershipChange();
         } else if (wasSuspected) {
-          console.log(`[WebRoom Membership] 💚 Suspected node recovered: ${node.nodeId}`);
           this.emitNodeRecovered(node);
           this.emitMembershipChange();
         }
@@ -306,15 +319,11 @@ export class MembershipManager {
         const { isNew, wasSuspected } = this.store.upsertNode(node);
 
         if (isNew) {
-          console.log(`[WebRoom Membership] 🤝 Discovered new node from heartbeat: ${node.nodeId} (Peer: ${node.peerId}) with valid signature ✅`);
           this.emitNodeJoin(node);
           this.emitMembershipChange();
         } else if (wasSuspected) {
-          console.log(`[WebRoom Membership] 💚 Suspected node recovered: ${node.nodeId}`);
           this.emitNodeRecovered(node);
           this.emitMembershipChange();
-        } else {
-          console.log(`[WebRoom Membership] 💓 Verified heartbeat from node ${node.nodeId} (seq: ${node.sequence}) ✅`);
         }
         break;
       }
@@ -322,7 +331,6 @@ export class MembershipManager {
       case "NODE_GOODBYE": {
         const removed = this.store.removeNode(msg.nodeId);
         if (removed) {
-          console.log(`[WebRoom Membership] 👋 Node left gracefully: ${removed.nodeId}`);
           this.emitNodeLeave({ ...removed, status: "offline" });
           this.emitMembershipChange();
         }
@@ -361,13 +369,11 @@ export class MembershipManager {
       publicKey: this.identity.getPublicKey(),
       signature,
       capabilities: this.resourceManager?.getCapabilities(),
+      role: this.getSelfRole(),
       avatar: this.avatar,
     };
 
     this.transport.send(message);
-    console.log(
-      `[WebRoom Membership] 📢 Broadcasted signed ${type} (seq: ${this.sequenceNumber}) for node ${this.identity.getNodeId()}`
-    );
   }
 
   /**

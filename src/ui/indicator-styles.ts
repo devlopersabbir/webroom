@@ -1664,6 +1664,58 @@ export const INDICATOR_STYLES = `
   display: flex;
   justify-content: flex-end;
 }
+
+/* ==========================================================================
+   Dynamic Roles Badges
+   ========================================================================== */
+
+.webroom-participant-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.webroom-participant-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: -0.01em;
+}
+
+.webroom-role-coordinator {
+  background: rgba(234, 179, 8, 0.18);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+}
+
+.webroom-role-relay {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+}
+
+.webroom-role-standby {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.webroom-role-contributor {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.45);
+}
+
+.webroom-role-participant {
+  background: rgba(156, 163, 175, 0.14);
+  color: #d1d5db;
+  border: 1px solid rgba(156, 163, 175, 0.25);
+}
 `;
 
 
