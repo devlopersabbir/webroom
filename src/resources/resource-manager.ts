@@ -5,7 +5,7 @@ import {
   ResourceBudget,
 } from "./resource-budget";
 
-const RESOURCE_SHARING_STORAGE_KEY = "webroom_v3_resource_sharing_enabled";
+export const RESOURCE_SHARING_STORAGE_KEY = "webroom_v3_resource_sharing_enabled";
 
 export type CapabilitiesChangeListener = (capabilities: NodeCapabilities) => void;
 
