@@ -242,17 +242,22 @@ export class TrysteroTorrentTransport implements Transport {
 
     try {
       if (trysteroTarget) {
-        await this.fileAction.send(data, {
-          target: trysteroTarget,
-          metadata: options?.metadata,
-          onProgress: options?.onProgress,
-        });
-      } else {
-        await this.fileAction.send(data, {
-          metadata: options?.metadata,
-          onProgress: options?.onProgress,
-        });
+        try {
+          await this.fileAction.send(data, {
+            target: trysteroTarget,
+            metadata: options?.metadata,
+            onProgress: options?.onProgress,
+          });
+          return;
+        } catch (targetErr) {
+          console.warn("[WebRoom Trystero] Direct binary target failed, falling back to broadcast:", targetErr);
+        }
       }
+
+      await this.fileAction.send(data, {
+        metadata: options?.metadata,
+        onProgress: options?.onProgress,
+      });
     } catch (err) {
       console.warn(`[WebRoom Trystero] Failed to send binary:`, err);
     }
