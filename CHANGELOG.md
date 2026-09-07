@@ -1,3 +1,13 @@
+# [3.0.0](https://github.com/devlopersabbir/webroom/compare/v2.5.0...v3.0.0) (2026-09-07)
+
+
+* feat!: release WebRoom v3 architecture ([1faccd8](https://github.com/devlopersabbir/webroom/commit/1faccd83a25f7460c622dc4c560bba0dfc1fa74a))
+
+
+### BREAKING CHANGES
+
+* WebRoom v3 introduces decentralized room orchestration, cryptographic node identity verification, cluster telemetry, and dynamic media routing.
+
 # [2.5.0](https://github.com/devlopersabbir/webroom/compare/v2.4.6...v2.5.0) (2026-09-07)
 
 
