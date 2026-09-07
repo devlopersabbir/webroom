@@ -1,3 +1,25 @@
+# [2.5.0](https://github.com/devlopersabbir/webroom/compare/v2.4.6...v2.5.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ci:** add esbuild devDependency for Vite 8 compatibility ([a564b7f](https://github.com/devlopersabbir/webroom/commit/a564b7f8fef9ebff9665c12e8e1f6564b33a3deb))
+* enforce HTTPS-only connections and update browser compatibility requirements ([cf2b6f2](https://github.com/devlopersabbir/webroom/commit/cf2b6f2ef67f757c423ca9a13dc6803258e8b412))
+
+
+### Features
+
+* add Makefile to automate build, lint, and packaging tasks ([3d131e3](https://github.com/devlopersabbir/webroom/commit/3d131e3a4b80ee82229fb7cf21ea356f71b8f6bb))
+* implement core Room orchestration logic and identity store infrastructure for WebRoom v3 ([77cb557](https://github.com/devlopersabbir/webroom/commit/77cb557fce314ed2ae7d9fb86501e154d37a0c5e))
+* implement core WebRoom architecture including room management, membership, resource tracking, and UI panel components ([40c7b0d](https://github.com/devlopersabbir/webroom/commit/40c7b0dfaf5613e9720472629de2bacb69d83b75))
+* implement decentralized role manager and media routing layer for deterministic coordinator election ([ee905ca](https://github.com/devlopersabbir/webroom/commit/ee905ca7152b2f0c73bd5e909b72638b2017c7d6))
+* implement distributed membership manager with signed protocol and liveness tracking ([f3392f2](https://github.com/devlopersabbir/webroom/commit/f3392f2c92e814f14f0dddecba4ff5aa74e45f10))
+* implement distributed membership subsystem with cryptographic verification and role management ([b58a712](https://github.com/devlopersabbir/webroom/commit/b58a712cbcdfb21dd04fd7974da4dade1939bdac))
+* implement distributed role manager and update room architecture for deterministic coordinator election ([4b64dbb](https://github.com/devlopersabbir/webroom/commit/4b64dbb6a695c62f54f0dbf1a87863dcc2a04547))
+* implement OptionsApp for cluster management and add SettingsModal UI component ([b2c44b0](https://github.com/devlopersabbir/webroom/commit/b2c44b0cbcac362c2e2d7321fd0d46118e1d3844))
+* implement OptionsApp UI for real-time node monitoring and cluster state management ([353a6a6](https://github.com/devlopersabbir/webroom/commit/353a6a6488a11f6c0aab3cf4beb2b2bd67136c1f))
+* implement resource management system and options UI for network contribution control ([3444129](https://github.com/devlopersabbir/webroom/commit/3444129a9ba12f16346660344fc7462229c6ba0f))
+
 ## [2.4.7](https://github.com/devlopersabbir/webroom/compare/v2.4.6...v2.4.7) (2026-08-23)
 
 ## [2.4.7](https://github.com/devlopersabbir/webroom/compare/v2.4.6...v2.4.7) (2026-08-23)
