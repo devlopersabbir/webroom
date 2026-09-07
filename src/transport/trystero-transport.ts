@@ -207,14 +207,24 @@ export class TrysteroTorrentTransport implements Transport {
 
     try {
       if (target) {
-        let trysteroTarget = target;
+        let trysteroTarget: string | undefined = undefined;
         for (const [tId, pId] of this.remotePeerIdMap.entries()) {
           if (pId === target) {
             trysteroTarget = tId;
             break;
           }
         }
-        this.action.send(message, { target: trysteroTarget });
+        if (!trysteroTarget && this.remotePeerIdMap.has(target)) {
+          trysteroTarget = target;
+        }
+
+        if (trysteroTarget) {
+          this.action.send(message, { target: trysteroTarget });
+        } else {
+          // If direct Trystero target ID is unknown, broadcast so target peer still receives it.
+          // The target peer validates `if (msg.targetPeerId !== this.peerId) return;`
+          this.action.send(message);
+        }
       } else {
         this.action.send(message);
       }
@@ -235,22 +245,32 @@ export class TrysteroTorrentTransport implements Transport {
       return;
     }
 
-    let trysteroTarget = options?.target;
-    if (trysteroTarget) {
+    let trysteroTarget: string | undefined = undefined;
+    if (options?.target) {
       for (const [tId, pId] of this.remotePeerIdMap.entries()) {
-        if (pId === trysteroTarget) {
+        if (pId === options.target) {
           trysteroTarget = tId;
           break;
         }
       }
+      if (!trysteroTarget && this.remotePeerIdMap.has(options.target)) {
+        trysteroTarget = options.target;
+      }
     }
 
     try {
-      await this.fileAction.send(data, {
-        target: trysteroTarget,
-        metadata: options?.metadata,
-        onProgress: options?.onProgress,
-      });
+      if (trysteroTarget) {
+        await this.fileAction.send(data, {
+          target: trysteroTarget,
+          metadata: options?.metadata,
+          onProgress: options?.onProgress,
+        });
+      } else {
+        await this.fileAction.send(data, {
+          metadata: options?.metadata,
+          onProgress: options?.onProgress,
+        });
+      }
     } catch (err) {
       console.warn(`[WebRoom Trystero] Failed to send binary:`, err);
     }
@@ -317,6 +337,8 @@ export class TrysteroTorrentTransport implements Transport {
     // Map remote Trystero connection ID to actual WebRoom peerId
     const senderPeerId =
       (data as any).peerId ||
+      (data as any).senderPeerId ||
+      (data as any).receiverPeerId ||
       (data as any).followerId ||
       (data as any).leaderId;
     if (senderPeerId && typeof senderPeerId === "string" && remotePeerId) {

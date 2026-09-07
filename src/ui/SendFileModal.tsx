@@ -254,34 +254,55 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
               <div className="webroom-transfer-rejected-icon">✋</div>
               <h4 className="webroom-transfer-headline">Transfer Declined</h4>
               <p className="webroom-transfer-subtext">
-                Participant {target.avatar} declined the file transfer request.
+                {outbound.errorMessage || `Participant ${target.avatar} declined the file transfer request.`}
               </p>
-              <button
-                type="button"
-                className="webroom-btn-secondary"
-                onClick={() => {
-                  room.fileTransferManager.clearOutbound();
-                }}
-              >
-                Pick another file
-              </button>
+              <div className="webroom-modal-actions-row">
+                <button
+                  type="button"
+                  className="webroom-btn-ghost"
+                  onClick={handleClose}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="webroom-btn-primary"
+                  onClick={() => {
+                    room.fileTransferManager.clearOutbound();
+                    setSelectedFile(null);
+                  }}
+                >
+                  Pick Another File
+                </button>
+              </div>
             </div>
           ) : outbound?.status === "CANCELLED" || outbound?.status === "ERROR" ? (
             <div className="webroom-transfer-status-view">
               <div className="webroom-transfer-cancelled-icon">⚠️</div>
-              <h4 className="webroom-transfer-headline">Transfer Interrupted</h4>
+              <h4 className="webroom-transfer-headline">
+                {outbound.status === "CANCELLED" ? "Transfer Cancelled" : "Transfer Interrupted"}
+              </h4>
               <p className="webroom-transfer-subtext">
                 {outbound.errorMessage || "The transfer was cancelled or peer disconnected."}
               </p>
-              <button
-                type="button"
-                className="webroom-btn-secondary"
-                onClick={() => {
-                  room.fileTransferManager.clearOutbound();
-                }}
-              >
-                Try Again
-              </button>
+              <div className="webroom-modal-actions-row">
+                <button
+                  type="button"
+                  className="webroom-btn-ghost"
+                  onClick={handleClose}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="webroom-btn-primary"
+                  onClick={() => {
+                    room.fileTransferManager.clearOutbound();
+                  }}
+                >
+                  Try Again
+                </button>
+              </div>
             </div>
           ) : (
             <>

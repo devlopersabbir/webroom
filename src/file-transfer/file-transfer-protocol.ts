@@ -23,6 +23,7 @@ export interface FileOfferMessage {
   type: "FILE_OFFER";
   transferId: string;
   roomId: string;
+  peerId: string;
   senderPeerId: string;
   senderAvatar: string;
   targetPeerId: string;
@@ -34,6 +35,7 @@ export interface FileAcceptMessage {
   type: "FILE_ACCEPT";
   transferId: string;
   roomId: string;
+  peerId: string;
   receiverPeerId: string;
   targetPeerId: string;
   timestamp: number;
@@ -43,6 +45,7 @@ export interface FileRejectMessage {
   type: "FILE_REJECT";
   transferId: string;
   roomId: string;
+  peerId: string;
   receiverPeerId: string;
   targetPeerId: string;
   reason?: string;
@@ -54,6 +57,7 @@ export interface FileCancelMessage {
   transferId: string;
   roomId: string;
   peerId: string;
+  senderPeerId?: string;
   targetPeerId: string;
   reason?: string;
   timestamp: number;
@@ -146,34 +150,39 @@ export function isValidFileTransferMessage(
   }
 
   switch (candidate.type) {
-    case "FILE_OFFER":
+    case "FILE_OFFER": {
+      const sender = candidate.peerId || candidate.senderPeerId;
       return (
-        typeof candidate.senderPeerId === "string" &&
-        candidate.senderPeerId.trim().length > 0 &&
+        typeof sender === "string" &&
+        sender.trim().length > 0 &&
         typeof candidate.senderAvatar === "string" &&
         candidate.senderAvatar.trim().length > 0 &&
         isValidFileMetadata(candidate.fileMeta)
       );
+    }
 
-    case "FILE_ACCEPT":
-      return (
-        typeof candidate.receiverPeerId === "string" &&
-        candidate.receiverPeerId.trim().length > 0
-      );
+    case "FILE_ACCEPT": {
+      const receiver = candidate.peerId || candidate.receiverPeerId;
+      return typeof receiver === "string" && receiver.trim().length > 0;
+    }
 
-    case "FILE_REJECT":
+    case "FILE_REJECT": {
+      const receiver = candidate.peerId || candidate.receiverPeerId;
       return (
-        typeof candidate.receiverPeerId === "string" &&
-        candidate.receiverPeerId.trim().length > 0 &&
+        typeof receiver === "string" &&
+        receiver.trim().length > 0 &&
         (candidate.reason === undefined || typeof candidate.reason === "string")
       );
+    }
 
-    case "FILE_CANCEL":
+    case "FILE_CANCEL": {
+      const canceller = candidate.peerId || candidate.senderPeerId;
       return (
-        typeof candidate.peerId === "string" &&
-        candidate.peerId.trim().length > 0 &&
+        typeof canceller === "string" &&
+        canceller.trim().length > 0 &&
         (candidate.reason === undefined || typeof candidate.reason === "string")
       );
+    }
 
     default:
       return false;

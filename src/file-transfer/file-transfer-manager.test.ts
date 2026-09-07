@@ -94,6 +94,7 @@ describe("FileTransferManager Unit Tests", () => {
       type: "FILE_OFFER",
       transferId: "tx_999",
       roomId: "room1",
+      peerId: "peer_alice",
       senderPeerId: "peer_alice",
       senderAvatar: "🐱",
       targetPeerId: "peer_bob",
@@ -133,6 +134,7 @@ describe("FileTransferManager Unit Tests", () => {
       type: "FILE_OFFER",
       transferId: "tx_binary_1",
       roomId: "room1",
+      peerId: "peer_alice",
       senderPeerId: "peer_alice",
       senderAvatar: "🐱",
       targetPeerId: "peer_bob",
@@ -177,5 +179,102 @@ describe("FileTransferManager Unit Tests", () => {
 
     expect(manager.getOutboundTransfer()?.status).toBe("CANCELLED");
     manager.destroy();
+  });
+
+  it("handles sender cancellation while awaiting consent", async () => {
+    const transport = new MockTestTransport();
+    const aliceManager = new FileTransferManager("room1", "peer_alice", "🐱", transport);
+    const bobManager = new FileTransferManager("room1", "peer_bob", "🐶", transport);
+    aliceManager.start();
+    bobManager.start();
+
+    // Alice offers file to Bob
+    const fakeFile = new File(["test content"], "notes.txt", { type: "text/plain" });
+    const transferId = await aliceManager.requestSendFile("peer_bob", "🐶", fakeFile);
+
+    // Forward offer to Bob
+    const offerMsg = transport.sentMessages[transport.sentMessages.length - 1];
+    bobManager.start();
+    transport.emitMessage(offerMsg);
+
+    expect(bobManager.getInboundTransfer()?.status).toBe("AWAITING_ACCEPTANCE");
+
+    // Alice cancels before Bob accepts
+    aliceManager.cancelTransfer(transferId, "Sender cancelled");
+    expect(aliceManager.getOutboundTransfer()?.status).toBe("CANCELLED");
+
+    // Forward cancel to Bob
+    const cancelMsg = transport.sentMessages[transport.sentMessages.length - 1];
+    expect(cancelMsg.type).toBe("FILE_CANCEL");
+    expect((cancelMsg as any).targetPeerId).toBe("peer_bob");
+
+    transport.emitMessage(cancelMsg);
+    expect(bobManager.getInboundTransfer()?.status).toBe("CANCELLED");
+
+    aliceManager.destroy();
+    bobManager.destroy();
+  });
+
+  it("handles recipient rejection properly and notifies sender", async () => {
+    const transport = new MockTestTransport();
+    const aliceManager = new FileTransferManager("room1", "peer_alice", "🐱", transport);
+    const bobManager = new FileTransferManager("room1", "peer_bob", "🐶", transport);
+    aliceManager.start();
+    bobManager.start();
+
+    const fakeFile = new File(["secret"], "secret.pdf", { type: "application/pdf" });
+    const transferId = await aliceManager.requestSendFile("peer_bob", "🐶", fakeFile);
+
+    const offerMsg = transport.sentMessages[transport.sentMessages.length - 1];
+    transport.emitMessage(offerMsg);
+
+    expect(bobManager.getInboundTransfer()?.status).toBe("AWAITING_ACCEPTANCE");
+
+    // Bob rejects
+    bobManager.rejectTransfer(transferId, "User declined transfer");
+    expect(bobManager.getInboundTransfer()?.status).toBe("REJECTED");
+
+    const rejectMsg = transport.sentMessages[transport.sentMessages.length - 1];
+    expect(rejectMsg.type).toBe("FILE_REJECT");
+    expect((rejectMsg as any).targetPeerId).toBe("peer_alice");
+
+    // Alice receives reject
+    transport.emitMessage(rejectMsg);
+    expect(aliceManager.getOutboundTransfer()?.status).toBe("REJECTED");
+
+    aliceManager.destroy();
+    bobManager.destroy();
+  });
+
+  it("handles recipient cancellation during active receiving", async () => {
+    const transport = new MockTestTransport();
+    const aliceManager = new FileTransferManager("room1", "peer_alice", "🐱", transport);
+    const bobManager = new FileTransferManager("room1", "peer_bob", "🐶", transport);
+    aliceManager.start();
+    bobManager.start();
+
+    const fakeFile = new File(["payload"], "data.bin", { type: "application/octet-stream" });
+    const transferId = await aliceManager.requestSendFile("peer_bob", "🐶", fakeFile);
+
+    const offerMsg = transport.sentMessages[transport.sentMessages.length - 1];
+    transport.emitMessage(offerMsg);
+
+    // Bob accepts
+    bobManager.acceptTransfer(transferId);
+    expect(bobManager.getInboundTransfer()?.status).toBe("RECEIVING");
+
+    // Bob cancels mid-transfer
+    bobManager.cancelTransfer(transferId, "Receiver cancelled");
+    expect(bobManager.getInboundTransfer()?.status).toBe("CANCELLED");
+
+    const cancelMsg = transport.sentMessages[transport.sentMessages.length - 1];
+    expect(cancelMsg.type).toBe("FILE_CANCEL");
+    expect((cancelMsg as any).targetPeerId).toBe("peer_alice");
+
+    transport.emitMessage(cancelMsg);
+    expect(aliceManager.getOutboundTransfer()?.status).toBe("CANCELLED");
+
+    aliceManager.destroy();
+    bobManager.destroy();
   });
 });

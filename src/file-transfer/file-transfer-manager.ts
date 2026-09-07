@@ -226,6 +226,7 @@ export class FileTransferManager {
       type: "FILE_OFFER",
       transferId,
       roomId: this.roomId,
+      peerId: this.peerId,
       senderPeerId: this.peerId,
       senderAvatar: this.avatar,
       targetPeerId,
@@ -264,6 +265,7 @@ export class FileTransferManager {
       type: "FILE_ACCEPT",
       transferId,
       roomId: this.roomId,
+      peerId: this.peerId,
       receiverPeerId: this.peerId,
       targetPeerId: this.currentInbound.senderPeerId,
       timestamp: Date.now(),
@@ -298,6 +300,7 @@ export class FileTransferManager {
       type: "FILE_REJECT",
       transferId,
       roomId: this.roomId,
+      peerId: this.peerId,
       receiverPeerId: this.peerId,
       targetPeerId: senderPeerId,
       reason,
@@ -308,13 +311,6 @@ export class FileTransferManager {
       `[WebRoom FileTransfer] ❌ Rejected file offer ${transferId} from ${senderPeerId}`,
     );
     this.transport.send(reject, senderPeerId);
-
-    setTimeout(() => {
-      if (this.currentInbound?.transferId === transferId) {
-        this.currentInbound = null;
-        this.notifyInboundListeners();
-      }
-    }, 2500);
   }
 
   /**
@@ -336,18 +332,12 @@ export class FileTransferManager {
         transferId,
         roomId: this.roomId,
         peerId: this.peerId,
+        senderPeerId: this.peerId,
         targetPeerId,
         reason,
         timestamp: Date.now(),
       };
       this.transport.send(cancel, targetPeerId);
-
-      setTimeout(() => {
-        if (this.currentOutbound?.transferId === transferId) {
-          this.currentOutbound = null;
-          this.notifyOutboundListeners();
-        }
-      }, 1500);
       return;
     }
 
@@ -363,18 +353,12 @@ export class FileTransferManager {
         transferId,
         roomId: this.roomId,
         peerId: this.peerId,
+        senderPeerId: this.peerId,
         targetPeerId,
         reason,
         timestamp: Date.now(),
       };
       this.transport.send(cancel, targetPeerId);
-
-      setTimeout(() => {
-        if (this.currentInbound?.transferId === transferId) {
-          this.currentInbound = null;
-          this.notifyInboundListeners();
-        }
-      }, 1500);
     }
   }
 
@@ -465,6 +449,7 @@ export class FileTransferManager {
         type: "FILE_REJECT",
         transferId: msg.transferId,
         roomId: this.roomId,
+        peerId: this.peerId,
         receiverPeerId: this.peerId,
         targetPeerId: msg.senderPeerId,
         reason: "Recipient is currently in another transfer",
@@ -496,6 +481,10 @@ export class FileTransferManager {
       return;
     }
 
+    if (this.currentOutbound.status !== "AWAITING_CONSENT") {
+      return;
+    }
+
     this.currentOutbound.status = "TRANSFERRING";
     this.currentOutbound.progress = 0;
     this.lastProgressTime = Date.now();
@@ -505,6 +494,14 @@ export class FileTransferManager {
     try {
       const file = this.currentOutbound.file;
       const arrayBuffer = await file.arrayBuffer();
+
+      if (
+        !this.currentOutbound ||
+        this.currentOutbound.transferId !== msg.transferId ||
+        this.currentOutbound.status !== "TRANSFERRING"
+      ) {
+        return;
+      }
 
       console.log(
         `[WebRoom FileTransfer] 🚀 Streaming "${file.name}" (${file.size} bytes) directly to ${this.currentOutbound.targetPeerId}`,
@@ -516,6 +513,7 @@ export class FileTransferManager {
           metadata: {
             transferId: this.currentOutbound.transferId,
             senderPeerId: this.peerId,
+            targetPeerId: this.currentOutbound.targetPeerId,
             name: file.name,
             size: file.size,
             type: file.type || "application/octet-stream",
@@ -553,7 +551,7 @@ export class FileTransferManager {
       }
     } catch (err) {
       console.error("[WebRoom FileTransfer] Error during file stream:", err);
-      if (this.currentOutbound) {
+      if (this.currentOutbound && this.currentOutbound.status === "TRANSFERRING") {
         this.currentOutbound.status = "ERROR";
         this.currentOutbound.errorMessage = "Failed to stream file data";
         this.notifyOutboundListeners();
@@ -570,7 +568,8 @@ export class FileTransferManager {
     }
 
     this.currentOutbound.status = "REJECTED";
-    this.currentOutbound.errorMessage = msg.reason || "Transfer was declined";
+    this.currentOutbound.errorMessage =
+      msg.reason || `Participant ${this.currentOutbound.targetAvatar} declined the transfer request`;
     this.notifyOutboundListeners();
   }
 
@@ -580,7 +579,8 @@ export class FileTransferManager {
       this.currentOutbound.transferId === msg.transferId
     ) {
       this.currentOutbound.status = "CANCELLED";
-      this.currentOutbound.errorMessage = msg.reason || "Cancelled by peer";
+      this.currentOutbound.errorMessage =
+        msg.reason || `Participant ${this.currentOutbound.targetAvatar} cancelled the transfer`;
       this.notifyOutboundListeners();
     }
 
@@ -589,7 +589,8 @@ export class FileTransferManager {
       this.currentInbound.transferId === msg.transferId
     ) {
       this.currentInbound.status = "CANCELLED";
-      this.currentInbound.errorMessage = msg.reason || "Cancelled by peer";
+      this.currentInbound.errorMessage =
+        msg.reason || `Participant ${this.currentInbound.senderAvatar} cancelled the transfer request`;
       this.notifyInboundListeners();
     }
   }
@@ -607,6 +608,14 @@ export class FileTransferManager {
 
     const meta = context.metadata;
     if (meta?.transferId && meta.transferId !== this.currentInbound.transferId) {
+      return;
+    }
+
+    if (
+      meta?.targetPeerId &&
+      typeof meta.targetPeerId === "string" &&
+      meta.targetPeerId !== this.peerId
+    ) {
       return;
     }
 
@@ -638,6 +647,14 @@ export class FileTransferManager {
 
     const meta = context.metadata;
     if (meta?.transferId && meta.transferId !== this.currentInbound.transferId) {
+      return;
+    }
+
+    if (
+      meta?.targetPeerId &&
+      typeof meta.targetPeerId === "string" &&
+      meta.targetPeerId !== this.peerId
+    ) {
       return;
     }
 

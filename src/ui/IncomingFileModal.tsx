@@ -19,6 +19,15 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
     return () => unsubscribe();
   }, [room]);
 
+  useEffect(() => {
+    if (inbound?.status === "CANCELLED") {
+      const timer = setTimeout(() => {
+        room.fileTransferManager.clearInbound();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [inbound?.status, room]);
+
   if (!inbound) {
     return null;
   }
@@ -28,11 +37,12 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
   };
 
   const handleReject = () => {
-    room.rejectFileTransfer(inbound.transferId, "User declined transfer");
+    room.rejectFileTransfer(inbound.transferId, "Recipient declined transfer");
+    room.fileTransferManager.clearInbound();
   };
 
   const handleCancel = () => {
-    room.cancelFileTransfer(inbound.transferId, "Receiver cancelled");
+    room.cancelFileTransfer(inbound.transferId, "Recipient cancelled transfer");
     room.fileTransferManager.clearInbound();
   };
 
@@ -97,12 +107,12 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
               <p>From: Participant {inbound.senderAvatar}</p>
             </div>
           </div>
-          {inbound.status === "AWAITING_ACCEPTANCE" && (
+          {inbound.status !== "RECEIVING" && (
             <button
               type="button"
               className="webroom-participant-close-btn"
-              onClick={handleReject}
-              aria-label="Decline file transfer"
+              onClick={inbound.status === "AWAITING_ACCEPTANCE" ? handleReject : handleDone}
+              aria-label="Close file transfer modal"
             >
               ✕
             </button>
@@ -234,7 +244,9 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
           {(inbound.status === "CANCELLED" || inbound.status === "ERROR") && (
             <div className="webroom-transfer-status-view">
               <div className="webroom-transfer-cancelled-icon">⚠️</div>
-              <h4 className="webroom-transfer-headline">Transfer Interrupted</h4>
+              <h4 className="webroom-transfer-headline">
+                {inbound.status === "CANCELLED" ? "Transfer Cancelled" : "Transfer Interrupted"}
+              </h4>
               <p className="webroom-transfer-subtext">
                 {inbound.errorMessage || "The transfer was cancelled or sender disconnected."}
               </p>

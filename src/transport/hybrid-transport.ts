@@ -145,6 +145,8 @@ export class HybridTransport implements Transport {
   private getSignature(msg: WebRoomMessage): string {
     const pId =
       (msg as any).peerId ||
+      (msg as any).senderPeerId ||
+      (msg as any).receiverPeerId ||
       (msg as any).followerId ||
       (msg as any).leaderId ||
       "unknown";
@@ -153,7 +155,12 @@ export class HybridTransport implements Transport {
     const cand = (msg as any).candidate
       ? `_cand_${(msg as any).candidate.candidate || (msg as any).candidate.sdpMid || (msg as any).candidate.sdpMLineIndex || ""}`
       : "";
-    const extra = (msg as any).id || (msg as any).text || (msg as any).scrollY || "";
+    const extra =
+      (msg as any).id ||
+      (msg as any).text ||
+      (msg as any).scrollY ||
+      (msg as any).transferId ||
+      "";
     return `${msg.type}_${pId}_${msg.timestamp}_${extra}${target}${sdpType}${cand}`;
   }
 }
