@@ -2,7 +2,7 @@ import { joinRoom, Room as TrysteroRoom } from "trystero";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { installWebRTCBridge, SafeRTCPeerConnection } from "./safe-webrtc";
-import { MessageHandler, Transport } from "./transport";
+import { BinaryDataHandler, BinaryProgressHandler, MessageHandler, Transport } from "./transport";
 
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
@@ -42,8 +42,11 @@ export const DEFAULT_RTC_CONFIG: RTCConfiguration = {
 export class TrysteroTorrentTransport implements Transport {
   public readonly roomId: string;
   private room: TrysteroRoom | null = null;
-  private action: { send: (data: any) => Promise<void> } | null = null;
+  private action: { send: (data: any, options?: any) => Promise<void> } | null = null;
+  private fileAction: any = null;
   private handlers = new Set<MessageHandler>();
+  private binaryHandlers = new Set<BinaryDataHandler>();
+  private binaryProgressHandlers = new Set<BinaryProgressHandler>();
   private isClosed = false;
   private seenMessageSignatures = new Set<string>();
   private remotePeerIdMap = new Map<string, string>();
@@ -81,6 +84,60 @@ export class TrysteroTorrentTransport implements Transport {
 
       msgAction.onMessage = (data: unknown, context: { peerId: string }) => {
         this.handleIncomingMessage(data, context.peerId);
+      };
+
+      // Dedicated WebRTC DataChannel action for 1-to-1 binary streaming
+      const fileStreamAction = this.room.makeAction<any>("webroom_file_stream");
+      this.fileAction = fileStreamAction;
+
+      fileStreamAction.onMessage = (
+        data: unknown,
+        context: { peerId: string; metadata?: any },
+      ) => {
+        const mappedPeerId =
+          this.remotePeerIdMap.get(context.peerId) || context.peerId;
+        const buffer =
+          data instanceof ArrayBuffer
+            ? data
+            : (data as any)?.buffer instanceof ArrayBuffer
+              ? (data as any).buffer
+              : (data as any);
+
+        for (const handler of this.binaryHandlers) {
+          try {
+            handler(buffer, {
+              peerId: mappedPeerId,
+              metadata: context.metadata || {},
+            });
+          } catch (err) {
+            console.error(
+              "[WebRoom Trystero] Error in binary message handler:",
+              err,
+            );
+          }
+        }
+      };
+
+      fileStreamAction.onReceiveProgress = (
+        percent: number,
+        context: { peerId: string; metadata?: any },
+      ) => {
+        const mappedPeerId =
+          this.remotePeerIdMap.get(context.peerId) || context.peerId;
+
+        for (const handler of this.binaryProgressHandlers) {
+          try {
+            handler(percent, {
+              peerId: mappedPeerId,
+              metadata: context.metadata || {},
+            });
+          } catch (err) {
+            console.error(
+              "[WebRoom Trystero] Error in binary progress handler:",
+              err,
+            );
+          }
+        }
       };
 
       this.room.onPeerJoin = (peerId: string) => {
@@ -137,7 +194,7 @@ export class TrysteroTorrentTransport implements Transport {
     }
   }
 
-  public send(message: WebRoomMessage): void {
+  public send(message: WebRoomMessage, targetPeerId?: string): void {
     if (this.isClosed || !this.action) {
       return;
     }
@@ -146,10 +203,56 @@ export class TrysteroTorrentTransport implements Transport {
       return;
     }
 
+    const target = targetPeerId || (message as any).targetPeerId;
+
     try {
-      this.action.send(message);
+      if (target) {
+        let trysteroTarget = target;
+        for (const [tId, pId] of this.remotePeerIdMap.entries()) {
+          if (pId === target) {
+            trysteroTarget = tId;
+            break;
+          }
+        }
+        this.action.send(message, { target: trysteroTarget });
+      } else {
+        this.action.send(message);
+      }
     } catch (err) {
       console.warn(`[WebRoom Trystero] Failed to broadcast message:`, err);
+    }
+  }
+
+  public async sendBinary(
+    data: ArrayBuffer | Uint8Array,
+    options?: {
+      target?: string;
+      metadata?: Record<string, unknown>;
+      onProgress?: (percent: number) => void;
+    },
+  ): Promise<void> {
+    if (this.isClosed || !this.fileAction) {
+      return;
+    }
+
+    let trysteroTarget = options?.target;
+    if (trysteroTarget) {
+      for (const [tId, pId] of this.remotePeerIdMap.entries()) {
+        if (pId === trysteroTarget) {
+          trysteroTarget = tId;
+          break;
+        }
+      }
+    }
+
+    try {
+      await this.fileAction.send(data, {
+        target: trysteroTarget,
+        metadata: options?.metadata,
+        onProgress: options?.onProgress,
+      });
+    } catch (err) {
+      console.warn(`[WebRoom Trystero] Failed to send binary:`, err);
     }
   }
 
@@ -157,6 +260,20 @@ export class TrysteroTorrentTransport implements Transport {
     this.handlers.add(handler);
     return () => {
       this.handlers.delete(handler);
+    };
+  }
+
+  public onBinaryMessage(handler: BinaryDataHandler): () => void {
+    this.binaryHandlers.add(handler);
+    return () => {
+      this.binaryHandlers.delete(handler);
+    };
+  }
+
+  public onBinaryReceiveProgress(handler: BinaryProgressHandler): () => void {
+    this.binaryProgressHandlers.add(handler);
+    return () => {
+      this.binaryProgressHandlers.delete(handler);
     };
   }
 
@@ -176,7 +293,10 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     this.action = null;
+    this.fileAction = null;
     this.handlers.clear();
+    this.binaryHandlers.clear();
+    this.binaryProgressHandlers.clear();
     this.seenMessageSignatures.clear();
     this.remotePeerIdMap.clear();
   }

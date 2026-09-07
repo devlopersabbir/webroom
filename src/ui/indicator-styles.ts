@@ -1716,6 +1716,532 @@ export const INDICATOR_STYLES = `
   color: #d1d5db;
   border: 1px solid rgba(156, 163, 175, 0.25);
 }
+
+/* ==========================================================================
+   P2P Direct File Sharing & Transfer Modals
+   ========================================================================== */
+
+.webroom-participant-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.webroom-participant-upload-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.18s ease;
+  padding: 0;
+}
+
+.webroom-participant-upload-btn:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #c7d2fe;
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.webroom-participant-upload-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.webroom-file-modal-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483647;
+  animation: webroom-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.webroom-file-modal {
+  width: 390px;
+  max-width: calc(100vw - 32px);
+  background: rgba(20, 20, 26, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  box-shadow: 
+    0 24px 60px rgba(0, 0, 0, 0.7),
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: webroom-modal-pop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #f3f4f6;
+}
+
+@keyframes webroom-modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.93) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.webroom-incoming-modal {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 
+    0 24px 60px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(99, 102, 241, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.webroom-file-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.webroom-file-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.webroom-file-modal-avatar {
+  font-size: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.webroom-file-modal-title-text h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f4f6;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+
+.webroom-file-modal-title-text p {
+  font-size: 11.5px;
+  color: #9ca3af;
+}
+
+.webroom-file-modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.webroom-file-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 26px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.webroom-file-dropzone:hover {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.06);
+  transform: translateY(-1px);
+}
+
+.webroom-file-dropzone-dragging {
+  border-color: #818cf8;
+  background: rgba(99, 102, 241, 0.15);
+  transform: scale(1.02);
+}
+
+.webroom-dropzone-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.webroom-dropzone-main-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e5e7eb;
+}
+
+.webroom-dropzone-main-text span {
+  color: #818cf8;
+  text-decoration: underline;
+}
+
+.webroom-dropzone-sub-text {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.webroom-selected-file-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+.webroom-file-type-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.webroom-selected-file-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.webroom-selected-file-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.webroom-selected-file-size {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.webroom-change-file-btn {
+  background: transparent;
+  border: none;
+  color: #818cf8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.webroom-change-file-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.webroom-transfer-note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.webroom-modal-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.webroom-btn-ghost {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.webroom-btn-ghost:hover {
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.webroom-btn-ghost-danger {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.webroom-btn-ghost-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.webroom-btn-primary {
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+}
+
+.webroom-btn-primary:hover:not(:disabled) {
+  background: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+}
+
+.webroom-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.webroom-btn-success {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+}
+
+.webroom-btn-success:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45);
+}
+
+.webroom-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.webroom-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.webroom-btn-danger {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.webroom-btn-danger:hover {
+  background: #dc2626;
+}
+
+/* Transfer State Views */
+
+.webroom-transfer-status-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px 8px;
+  gap: 12px;
+}
+
+.webroom-pulsing-loader {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: webroom-pulse-ring 1.8s infinite cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes webroom-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 16px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.webroom-pulse-avatar {
+  font-size: 30px;
+}
+
+.webroom-transfer-headline {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.webroom-transfer-subtext {
+  font-size: 12px;
+  color: #9ca3af;
+  max-width: 280px;
+  line-height: 1.45;
+}
+
+.webroom-transfer-privacy-badge {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.12);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  margin-bottom: 4px;
+}
+
+.webroom-transfer-active-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.webroom-transfer-active-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.webroom-transfer-file-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.webroom-transfer-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 3px;
+}
+
+.webroom-transfer-speed {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.webroom-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-top: 4px;
+}
+
+.webroom-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+  border-radius: 999px;
+  transition: width 0.25s ease-out;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+}
+
+.webroom-progress-fill-receiving {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.webroom-progress-percentage {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d1d5db;
+  margin-bottom: 6px;
+}
+
+.webroom-transfer-success-icon {
+  font-size: 42px;
+  animation: webroom-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.webroom-transfer-rejected-icon,
+.webroom-transfer-cancelled-icon {
+  font-size: 38px;
+}
+
+.webroom-incoming-prompt {
+  font-size: 13px;
+  color: #d1d5db;
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
 `;
 
 

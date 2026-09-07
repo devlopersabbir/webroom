@@ -4,6 +4,7 @@ import { Room } from "../room/room";
 import { FollowBorder } from "./FollowBorder";
 import { FollowCursor } from "./FollowCursor";
 import { FollowingIndicator } from "./FollowingIndicator";
+import { IncomingFileModal } from "./IncomingFileModal";
 import { StopFollowingControl } from "./StopFollowingControl";
 import { WebRoomPanel } from "./WebRoomPanel";
 
@@ -77,6 +78,9 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
 
       {/* Bottom Floating Stop Following Action Control */}
       <StopFollowingControl room={room} followingLeader={followingLeader} />
+
+      {/* 1-to-1 P2P Direct Incoming File Transfer Consent Modal */}
+      <IncomingFileModal room={room} />
 
       {/* Bottom-Right WebRoom Panel & Indicator Pill */}
       <div className="webroom-floating-wrapper" id="webroom-indicator">

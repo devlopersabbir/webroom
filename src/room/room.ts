@@ -21,6 +21,13 @@ import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
 import { Transport } from "../transport/transport";
 import {
+  FileTransferManager,
+  InboundStateListener,
+  InboundTransfer,
+  OutboundStateListener,
+  OutboundTransfer,
+} from "../file-transfer/file-transfer-manager";
+import {
   SpeakingPeersListener,
   VoiceManager,
   VoiceState,
@@ -78,6 +85,7 @@ export class Room {
   public readonly resourceManager: ResourceManager;
   public readonly membershipManager: MembershipManager;
   public readonly routingLayer: MediaRoutingLayer;
+  public readonly fileTransferManager: FileTransferManager;
   private readonly transport: Transport;
   private readonly presenceManager: PresenceManager;
   private readonly chatManager: ChatManager;
@@ -99,6 +107,7 @@ export class Room {
     chatManager: ChatManager,
     voiceManager: VoiceManager,
     followManager: FollowManager,
+    fileTransferManager: FileTransferManager,
   ) {
     this.url = url;
     this.canonicalUrl = canonicalUrl;
@@ -114,6 +123,7 @@ export class Room {
     this.chatManager = chatManager;
     this.voiceManager = voiceManager;
     this.followManager = followManager;
+    this.fileTransferManager = fileTransferManager;
   }
 
   /**
@@ -154,8 +164,14 @@ export class Room {
     const chatManager = new ChatManager(roomId, peerId, avatar, transport);
     const voiceManager = new VoiceManager(roomId, peerId, transport);
     const followManager = new FollowManager(roomId, peerId, avatar, transport);
+    const fileTransferManager = new FileTransferManager(
+      roomId,
+      peerId,
+      avatar,
+      transport,
+    );
 
-    // Wire presence lifecycle to WebRTC voice mesh negotiation and follow cleanup
+    // Wire presence lifecycle to WebRTC voice mesh negotiation, follow and file transfer cleanup
     presenceManager.onPeerJoin((remotePeerId) => {
       voiceManager.handlePeerDiscovered(remotePeerId);
     });
@@ -163,6 +179,7 @@ export class Room {
     presenceManager.onPeerLeave((remotePeerId) => {
       voiceManager.handlePeerLeft(remotePeerId);
       followManager.handlePeerLeft(remotePeerId);
+      fileTransferManager.handlePeerLeft(remotePeerId);
     });
 
     // Wire membership updates to media routing layer for automatic route reassignment
@@ -189,6 +206,7 @@ export class Room {
     chatManager.start();
     voiceManager.start();
     followManager.start();
+    fileTransferManager.start();
 
     console.log(
       `[WebRoom] 🚪 Joined Room: ${roomId} (Node: ${identity.getNodeId()}, Peer: ${peerId}) for URL: ${canonicalUrl}`,
@@ -209,6 +227,7 @@ export class Room {
       chatManager,
       voiceManager,
       followManager,
+      fileTransferManager,
     );
   }
 
@@ -428,9 +447,64 @@ export class Room {
   }
 
   /**
+   * Initiates a 1-to-1 direct peer-to-peer file transfer.
+   */
+  public requestSendFile(
+    targetPeerId: string,
+    targetAvatar: string,
+    file: File,
+  ): Promise<string> {
+    return this.fileTransferManager.requestSendFile(
+      targetPeerId,
+      targetAvatar,
+      file,
+    );
+  }
+
+  /**
+   * Accepts an incoming file transfer offer.
+   */
+  public acceptFileTransfer(transferId: string): void {
+    this.fileTransferManager.acceptTransfer(transferId);
+  }
+
+  /**
+   * Declines an incoming file transfer offer.
+   */
+  public rejectFileTransfer(transferId: string, reason?: string): void {
+    this.fileTransferManager.rejectTransfer(transferId, reason);
+  }
+
+  /**
+   * Cancels an active or pending file transfer.
+   */
+  public cancelFileTransfer(transferId: string, reason?: string): void {
+    this.fileTransferManager.cancelTransfer(transferId, reason);
+  }
+
+  /**
+   * Listens for changes in the outbound file transfer state.
+   */
+  public onOutboundFileTransferChange(
+    listener: OutboundStateListener,
+  ): () => void {
+    return this.fileTransferManager.onOutboundChange(listener);
+  }
+
+  /**
+   * Listens for changes in the inbound file transfer state.
+   */
+  public onInboundFileTransferChange(
+    listener: InboundStateListener,
+  ): () => void {
+    return this.fileTransferManager.onInboundChange(listener);
+  }
+
+  /**
    * Leaves the room, announcing departure to peers and releasing all resources.
    */
   public leave(sendGoodbye: boolean = true): void {
+    this.fileTransferManager.destroy();
     this.routingLayer.destroy();
     this.membershipManager.destroy(sendGoodbye);
     this.followManager.destroy();
