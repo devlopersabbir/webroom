@@ -1,6 +1,6 @@
 import { CHANNEL_PREFIX } from "../shared/constants";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
-import { MessageHandler, Transport } from "./transport";
+import { BinaryDataHandler, BinaryProgressHandler, MessageHandler, Transport } from "./transport";
 
 /**
  * BroadcastChannel-based implementation of Transport for local tab-to-tab communication.
@@ -10,6 +10,8 @@ export class BroadcastChannelTransport implements Transport {
   private readonly channelName: string;
   private channel: BroadcastChannel | null = null;
   private handlers = new Set<MessageHandler>();
+  private binaryHandlers = new Set<BinaryDataHandler>();
+  private binaryProgressHandlers = new Set<BinaryProgressHandler>();
   private isClosed = false;
 
   constructor(roomId: string) {
@@ -32,7 +34,7 @@ export class BroadcastChannelTransport implements Transport {
     }
   }
 
-  public send(message: WebRoomMessage): void {
+  public send(message: WebRoomMessage, _targetPeerId?: string): void {
     if (this.isClosed || !this.channel) {
       return;
     }
@@ -56,6 +58,49 @@ export class BroadcastChannelTransport implements Transport {
     };
   }
 
+  public async sendBinary(
+    data: ArrayBuffer | Uint8Array,
+    options?: {
+      target?: string;
+      metadata?: Record<string, unknown>;
+      onProgress?: (percent: number) => void;
+    }
+  ): Promise<void> {
+    if (this.isClosed || !this.channel) {
+      return;
+    }
+
+    try {
+      const buffer = data instanceof Uint8Array ? data.buffer : data;
+      // Report instantaneous or simulated progress for local broadcast
+      options?.onProgress?.(0.5);
+      this.channel.postMessage({
+        __webroom_binary__: true,
+        roomId: this.roomId,
+        target: options?.target,
+        metadata: options?.metadata || {},
+        data: buffer,
+      });
+      options?.onProgress?.(1.0);
+    } catch (err) {
+      console.warn(`[WebRoom Transport] Failed to send binary via BroadcastChannel:`, err);
+    }
+  }
+
+  public onBinaryMessage(handler: BinaryDataHandler): () => void {
+    this.binaryHandlers.add(handler);
+    return () => {
+      this.binaryHandlers.delete(handler);
+    };
+  }
+
+  public onBinaryReceiveProgress(handler: BinaryProgressHandler): () => void {
+    this.binaryProgressHandlers.add(handler);
+    return () => {
+      this.binaryProgressHandlers.delete(handler);
+    };
+  }
+
   public close(): void {
     if (this.isClosed) {
       return;
@@ -73,10 +118,44 @@ export class BroadcastChannelTransport implements Transport {
     }
 
     this.handlers.clear();
+    this.binaryHandlers.clear();
+    this.binaryProgressHandlers.clear();
   }
 
   private handleIncomingMessage(data: unknown): void {
     if (this.isClosed) {
+      return;
+    }
+
+    // Check for internal binary packet
+    if (
+      data &&
+      typeof data === "object" &&
+      (data as any).__webroom_binary__ === true &&
+      (data as any).roomId === this.roomId
+    ) {
+      const binPayload = data as {
+        data: ArrayBuffer;
+        target?: string;
+        metadata: Record<string, unknown>;
+      };
+      const peerId = (binPayload.metadata.senderPeerId as string) || "local_peer";
+
+      for (const progressHandler of this.binaryProgressHandlers) {
+        try {
+          progressHandler(1.0, { peerId, metadata: binPayload.metadata });
+        } catch (err) {
+          console.error(`[WebRoom Transport] Error in binary progress handler:`, err);
+        }
+      }
+
+      for (const handler of this.binaryHandlers) {
+        try {
+          handler(binPayload.data, { peerId, metadata: binPayload.metadata });
+        } catch (err) {
+          console.error(`[WebRoom Transport] Error in binary handler:`, err);
+        }
+      }
       return;
     }
 

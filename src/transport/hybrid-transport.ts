@@ -1,6 +1,6 @@
 import { WebRoomMessage } from "../presence/protocol";
 import { BroadcastChannelTransport } from "./broadcast-channel";
-import { MessageHandler, Transport } from "./transport";
+import { BinaryDataHandler, BinaryProgressHandler, MessageHandler, Transport } from "./transport";
 import { TrysteroTorrentTransport } from "./trystero-transport";
 
 /**
@@ -41,7 +41,7 @@ export class HybridTransport implements Transport {
     this.remoteTransport.start();
   }
 
-  public send(message: WebRoomMessage): void {
+  public send(message: WebRoomMessage, targetPeerId?: string): void {
     if (this.isClosed) {
       return;
     }
@@ -52,8 +52,44 @@ export class HybridTransport implements Transport {
       this.seenSignatures.add(signature);
     }
 
-    this.localTransport.send(message);
-    this.remoteTransport.send(message);
+    this.localTransport.send(message, targetPeerId);
+    this.remoteTransport.send(message, targetPeerId);
+  }
+
+  public async sendBinary(
+    data: ArrayBuffer | Uint8Array,
+    options?: {
+      target?: string;
+      metadata?: Record<string, unknown>;
+      onProgress?: (percent: number) => void;
+    }
+  ): Promise<void> {
+    if (this.isClosed) {
+      return;
+    }
+
+    await Promise.allSettled([
+      this.localTransport.sendBinary?.(data, options),
+      this.remoteTransport.sendBinary?.(data, options),
+    ]);
+  }
+
+  public onBinaryMessage(handler: BinaryDataHandler): () => void {
+    const unsubLocal = this.localTransport.onBinaryMessage?.(handler);
+    const unsubRemote = this.remoteTransport.onBinaryMessage?.(handler);
+    return () => {
+      unsubLocal?.();
+      unsubRemote?.();
+    };
+  }
+
+  public onBinaryReceiveProgress(handler: BinaryProgressHandler): () => void {
+    const unsubLocal = this.localTransport.onBinaryReceiveProgress?.(handler);
+    const unsubRemote = this.remoteTransport.onBinaryReceiveProgress?.(handler);
+    return () => {
+      unsubLocal?.();
+      unsubRemote?.();
+    };
   }
 
   public onMessage(handler: MessageHandler): () => void {
@@ -109,6 +145,8 @@ export class HybridTransport implements Transport {
   private getSignature(msg: WebRoomMessage): string {
     const pId =
       (msg as any).peerId ||
+      (msg as any).senderPeerId ||
+      (msg as any).receiverPeerId ||
       (msg as any).followerId ||
       (msg as any).leaderId ||
       "unknown";
@@ -117,7 +155,12 @@ export class HybridTransport implements Transport {
     const cand = (msg as any).candidate
       ? `_cand_${(msg as any).candidate.candidate || (msg as any).candidate.sdpMid || (msg as any).candidate.sdpMLineIndex || ""}`
       : "";
-    const extra = (msg as any).id || (msg as any).text || (msg as any).scrollY || "";
+    const extra =
+      (msg as any).id ||
+      (msg as any).text ||
+      (msg as any).scrollY ||
+      (msg as any).transferId ||
+      "";
     return `${msg.type}_${pId}_${msg.timestamp}_${extra}${target}${sdpType}${cand}`;
   }
 }
