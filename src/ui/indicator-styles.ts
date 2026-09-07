@@ -1760,31 +1760,36 @@ export const INDICATOR_STYLES = `
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2147483647;
+  pointer-events: auto;
+  box-sizing: border-box;
+  padding: 20px;
   animation: webroom-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .webroom-file-modal {
-  width: 390px;
-  max-width: calc(100vw - 32px);
+  width: 420px;
+  max-width: min(420px, calc(100vw - 32px));
+  max-height: min(600px, calc(100vh - 40px));
   background: rgba(20, 20, 26, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
   box-shadow: 
-    0 24px 60px rgba(0, 0, 0, 0.7),
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  overflow: hidden;
+    0 24px 64px rgba(0, 0, 0, 0.8),
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   animation: webroom-modal-pop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   color: #f3f4f6;
+  pointer-events: auto;
 }
 
 @keyframes webroom-modal-pop {

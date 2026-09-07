@@ -64,12 +64,16 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
     }
   };
 
-  const handleCancel = () => {
-    if (outbound) {
+  const handleClose = () => {
+    if (outbound && (outbound.status === "AWAITING_CONSENT" || outbound.status === "TRANSFERRING")) {
       room.cancelFileTransfer(outbound.transferId, "Sender cancelled");
     }
     room.fileTransferManager.clearOutbound();
     onClose();
+  };
+
+  const handleCancel = () => {
+    handleClose();
   };
 
   const getFileIcon = (filename: string): string => {
@@ -122,7 +126,7 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
       className="webroom-file-modal-overlay"
       onClick={(e) => {
         e.stopPropagation();
-        if (!isTransferActive) onClose();
+        if (!isTransferActive) handleClose();
       }}
     >
       <div
@@ -132,7 +136,7 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === "Escape" && !isTransferActive) {
-            onClose();
+            handleClose();
           }
         }}
       >
@@ -149,7 +153,7 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
             <button
               type="button"
               className="webroom-participant-close-btn"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Close send file modal"
             >
               ✕

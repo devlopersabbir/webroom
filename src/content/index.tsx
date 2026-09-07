@@ -36,10 +36,9 @@ function initWebRoomContentScript(): void {
   hostElement.id = HOST_ID;
   hostElement.style.position = "fixed";
   hostElement.style.zIndex = "2147483647";
-  hostElement.style.bottom = "0";
-  hostElement.style.right = "0";
-  hostElement.style.width = "0";
-  hostElement.style.height = "0";
+  hostElement.style.inset = "0";
+  hostElement.style.width = "100vw";
+  hostElement.style.height = "100vh";
   hostElement.style.overflow = "visible";
   hostElement.style.pointerEvents = "none";
 
@@ -53,7 +52,12 @@ function initWebRoomContentScript(): void {
   // Mount point for React
   const mountPoint = document.createElement("div");
   mountPoint.id = "webroom-mount";
-  mountPoint.style.pointerEvents = "auto";
+  mountPoint.style.position = "fixed";
+  mountPoint.style.inset = "0";
+  mountPoint.style.width = "100vw";
+  mountPoint.style.height = "100vh";
+  mountPoint.style.pointerEvents = "none";
+  mountPoint.style.overflow = "visible";
   shadowRoot.appendChild(mountPoint);
 
   const root = ReactDOM.createRoot(mountPoint);

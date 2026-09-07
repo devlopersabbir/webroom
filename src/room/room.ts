@@ -91,6 +91,8 @@ export class Room {
   private readonly chatManager: ChatManager;
   private readonly voiceManager: VoiceManager;
   private readonly followManager: FollowManager;
+  private sendFileTarget: Participant | null = null;
+  private sendFileTargetListeners = new Set<(target: Participant | null) => void>();
 
   private constructor(
     url: string,
@@ -498,6 +500,36 @@ export class Room {
     listener: InboundStateListener,
   ): () => void {
     return this.fileTransferManager.onInboundChange(listener);
+  }
+
+  /**
+   * Sets the active remote participant for direct file sending.
+   */
+  public setSendFileTarget(target: Participant | null): void {
+    this.sendFileTarget = target;
+    for (const listener of this.sendFileTargetListeners) {
+      listener(target);
+    }
+  }
+
+  /**
+   * Returns current active remote participant for direct file sending.
+   */
+  public getSendFileTarget(): Participant | null {
+    return this.sendFileTarget;
+  }
+
+  /**
+   * Subscribes to changes in active send file target.
+   */
+  public onSendFileTargetChange(
+    listener: (target: Participant | null) => void,
+  ): () => void {
+    this.sendFileTargetListeners.add(listener);
+    listener(this.sendFileTarget);
+    return () => {
+      this.sendFileTargetListeners.delete(listener);
+    };
   }
 
   /**

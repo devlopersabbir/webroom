@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { FollowPeerInfo } from "../follow/follow-store";
 import { NodeRole, ROLE_DISPLAY_CONFIG } from "../roles/role-types";
 import { Participant, Room } from "../room/room";
-import { SendFileModal } from "./SendFileModal";
 
 interface ParticipantListProps {
   room: Room;
@@ -19,7 +18,6 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
 }) => {
   const [participants, setParticipants] = useState<Participant[]>(room.getParticipants());
   const [roles, setRoles] = useState<Map<string, NodeRole>>(room.roleManager.getAllRoles());
-  const [targetFileParticipant, setTargetFileParticipant] = useState<Participant | null>(null);
 
   useEffect(() => {
     const unsubscribe = room.onParticipantsChange((updated) => {
@@ -138,7 +136,8 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                     className="webroom-participant-upload-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setTargetFileParticipant(p);
+                      room.setSendFileTarget(p);
+                      onClose();
                     }}
                     title={`Send file directly to ${p.avatar}`}
                     aria-label={`Send file directly to ${p.avatar}`}
@@ -171,15 +170,6 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
           );
         })}
       </div>
-
-      {/* Direct File Transfer Modal */}
-      {targetFileParticipant && (
-        <SendFileModal
-          room={room}
-          target={targetFileParticipant}
-          onClose={() => setTargetFileParticipant(null)}
-        />
-      )}
     </div>
   );
 };
