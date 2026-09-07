@@ -3,6 +3,7 @@
   "description": "Decentralized real-time presence layer for every webpage. See active peers on the same URL.",
   "homepage_url": "https://github.com/devlopersabbir/webroom",
   "{{chrome}}.manifest_version": 3,
+  "{{chrome}}.minimum_chrome_version": "116.0",
   "{{firefox}}.manifest_version": 3,
   "icons": {
     "16": "icon/16.png",
@@ -15,12 +16,11 @@
     "{{firefox}}.scripts": ["src/background/index.ts"]
   },
   "host_permissions": [
-    "http://*/*",
     "https://*/*"
   ],
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": ["https://*/*"],
       "js": ["src/content/index.tsx"],
       "run_at": "document_idle",
       "all_frames": false
@@ -29,7 +29,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "webroom@devlopersabbir.github.io",
-      "strict_min_version": "142.0",
+      "strict_min_version": "115.0",
       "data_collection_permissions": {
         "required": ["none"]
       }
