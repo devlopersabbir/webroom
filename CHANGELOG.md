@@ -1,3 +1,18 @@
+# [3.1.0](https://github.com/devlopersabbir/webroom/compare/v3.0.1...v3.1.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* add fallback to broadcast mode if direct trystero binary transfer fails ([e78416b](https://github.com/devlopersabbir/webroom/commit/e78416b8c953a3144f95d5c93f4003fe8a37c7c4))
+* improve file transfer reliability by normalizing peer identifiers and implementing fallback broadcast for transport messaging. ([8199fea](https://github.com/devlopersabbir/webroom/commit/8199fea951c2010c2f587973341335e74f1a0be6))
+* improve file transfer state consistency using immutable snapshots and standardize messaging to broadcast via transport layer ([b164408](https://github.com/devlopersabbir/webroom/commit/b164408828edf6abf106501d447390b5bdd3a4ea))
+
+
+### Features
+
+* implement anti-spam rate limiting for file transfers after multiple rejections ([5aac230](https://github.com/devlopersabbir/webroom/commit/5aac230d3ebea58fc4880f17728dff8a17bb46a8))
+* implement peer-to-peer file transfer system with signaling protocols and UI components ([3ada8e8](https://github.com/devlopersabbir/webroom/commit/3ada8e820bf6f03ca35967913ef1e790c4437415))
+
 ## [3.0.1](https://github.com/devlopersabbir/webroom/compare/v3.0.0...v3.0.1) (2026-09-07)
 
 
