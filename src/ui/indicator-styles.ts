@@ -1497,6 +1497,225 @@ export const INDICATOR_STYLES = `
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ==========================================================================
+   Settings Modal & Resource Sharing UI
+   ========================================================================== */
+
+.webroom-settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: webroom-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 16px;
+}
+
+.webroom-settings-modal {
+  width: 100%;
+  max-width: 330px;
+  background: #18181f;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: webroom-pop-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.webroom-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.webroom-settings-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.webroom-settings-close-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.webroom-settings-close-btn:hover {
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.webroom-settings-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.webroom-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.webroom-settings-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.webroom-settings-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.webroom-settings-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.webroom-settings-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.webroom-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.webroom-settings-label {
+  color: #9ca3af;
+}
+
+.webroom-settings-value {
+  color: #f3f4f6;
+  font-weight: 500;
+}
+
+.webroom-settings-badge {
+  font-size: 10px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.webroom-toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 2px;
+}
+
+.webroom-toggle-switch-on {
+  background: #6366f1;
+  border-color: #818cf8;
+}
+
+.webroom-toggle-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.webroom-toggle-switch-on .webroom-toggle-thumb {
+  transform: translateX(16px);
+}
+
+.webroom-settings-footer {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ==========================================================================
+   Dynamic Roles Badges
+   ========================================================================== */
+
+.webroom-participant-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.webroom-participant-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: -0.01em;
+}
+
+.webroom-role-coordinator {
+  background: rgba(234, 179, 8, 0.18);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+}
+
+.webroom-role-relay {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+}
+
+.webroom-role-standby {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.webroom-role-contributor {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.45);
+}
+
+.webroom-role-participant {
+  background: rgba(156, 163, 175, 0.14);
+  color: #d1d5db;
+  border: 1px solid rgba(156, 163, 175, 0.25);
+}
 `;
 
 

@@ -27,7 +27,6 @@ function validateStrictVersion(version: string): void {
 }
 
 const targetBrowser = (process.env.TARGET as "chrome" | "firefox") || "chrome";
-// const targetBrowser = "chrome";
 
 function generateManifest() {
   const pkg = readJsonFile("package.json");
@@ -52,7 +51,7 @@ function generateManifest() {
       ? {
           gecko: {
             id: "webroom@devlopersabbir.github.io",
-            strict_min_version: "142.0",
+            strict_min_version: "115.0",
             data_collection_permissions: {
               required: ["none"],
             },
@@ -75,15 +74,23 @@ function generateManifest() {
       "128": "icon/128.png",
     },
     background,
-    host_permissions: ["http://*/*", "https://*/*"],
+    permissions: ["storage"],
+    host_permissions: ["https://*/*"],
+    options_ui: {
+      page: "src/options/index.html",
+      open_in_tab: true,
+    },
     content_scripts: [
       {
-        matches: ["http://*/*", "https://*/*"],
+        matches: ["https://*/*"],
         js: ["src/content/index.tsx"],
         run_at: "document_idle",
         all_frames: false,
       },
     ],
+    ...(targetBrowser === "chrome"
+      ? { minimum_chrome_version: "116.0" }
+      : {}),
     ...(browserSpecificSettings
       ? { browser_specific_settings: browserSpecificSettings }
       : {}),

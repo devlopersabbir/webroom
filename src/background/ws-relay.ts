@@ -26,7 +26,10 @@ export function initWebSocketRelayBridge(runtime: any): void {
           socket.onmessage = null;
           socket.onerror = null;
           socket.onclose = null;
-          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          if (
+            socket.readyState === WebSocket.OPEN ||
+            socket.readyState === WebSocket.CONNECTING
+          ) {
             socket.close();
           }
         } catch {
@@ -51,9 +54,10 @@ export function initWebSocketRelayBridge(runtime: any): void {
 
           try {
             cleanup();
-            socket = protocols && protocols.length > 0
-              ? new WebSocket(url, protocols)
-              : new WebSocket(url);
+            socket =
+              protocols && protocols.length > 0
+                ? new WebSocket(url, protocols)
+                : new WebSocket(url);
             socket.binaryType = "arraybuffer";
 
             socket.onopen = () => {
@@ -99,7 +103,10 @@ export function initWebSocketRelayBridge(runtime: any): void {
 
             socket.onerror = (event: Event) => {
               if (isPortClosed) return;
-              console.warn("[WebRoom Background WS] Relay connection error for:", url);
+              console.warn(
+                "[WebRoom Background WS] Relay connection error for:",
+                url,
+              );
               try {
                 port.postMessage({
                   type: "error",
@@ -128,7 +135,8 @@ export function initWebSocketRelayBridge(runtime: any): void {
               try {
                 port.postMessage({
                   type: "error",
-                  error: err?.message || "Failed to create WebSocket in background",
+                  error:
+                    err?.message || "Failed to create WebSocket in background",
                 });
                 port.postMessage({
                   type: "close",
@@ -158,8 +166,20 @@ export function initWebSocketRelayBridge(runtime: any): void {
                 socket.send(msg.data);
               }
             } catch (err) {
-              console.warn("[WebRoom Background WS] Failed to send data over socket:", err);
+              console.warn(
+                "[WebRoom Background WS] Failed to send data over socket:",
+                err,
+              );
             }
+          }
+          break;
+        }
+
+        case "keepalive": {
+          try {
+            port.postMessage({ type: "keepalive-ack" });
+          } catch {
+            // Port might be closed
           }
           break;
         }

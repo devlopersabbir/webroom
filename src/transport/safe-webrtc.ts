@@ -92,7 +92,11 @@ export function wrapDataChannel(channel: any): any {
             }
             return target.addEventListener(type, safeListener, options);
           }
-          if (type === "message" && listener && typeof listener.handleEvent === "function") {
+          if (
+            type === "message" &&
+            listener &&
+            typeof listener.handleEvent === "function"
+          ) {
             let safeListener = listenerMap.get(listener.handleEvent);
             if (!safeListener) {
               safeListener = function (this: any, event: any) {
@@ -110,7 +114,8 @@ export function wrapDataChannel(channel: any): any {
       if (prop === "removeEventListener") {
         return function (type: string, listener: any, options?: any) {
           if (type === "message") {
-            const key = typeof listener === "function" ? listener : listener?.handleEvent;
+            const key =
+              typeof listener === "function" ? listener : listener?.handleEvent;
             const safeListener = key ? listenerMap.get(key) : null;
             if (safeListener) {
               return target.removeEventListener(type, safeListener, options);
@@ -152,14 +157,31 @@ export function wrapDataChannel(channel: any): any {
  * and sanitizes binary data frames before delivering them to application handlers.
  */
 export class SafeRTCPeerConnection {
+  public static [Symbol.hasInstance](instance: any): boolean {
+    const NativePC =
+      (SafeRTCPeerConnection as any)._NativeRTCPeerConnection ||
+      (typeof window !== "undefined" ? window.RTCPeerConnection : null) ||
+      (typeof globalThis !== "undefined"
+        ? (globalThis as any).RTCPeerConnection
+        : null);
+    if (NativePC && instance instanceof NativePC) {
+      return true;
+    }
+    return false;
+  }
+
   constructor(config?: RTCConfiguration) {
     const NativePC =
       (SafeRTCPeerConnection as any)._NativeRTCPeerConnection ||
       (typeof window !== "undefined" ? window.RTCPeerConnection : null) ||
-      (typeof globalThis !== "undefined" ? (globalThis as any).RTCPeerConnection : null);
+      (typeof globalThis !== "undefined"
+        ? (globalThis as any).RTCPeerConnection
+        : null);
 
     if (!NativePC) {
-      throw new Error("[WebRoom WebRTC] RTCPeerConnection is not available in this environment");
+      throw new Error(
+        "[WebRoom WebRTC] RTCPeerConnection is not available in this environment",
+      );
     }
 
     const pc = new NativePC(config);
@@ -170,7 +192,10 @@ export class SafeRTCPeerConnection {
     return new Proxy(pc, {
       get(target, prop) {
         if (prop === "createDataChannel") {
-          return function (label: string, dataChannelDict?: RTCDataChannelInit) {
+          return function (
+            label: string,
+            dataChannelDict?: RTCDataChannelInit,
+          ) {
             const rawChannel = target.createDataChannel(label, dataChannelDict);
             return wrapDataChannel(rawChannel);
           };
@@ -191,7 +216,9 @@ export class SafeRTCPeerConnection {
                         return wrapDataChannel(evtTarget.channel);
                       }
                       const val = (evtTarget as any)[evtProp];
-                      return typeof val === "function" ? val.bind(evtTarget) : val;
+                      return typeof val === "function"
+                        ? val.bind(evtTarget)
+                        : val;
                     },
                   });
                   return listener.call(this, safeEvent);
@@ -222,7 +249,9 @@ export class SafeRTCPeerConnection {
                       return wrapDataChannel(evtTarget.channel);
                     }
                     const val = (evtTarget as any)[evtProp];
-                    return typeof val === "function" ? val.bind(evtTarget) : val;
+                    return typeof val === "function"
+                      ? val.bind(evtTarget)
+                      : val;
                   },
                 });
                 return value.call(this, safeEvent);
@@ -255,8 +284,8 @@ export function installWebRTCBridge(): void {
     typeof globalThis !== "undefined"
       ? globalThis
       : typeof window !== "undefined"
-      ? window
-      : (self as any);
+        ? window
+        : (self as any);
 
   if (globalScope && globalScope.RTCPeerConnection) {
     const originalPC = globalScope.RTCPeerConnection;

@@ -5,7 +5,10 @@ import { execSync } from "child_process";
 
 const compress = async (target: "chrome" | "firefox", version: string) => {
   console.log(`\n[WebRoom Release] Building ${target} bundle...`);
-  execSync(`bun run build:${target}`, { stdio: "inherit" });
+  execSync(`bun run build:${target}`, {
+    stdio: "inherit",
+    env: { ...process.env, TARGET: target },
+  });
   const zipPath = `./v${version}_${target}.zip`;
   await zip("dist", zipPath);
   console.log(`[WebRoom Release] Successfully created ${zipPath}`);
@@ -15,8 +18,11 @@ const compress = async (target: "chrome" | "firefox", version: string) => {
 (async () => {
   try {
     const pkg = readJsonFile("package.json");
-    const args = process.argv[2];
-    const target = args?.split("TARGET=")[1]?.toLowerCase() as
+    const args = process.argv.slice(2);
+    const cliArg =
+      args.find((a) => a.startsWith("TARGET="))?.split("=")[1] ||
+      args.find((a) => a === "chrome" || a === "firefox" || a === "all");
+    const target = (cliArg || process.env.TARGET)?.toLowerCase() as
       | "chrome"
       | "firefox"
       | "all"

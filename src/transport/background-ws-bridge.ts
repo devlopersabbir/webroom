@@ -4,7 +4,10 @@ function getExtensionRuntime(): any {
   if (typeof chrome !== "undefined" && chrome?.runtime) {
     return chrome.runtime;
   }
-  if (typeof (globalThis as any).browser !== "undefined" && (globalThis as any).browser?.runtime) {
+  if (
+    typeof (globalThis as any).browser !== "undefined" &&
+    (globalThis as any).browser?.runtime
+  ) {
     return (globalThis as any).browser.runtime;
   }
   return null;
@@ -53,11 +56,21 @@ function createCustomMessageEvent(data: any): MessageEvent {
   }
 }
 
-function createCustomCloseEvent(code: number, reason: string, wasClean: boolean): CloseEvent {
+function createCustomCloseEvent(
+  code: number,
+  reason: string,
+  wasClean: boolean,
+): CloseEvent {
   try {
     return new CloseEvent("close", { code, reason, wasClean });
   } catch {
-    return { type: "close", code, reason, wasClean, defaultPrevented: false } as CloseEvent;
+    return {
+      type: "close",
+      code,
+      reason,
+      wasClean,
+      defaultPrevented: false,
+    } as CloseEvent;
   }
 }
 
@@ -95,7 +108,9 @@ export class BackgroundWebSocket implements EventTarget {
 
   private port: any = null;
   private isCleanClosed = false;
-  private listeners: Map<string, Set<EventListenerOrEventListenerObject>> = new Map();
+  private listeners: Map<string, Set<EventListenerOrEventListenerObject>> =
+    new Map();
+  private keepaliveTimer: any = null;
 
   constructor(url: string | URL, protocols?: string | string[]) {
     this.url = typeof url === "string" ? url : url.toString();
@@ -136,11 +151,17 @@ export class BackgroundWebSocket implements EventTarget {
         try {
           if (typeof listener === "function") {
             listener.call(this, event);
-          } else if (listener && typeof (listener as EventListenerObject).handleEvent === "function") {
+          } else if (
+            listener &&
+            typeof (listener as EventListenerObject).handleEvent === "function"
+          ) {
             (listener as EventListenerObject).handleEvent(event);
           }
         } catch (err) {
-          console.error(`[WebRoom WS Bridge] Error in ${event.type} listener:`, err);
+          console.error(
+            `[WebRoom WS Bridge] Error in ${event.type} listener:`,
+            err,
+          );
         }
       }
     }
@@ -159,6 +180,20 @@ export class BackgroundWebSocket implements EventTarget {
 
       this.port = runtime.connect({ name: "webroom-ws-bridge" });
 
+      // Keepalive ping every 20s to ensure Chrome MV3 background service worker stays awake
+      this.keepaliveTimer = setInterval(() => {
+        if (
+          this.port &&
+          (this.readyState === WS_OPEN || this.readyState === WS_CONNECTING)
+        ) {
+          try {
+            this.port.postMessage({ type: "keepalive" });
+          } catch {
+            // Port might be closed
+          }
+        }
+      }, 20000);
+
       this.port.onMessage.addListener((msg: any) => {
         this.handlePortMessage(msg);
       });
@@ -173,16 +208,25 @@ export class BackgroundWebSocket implements EventTarget {
       this.port.postMessage({
         type: "init",
         url: this.url,
-        protocols: Array.isArray(protocols) ? protocols : protocols ? [protocols] : [],
+        protocols: Array.isArray(protocols)
+          ? protocols
+          : protocols
+            ? [protocols]
+            : [],
       });
     } catch (err) {
-      console.warn("[WebRoom WS Bridge] Failed to connect to background script, falling back to native WebSocket:", err);
+      console.warn(
+        "[WebRoom WS Bridge] Failed to connect to background script, falling back to native WebSocket:",
+        err,
+      );
       this.fallbackToNativeWebSocket(protocols);
     }
   }
 
   private fallbackToNativeWebSocket(protocols?: string | string[]): void {
-    const NativeWS = (BackgroundWebSocket as any)._NativeWebSocket || (typeof window !== "undefined" ? window.WebSocket : null);
+    const NativeWS =
+      (BackgroundWebSocket as any)._NativeWebSocket ||
+      (typeof window !== "undefined" ? window.WebSocket : null);
     if (!NativeWS) {
       setTimeout(() => {
         this.handleError(new Error("No WebSocket implementation available"));
@@ -231,7 +275,13 @@ export class BackgroundWebSocket implements EventTarget {
         this.handleError(msg.error || "WebSocket error in background");
         break;
       case "close":
-        this.handleClose(msg.code ?? 1000, msg.reason ?? "", msg.wasClean ?? true);
+        this.handleClose(
+          msg.code ?? 1000,
+          msg.reason ?? "",
+          msg.wasClean ?? true,
+        );
+        break;
+      case "keepalive-ack":
         break;
     }
   }
@@ -266,7 +316,10 @@ export class BackgroundWebSocket implements EventTarget {
   }
 
   private handleError(errorDetails: any): void {
-    console.warn(`[WebRoom WS Bridge] Bridge WebSocket error on ${this.url}:`, errorDetails);
+    console.warn(
+      `[WebRoom WS Bridge] Bridge WebSocket error on ${this.url}:`,
+      errorDetails,
+    );
     const event = createCustomEvent("error");
     (event as any).error = errorDetails;
     if (this.onerror) {
@@ -280,6 +333,11 @@ export class BackgroundWebSocket implements EventTarget {
   }
 
   private handleClose(code: number, reason: string, wasClean: boolean): void {
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+
     if (this.readyState === WS_CLOSED) return;
     this.readyState = WS_CLOSED;
     this.isCleanClosed = wasClean;
@@ -307,7 +365,9 @@ export class BackgroundWebSocket implements EventTarget {
 
   public send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
     if (this.readyState !== WS_OPEN) {
-      throw new Error(`[WebRoom WS Bridge] InvalidStateError: WebSocket is not open (state: ${this.readyState})`);
+      throw new Error(
+        `[WebRoom WS Bridge] InvalidStateError: WebSocket is not open (state: ${this.readyState})`,
+      );
     }
 
     if (this.port) {
@@ -320,14 +380,26 @@ export class BackgroundWebSocket implements EventTarget {
         for (let i = 0; i < bytes.length; i++) {
           binaryStr += String.fromCharCode(bytes[i]);
         }
-        this.port.postMessage({ type: "send", data: binaryStr, isBinary: true });
+        this.port.postMessage({
+          type: "send",
+          data: binaryStr,
+          isBinary: true,
+        });
       } else if (ArrayBuffer.isView(data)) {
-        const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        const bytes = new Uint8Array(
+          data.buffer,
+          data.byteOffset,
+          data.byteLength,
+        );
         let binaryStr = "";
         for (let i = 0; i < bytes.length; i++) {
           binaryStr += String.fromCharCode(bytes[i]);
         }
-        this.port.postMessage({ type: "send", data: binaryStr, isBinary: true });
+        this.port.postMessage({
+          type: "send",
+          data: binaryStr,
+          isBinary: true,
+        });
       } else {
         this.port.postMessage({ type: "send", data: String(data) });
       }
@@ -364,11 +436,12 @@ export function installWebSocketBridge(): void {
     return;
   }
 
-  const globalScope = typeof globalThis !== "undefined"
-    ? globalThis
-    : typeof window !== "undefined"
-    ? window
-    : (self as any);
+  const globalScope =
+    typeof globalThis !== "undefined"
+      ? globalThis
+      : typeof window !== "undefined"
+        ? window
+        : (self as any);
 
   if (globalScope) {
     const originalWS = globalScope.WebSocket;

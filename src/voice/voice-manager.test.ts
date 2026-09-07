@@ -73,9 +73,9 @@ describe("VoiceManager", () => {
     vm.start();
 
     // Mock navigator.mediaDevices.getUserMedia rejecting with NotAllowedError
-    const originalMediaDevices = global.navigator.mediaDevices;
+    const originalMediaDevices = globalThis.navigator.mediaDevices;
     // @ts-expect-error Mocking mediaDevices for test
-    global.navigator.mediaDevices = {
+    globalThis.navigator.mediaDevices = {
       getUserMedia: vi.fn().mockRejectedValue(new Error("Permission denied")),
     };
 
@@ -86,7 +86,7 @@ describe("VoiceManager", () => {
 
     // Restore
     // @ts-expect-error Restoring mediaDevices
-    global.navigator.mediaDevices = originalMediaDevices;
+    globalThis.navigator.mediaDevices = originalMediaDevices;
 
     vm.destroy();
   });
@@ -107,9 +107,9 @@ describe("VoiceManager", () => {
       getTracks: () => [mockTrack],
     };
 
-    const originalMediaDevices = global.navigator.mediaDevices;
+    const originalMediaDevices = globalThis.navigator.mediaDevices;
     // @ts-expect-error Mocking mediaDevices
-    global.navigator.mediaDevices = {
+    globalThis.navigator.mediaDevices = {
       getUserMedia: vi.fn().mockResolvedValue(mockStream),
     };
 
@@ -135,7 +135,7 @@ describe("VoiceManager", () => {
 
     // Restore
     // @ts-expect-error Restoring mediaDevices
-    global.navigator.mediaDevices = originalMediaDevices;
+    globalThis.navigator.mediaDevices = originalMediaDevices;
   });
 
   it("cleans up all peer connections and local streams on destroy()", () => {
@@ -157,9 +157,9 @@ describe("VoiceManager", () => {
     // Mock mediaDevices
     const mockTrack = { kind: "audio", enabled: true, readyState: "live", stop: vi.fn() };
     const mockStream = { getAudioTracks: () => [mockTrack], getTracks: () => [mockTrack] };
-    const originalMediaDevices = global.navigator.mediaDevices;
+    const originalMediaDevices = globalThis.navigator.mediaDevices;
     // @ts-expect-error Mocking mediaDevices
-    global.navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(mockStream) };
+    globalThis.navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(mockStream) };
 
     // Discover peer_b and peer_c
     await vm.handlePeerDiscovered("peer_b");
@@ -194,7 +194,7 @@ describe("VoiceManager", () => {
     // Verify peer_a stays healthy and cleans up
     vm.destroy();
     // @ts-expect-error Restoring mediaDevices
-    global.navigator.mediaDevices = originalMediaDevices;
+    globalThis.navigator.mediaDevices = originalMediaDevices;
   });
 
   it("ensures a late joiner receives and hears audio from active talkers when opening speaker", async () => {
