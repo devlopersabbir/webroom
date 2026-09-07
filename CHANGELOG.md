@@ -1,3 +1,10 @@
+## [3.0.1](https://github.com/devlopersabbir/webroom/compare/v3.0.0...v3.0.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **firefox:** update strict_min_version to 142.0 for data_collection_permissions compatibility ([c784bb6](https://github.com/devlopersabbir/webroom/commit/c784bb6e1d7b3356a2b435068277b70040d461b0))
+
 # [3.0.0](https://github.com/devlopersabbir/webroom/compare/v2.5.0...v3.0.0) (2026-09-07)
 
 
