@@ -15,7 +15,7 @@ function initWebRoomContentScript(): void {
   // Only run in the top-level frame of actual web pages (avoid sandboxed/about:blank iframes)
   try {
     if (typeof window === "undefined" || !window.location) return;
-    if (window.location.protocol === "about:" || window.location.href.startsWith("about:")) return;
+    if (window.location.protocol !== "https:") return;
     if (window.top !== window) return;
   } catch {
     return;

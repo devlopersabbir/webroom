@@ -41,7 +41,7 @@ class MockTransport implements Transport {
 
   constructor(
     private roomId: string,
-    private bus: MockBus
+    private bus: MockBus,
   ) {}
 
   public start(): void {
@@ -210,8 +210,16 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
 
     const participantsA = tabA.getParticipants();
     expect(participantsA.length).toBe(2);
-    expect(participantsA[0]).toEqual({ peerId: "peer_A", avatar: "🐸", isSelf: true });
-    expect(participantsA[1]).toEqual({ peerId: "peer_B", avatar: "🦊", isSelf: false });
+    expect(participantsA[0]).toEqual({
+      peerId: "peer_A",
+      avatar: "🐸",
+      isSelf: true,
+    });
+    expect(participantsA[1]).toEqual({
+      peerId: "peer_B",
+      avatar: "🦊",
+      isSelf: false,
+    });
 
     tabA.leave();
     tabB.leave();
@@ -239,7 +247,10 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     // Follower follows leader
     followerTab.followUser("leader_fox", "🦊");
 
-    expect(followerTab.getFollowing()).toEqual({ peerId: "leader_fox", avatar: "🦊" });
+    expect(followerTab.getFollowing()).toEqual({
+      peerId: "leader_fox",
+      avatar: "🦊",
+    });
     expect(leaderTab.getFollowers().get("follower_frog")?.avatar).toBe("🐸");
 
     // Follower stops following
@@ -250,6 +261,82 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     leaderTab.leave();
     followerTab.leave();
   });
+
+  it("coordinates presence and real-time chat seamlessly across multiple browsers and machines on same page", async () => {
+    const bus = new MockBus();
+
+    // Browser 1 (e.g. Chrome on Machine 1) visits canonical page with tracking parameters
+    const chromeUrl =
+      "https://example.com/blog/decentralized-web?utm_source=twitter&utm_medium=social#heading";
+    const chromePeer = await Room.join(chromeUrl, {
+      customPeerId: "chrome_peer_01",
+      customAvatar: "🦊",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    // Browser 2 (e.g. Firefox on Machine 2) visits same page with port and trailing slash
+    const firefoxUrl = "https://example.com:443/blog/decentralized-web/";
+    const firefoxPeer = await Room.join(firefoxUrl, {
+      customPeerId: "firefox_peer_02",
+      customAvatar: "🐼",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    // Browser 3 (e.g. Brave/Edge on Machine 3) visits clean URL
+    const edgeUrl = "https://example.com/blog/decentralized-web";
+    const edgePeer = await Room.join(edgeUrl, {
+      customPeerId: "edge_peer_03",
+      customAvatar: "🦉",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    // 1. Verify deterministic canonical room ID matches across all 3 browsers
+    expect(chromePeer.roomId).toBe(firefoxPeer.roomId);
+    expect(firefoxPeer.roomId).toBe(edgePeer.roomId);
+
+    // 2. Verify all 3 browsers discover each other
+    expect(chromePeer.getOnlineCount()).toBe(3);
+    expect(firefoxPeer.getOnlineCount()).toBe(3);
+    expect(edgePeer.getOnlineCount()).toBe(3);
+
+    // Verify participant lists
+    const chromeParticipants = chromePeer.getParticipants();
+    expect(chromeParticipants.map((p) => p.avatar).sort()).toEqual(
+      ["🦊", "🐼", "🦉"].sort(),
+    );
+
+    // 3. Verify chat broadcasting from Chrome to Firefox & Edge
+    chromePeer.sendMessage("Hello from Chrome!");
+
+    expect(chromePeer.getMessages().length).toBe(1);
+    expect(chromePeer.getMessages()[0].text).toBe("Hello from Chrome!");
+    expect(chromePeer.getMessages()[0].avatar).toBe("🦊");
+
+    expect(firefoxPeer.getMessages().length).toBe(1);
+    expect(firefoxPeer.getMessages()[0].text).toBe("Hello from Chrome!");
+    expect(firefoxPeer.getMessages()[0].avatar).toBe("🦊");
+
+    expect(edgePeer.getMessages().length).toBe(1);
+    expect(edgePeer.getMessages()[0].text).toBe("Hello from Chrome!");
+
+    // 4. Verify reply from Firefox to Chrome & Edge
+    firefoxPeer.sendMessage("Hi Chrome, Firefox here!");
+
+    expect(chromePeer.getMessages().length).toBe(2);
+    expect(chromePeer.getMessages()[1].text).toBe("Hi Chrome, Firefox here!");
+    expect(chromePeer.getMessages()[1].avatar).toBe("🐼");
+
+    expect(firefoxPeer.getMessages().length).toBe(2);
+    expect(edgePeer.getMessages().length).toBe(2);
+
+    // 5. Verify graceful leave: Firefox closes tab
+    firefoxPeer.leave();
+
+    expect(chromePeer.getOnlineCount()).toBe(2);
+    expect(edgePeer.getOnlineCount()).toBe(2);
+
+    // Clean up remaining peers
+    chromePeer.leave();
+    edgePeer.leave();
+  });
 });
-
-

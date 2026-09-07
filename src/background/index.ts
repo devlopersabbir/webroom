@@ -11,4 +11,18 @@ const runtime = getExtensionRuntime();
 if (runtime) {
   initWebSocketRelayBridge(runtime);
   initAutoUpdater(runtime);
+
+  if (runtime.onInstalled) {
+    runtime.onInstalled.addListener((details: any) => {
+      if (details.reason === "install") {
+        try {
+          if (runtime.openOptionsPage) {
+            runtime.openOptionsPage();
+          }
+        } catch (err) {
+          console.warn("[WebRoom Background] Failed to open options page on install:", err);
+        }
+      }
+    });
+  }
 }
