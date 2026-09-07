@@ -20,6 +20,7 @@ export const DEFAULT_RELAY_URLS = [
 
 /**
  * High-availability global STUN servers for instant NAT traversal and low latency.
+ * Provides multi-region fallback across Google, Cloudflare, and Twilio STUN infrastructures.
  */
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   {
@@ -45,6 +46,7 @@ export class TrysteroTorrentTransport implements Transport {
   private handlers = new Set<MessageHandler>();
   private isClosed = false;
   private seenMessageSignatures = new Set<string>();
+  private remotePeerIdMap = new Map<string, string>();
 
   constructor(roomId: string) {
     this.roomId = roomId;
@@ -109,12 +111,14 @@ export class TrysteroTorrentTransport implements Transport {
           `[WebRoom Trystero] 👋 Peer left room ${this.roomId}:`,
           peerId,
         );
+        const mappedPeerId = this.remotePeerIdMap.get(peerId) || peerId;
+        this.remotePeerIdMap.delete(peerId);
         for (const handler of this.handlers) {
           try {
             handler({
               type: "GOODBYE",
               roomId: this.roomId,
-              peerId: peerId,
+              peerId: mappedPeerId,
               timestamp: Date.now(),
             });
           } catch (err) {
@@ -174,6 +178,7 @@ export class TrysteroTorrentTransport implements Transport {
     this.action = null;
     this.handlers.clear();
     this.seenMessageSignatures.clear();
+    this.remotePeerIdMap.clear();
   }
 
   private handleIncomingMessage(data: unknown, remotePeerId: string): void {
@@ -189,12 +194,17 @@ export class TrysteroTorrentTransport implements Transport {
       return;
     }
 
-    // Deduplicate identical packets
-    const pId =
+    // Map remote Trystero connection ID to actual WebRoom peerId
+    const senderPeerId =
       (data as any).peerId ||
       (data as any).followerId ||
-      (data as any).leaderId ||
-      "unknown";
+      (data as any).leaderId;
+    if (senderPeerId && typeof senderPeerId === "string" && remotePeerId) {
+      this.remotePeerIdMap.set(remotePeerId, senderPeerId);
+    }
+
+    // Deduplicate identical packets
+    const pId = senderPeerId || "unknown";
     const target = (data as any).targetPeerId
       ? `_tgt_${(data as any).targetPeerId}`
       : "";

@@ -1,15 +1,15 @@
 import { NetworkNode } from "../membership/membership-store";
-import { MediaRoute, RouteType, RoutingPlan, RoutingPlanListener } from "./routing-types";
+import { MediaRoute, RoutingPlan, RoutingPlanListener } from "./routing-types";
 
 /** Maximum group size before dynamic relay routing is considered */
 export const DIRECT_MESH_MAX_SIZE = 3;
 
 /**
  * MediaRoutingLayer
- * 
+ *
  * Manages dynamic voice and media routing across peers in a WebRoom room.
  * Implements Sections 12-16 of v3-architecture.md.
- * 
+ *
  * Responsibilities:
  * 1. Computes optimal routes (Direct P2P vs Bounded Relay).
  * 2. Enforces loop prevention and relay capacity constraints.
@@ -46,14 +46,14 @@ export class MediaRoutingLayer {
 
   /**
    * Computes an optimal, loop-free routing plan for all active speakers and listeners.
-   * 
+   *
    * @param members All known network nodes with status and capabilities.
    * @param activeSpeakerNodeIds Set of nodeIds currently speaking/publishing audio.
    * @returns Newly computed RoutingPlan.
    */
   public computeRoutingPlan(
     members: NetworkNode[],
-    activeSpeakerNodeIds: Set<string>
+    activeSpeakerNodeIds: Set<string>,
   ): RoutingPlan {
     const routes = new Map<string, MediaRoute>();
     const relayUtilization = new Map<string, number>();
@@ -105,7 +105,7 @@ export class MediaRoutingLayer {
             speaker,
             listener,
             relayCandidates,
-            relayUtilization
+            relayUtilization,
           );
 
           if (selectedRelay) {
@@ -123,7 +123,7 @@ export class MediaRoutingLayer {
             relayCount++;
 
             console.log(
-              `[WebRoom Routing] ⚡ Stream routed: ${speaker.nodeId.slice(0, 14)}... ➔ [Relay: ${selectedRelay.nodeId.slice(0, 14)}...] ➔ ${listener.nodeId.slice(0, 14)}...`
+              `[WebRoom Routing] ⚡ Stream routed: ${speaker.nodeId.slice(0, 14)}... ➔ [Relay: ${selectedRelay.nodeId.slice(0, 14)}...] ➔ ${listener.nodeId.slice(0, 14)}...`,
             );
 
             const currentUtil = relayUtilization.get(selectedRelay.nodeId) || 0;
@@ -147,7 +147,7 @@ export class MediaRoutingLayer {
 
     if (routes.size > 0) {
       console.log(
-        `[WebRoom Routing] 🗺️ Routing plan: ${directCount} direct, ${relayCount} relayed streams (${onlineMembers.length} nodes online)`
+        `[WebRoom Routing] 🗺️ Routing plan: ${directCount} direct, ${relayCount} relayed streams (${onlineMembers.length} nodes online)`,
       );
     }
 
@@ -171,11 +171,14 @@ export class MediaRoutingLayer {
     speaker: NetworkNode,
     listener: NetworkNode,
     candidates: NetworkNode[],
-    currentUtilization: Map<string, number>
+    currentUtilization: Map<string, number>,
   ): NetworkNode | null {
     for (const candidate of candidates) {
       // Relay cannot be the speaker itself or the listener
-      if (candidate.nodeId === speaker.nodeId || candidate.nodeId === listener.nodeId) {
+      if (
+        candidate.nodeId === speaker.nodeId ||
+        candidate.nodeId === listener.nodeId
+      ) {
         continue;
       }
 
@@ -219,10 +222,10 @@ export class MediaRoutingLayer {
   public handleNodeFailure(
     failedNodeId: string,
     allMembers: NetworkNode[],
-    activeSpeakers: Set<string>
+    activeSpeakers: Set<string>,
   ): RoutingPlan {
     console.log(
-      `[WebRoom Routing] 🔄 Reconstructing routes after node departure (${failedNodeId.slice(0, 14)}...)`
+      `[WebRoom Routing] 🔄 Reconstructing routes after node departure (${failedNodeId.slice(0, 14)}...)`,
     );
     return this.computeRoutingPlan(allMembers, activeSpeakers);
   }

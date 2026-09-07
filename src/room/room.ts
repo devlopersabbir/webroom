@@ -26,6 +26,7 @@ import {
   VoiceState,
   VoiceStateListener,
 } from "../voice/voice-manager";
+import { selfId } from "trystero";
 import { canonicalizeUrl, getRoomId } from "./room-id";
 
 export interface RoomOptions {
@@ -46,8 +47,16 @@ export type ParticipantsListener = (participants: Participant[]) => void;
 
 /**
  * Generates a temporary unique peer ID for the current browser context.
+ * Uses Trystero's selfId for 1-to-1 consistency with WebRTC transport.
  */
 export function generatePeerId(): string {
+  try {
+    if (typeof selfId === "string" && selfId.length > 0) {
+      return selfId;
+    }
+  } catch {
+    // Fallback if selfId is unavailable in test environment
+  }
   const uuid =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
@@ -117,7 +126,8 @@ export class Room {
     const canonicalUrl = canonicalizeUrl(url);
     const roomId = await getRoomId(canonicalUrl);
     const identity = options.identity || (await NodeIdentity.initialize());
-    const resourceManager = options.resourceManager || (await ResourceManager.initialize());
+    const resourceManager =
+      options.resourceManager || (await ResourceManager.initialize());
     const peerId = options.customPeerId || generatePeerId();
     const avatar = options.customAvatar || getRandomAvatar();
 
@@ -167,7 +177,11 @@ export class Room {
     });
 
     membershipManager.onNodeLeave((leftNode) => {
-      routingLayer.handleNodeFailure(leftNode.nodeId, membershipManager.getMembers(), new Set());
+      routingLayer.handleNodeFailure(
+        leftNode.nodeId,
+        membershipManager.getMembers(),
+        new Set(),
+      );
     });
 
     presenceManager.start();
@@ -177,7 +191,7 @@ export class Room {
     followManager.start();
 
     console.log(
-      `[WebRoom] 🚪 Joined Room: ${roomId} (Node: ${identity.getNodeId()}, Peer: ${peerId}) for URL: ${canonicalUrl}`
+      `[WebRoom] 🚪 Joined Room: ${roomId} (Node: ${identity.getNodeId()}, Peer: ${peerId}) for URL: ${canonicalUrl}`,
     );
 
     return new Room(

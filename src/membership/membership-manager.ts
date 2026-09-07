@@ -1,5 +1,4 @@
 import { NodeIdentity } from "../identity/node-identity";
-import { NodeCapabilities } from "../resources/resource-budget";
 import { ResourceManager } from "../resources/resource-manager";
 import { RoleManager } from "../roles/role-manager";
 import { NodeRole } from "../roles/role-types";
@@ -23,7 +22,7 @@ export type MembershipListListener = (nodes: NetworkNode[]) => void;
 
 /**
  * WebRoom v3 — Distributed Membership Manager
- * 
+ *
  * Coordinates cryptographic node presence, periodic signed heartbeats,
  * multi-stage failure detection (online -> suspected -> offline), and self-healing.
  */
@@ -60,7 +59,7 @@ export class MembershipManager {
     avatar: string = "🐸",
     resourceManager?: ResourceManager,
     roleManager = new RoleManager(),
-    store = new MembershipStore()
+    store = new MembershipStore(),
   ) {
     this.roomId = roomId;
     this.identity = identity;
@@ -73,7 +72,9 @@ export class MembershipManager {
   }
 
   public get contributionEnabled(): boolean {
-    return this.resourceManager ? this.resourceManager.isContributionEnabled() : true;
+    return this.resourceManager
+      ? this.resourceManager.isContributionEnabled()
+      : true;
   }
 
   public getSelfRole(): NodeRole {
@@ -100,12 +101,14 @@ export class MembershipManager {
 
     // Listen to resource capability / contribution toggle changes
     if (this.resourceManager) {
-      this.unsubscribeResources = this.resourceManager.onCapabilitiesChange(() => {
-        if (!this.isDestroyed) {
-          this.broadcastMembershipMessage("NODE_HEARTBEAT");
-          this.emitMembershipChange();
-        }
-      });
+      this.unsubscribeResources = this.resourceManager.onCapabilitiesChange(
+        () => {
+          if (!this.isDestroyed) {
+            this.broadcastMembershipMessage("NODE_HEARTBEAT");
+            this.emitMembershipChange();
+          }
+        },
+      );
     }
 
     this.transport.start();
@@ -151,7 +154,7 @@ export class MembershipManager {
     const rawMembers = [selfNode, ...this.store.getAllNodes()];
     const { roleAssignments } = this.roleManager.evaluateRoles(
       rawMembers,
-      this.identity.getNodeId()
+      this.identity.getNodeId(),
     );
 
     return rawMembers.map((n) => ({
@@ -288,7 +291,10 @@ export class MembershipManager {
     const msg = raw as MembershipMessage;
 
     // Ignore self messages
-    if (msg.nodeId === this.identity.getNodeId() || msg.peerId === this.peerId) {
+    if (
+      msg.nodeId === this.identity.getNodeId() ||
+      msg.peerId === this.peerId
+    ) {
       return;
     }
 
@@ -367,7 +373,7 @@ export class MembershipManager {
    * Constructs, cryptographically signs, and broadcasts a membership message.
    */
   private async broadcastMembershipMessage(
-    type: MembershipMessage["type"]
+    type: MembershipMessage["type"],
   ): Promise<void> {
     if (this.isDestroyed) return;
 
@@ -385,7 +391,8 @@ export class MembershipManager {
       contributionEnabled: this.contributionEnabled,
     };
 
-    const canonicalSignaturePayload = getMembershipSignaturePayload(unsignedPayload);
+    const canonicalSignaturePayload =
+      getMembershipSignaturePayload(unsignedPayload);
     const signature = await this.identity.sign(canonicalSignaturePayload);
 
     const message: MembershipMessage = {
@@ -408,7 +415,7 @@ export class MembershipManager {
 
     const { newlySuspected, newlyOffline } = this.store.evaluateLiveness(
       SUSPECTED_TIMEOUT_MS,
-      NODE_TIMEOUT_MS
+      NODE_TIMEOUT_MS,
     );
 
     let changed = false;
@@ -416,7 +423,9 @@ export class MembershipManager {
     if (newlySuspected.length > 0) {
       changed = true;
       for (const node of newlySuspected) {
-        console.warn(`[WebRoom Membership] ⚠️ Node suspected (missed heartbeats): ${node.nodeId}`);
+        console.warn(
+          `[WebRoom Membership] ⚠️ Node suspected (missed heartbeats): ${node.nodeId}`,
+        );
         this.emitNodeSuspected(node);
       }
     }
@@ -424,7 +433,9 @@ export class MembershipManager {
     if (newlyOffline.length > 0) {
       changed = true;
       for (const node of newlyOffline) {
-        console.warn(`[WebRoom Membership] ❌ Node timed out and evicted: ${node.nodeId}`);
+        console.warn(
+          `[WebRoom Membership] ❌ Node timed out and evicted: ${node.nodeId}`,
+        );
         this.emitNodeLeave(node);
       }
     }
@@ -480,7 +491,10 @@ export class MembershipManager {
       try {
         listener(members);
       } catch (err) {
-        console.error("[WebRoom Membership] Error in membership change listener:", err);
+        console.error(
+          "[WebRoom Membership] Error in membership change listener:",
+          err,
+        );
       }
     }
   }
