@@ -130,13 +130,41 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
               </div>
 
               {!p.isSelf && (
-                <button
-                  type="button"
-                  className={`webroom-follow-btn ${isCurrentlyFollowing ? "webroom-follow-btn-active" : ""}`}
-                  onClick={(e) => handleToggleFollow(p, e)}
-                >
-                  {isCurrentlyFollowing ? "Following" : "Follow"}
-                </button>
+                <div className="webroom-participant-actions">
+                  <button
+                    type="button"
+                    className="webroom-participant-upload-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      room.setSendFileTarget(p);
+                      onClose();
+                    }}
+                    title={`Send file directly to ${p.avatar}`}
+                    aria-label={`Send file directly to ${p.avatar}`}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={`webroom-follow-btn ${isCurrentlyFollowing ? "webroom-follow-btn-active" : ""}`}
+                    onClick={(e) => handleToggleFollow(p, e)}
+                  >
+                    {isCurrentlyFollowing ? "Following" : "Follow"}
+                  </button>
+                </div>
               )}
             </div>
           );

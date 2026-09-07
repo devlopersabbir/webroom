@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { FollowPeerInfo } from "../follow/follow-store";
-import { Room } from "../room/room";
+import { Participant, Room } from "../room/room";
 import { FollowBorder } from "./FollowBorder";
 import { FollowCursor } from "./FollowCursor";
 import { FollowingIndicator } from "./FollowingIndicator";
+import { IncomingFileModal } from "./IncomingFileModal";
+import { SendFileModal } from "./SendFileModal";
 import { StopFollowingControl } from "./StopFollowingControl";
 import { WebRoomPanel } from "./WebRoomPanel";
 
@@ -16,6 +18,7 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
   const [bumping, setBumping] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [followingLeader, setFollowingLeader] = useState<FollowPeerInfo | null>(room.getFollowing());
+  const [sendFileTarget, setSendFileTarget] = useState<Participant | null>(() => room.getSendFileTarget());
 
   useEffect(() => {
     const unsubscribe = room.onCountChange((newCount) => {
@@ -43,14 +46,31 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
     };
   }, [room]);
 
+  useEffect(() => {
+    const unsubscribe = room.onSendFileTargetChange((target) => {
+      setSendFileTarget(target);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [room]);
+
   // Handle ESC key to close the panel cleanly without triggering host page shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        setIsOpen(false);
+      if (e.key === "Escape") {
+        if (sendFileTarget) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          room.setSendFileTarget(null);
+        } else if (isOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          setIsOpen(false);
+        }
       }
     };
 
@@ -58,7 +78,7 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isOpen]);
+  }, [isOpen, sendFileTarget, room]);
 
   const toggleOpen = () => {
     setIsOpen((prev) => !prev);
@@ -77,6 +97,18 @@ export const WebRoomIndicator: React.FC<WebRoomIndicatorProps> = ({ room }) => {
 
       {/* Bottom Floating Stop Following Action Control */}
       <StopFollowingControl room={room} followingLeader={followingLeader} />
+
+      {/* 1-to-1 P2P Direct Send File Modal (Centered in Viewport) */}
+      {sendFileTarget && (
+        <SendFileModal
+          room={room}
+          target={sendFileTarget}
+          onClose={() => room.setSendFileTarget(null)}
+        />
+      )}
+
+      {/* 1-to-1 P2P Direct Incoming File Transfer Consent Modal (Centered in Viewport) */}
+      <IncomingFileModal room={room} />
 
       {/* Bottom-Right WebRoom Panel & Indicator Pill */}
       <div className="webroom-floating-wrapper" id="webroom-indicator">

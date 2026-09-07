@@ -1,8 +1,9 @@
 import { joinRoom, Room as TrysteroRoom } from "trystero";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
+import { FILE_STREAM_ACTION } from "../shared/constants";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { installWebRTCBridge, SafeRTCPeerConnection } from "./safe-webrtc";
-import { MessageHandler, Transport } from "./transport";
+import { BinaryDataHandler, BinaryProgressHandler, MessageHandler, Transport } from "./transport";
 
 export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
 
@@ -42,8 +43,11 @@ export const DEFAULT_RTC_CONFIG: RTCConfiguration = {
 export class TrysteroTorrentTransport implements Transport {
   public readonly roomId: string;
   private room: TrysteroRoom | null = null;
-  private action: { send: (data: any) => Promise<void> } | null = null;
+  private action: { send: (data: any, options?: any) => Promise<void> } | null = null;
+  private fileAction: any = null;
   private handlers = new Set<MessageHandler>();
+  private binaryHandlers = new Set<BinaryDataHandler>();
+  private binaryProgressHandlers = new Set<BinaryProgressHandler>();
   private isClosed = false;
   private seenMessageSignatures = new Set<string>();
   private remotePeerIdMap = new Map<string, string>();
@@ -81,6 +85,60 @@ export class TrysteroTorrentTransport implements Transport {
 
       msgAction.onMessage = (data: unknown, context: { peerId: string }) => {
         this.handleIncomingMessage(data, context.peerId);
+      };
+
+      // Dedicated WebRTC DataChannel action for 1-to-1 binary streaming
+      const fileStreamAction = this.room.makeAction<any>(FILE_STREAM_ACTION);
+      this.fileAction = fileStreamAction;
+
+      fileStreamAction.onMessage = (
+        data: unknown,
+        context: { peerId: string; metadata?: any },
+      ) => {
+        const mappedPeerId =
+          this.remotePeerIdMap.get(context.peerId) || context.peerId;
+        const buffer =
+          data instanceof ArrayBuffer
+            ? data
+            : (data as any)?.buffer instanceof ArrayBuffer
+              ? (data as any).buffer
+              : (data as any);
+
+        for (const handler of this.binaryHandlers) {
+          try {
+            handler(buffer, {
+              peerId: mappedPeerId,
+              metadata: context.metadata || {},
+            });
+          } catch (err) {
+            console.error(
+              "[WebRoom Trystero] Error in binary message handler:",
+              err,
+            );
+          }
+        }
+      };
+
+      fileStreamAction.onReceiveProgress = (
+        percent: number,
+        context: { peerId: string; metadata?: any },
+      ) => {
+        const mappedPeerId =
+          this.remotePeerIdMap.get(context.peerId) || context.peerId;
+
+        for (const handler of this.binaryProgressHandlers) {
+          try {
+            handler(percent, {
+              peerId: mappedPeerId,
+              metadata: context.metadata || {},
+            });
+          } catch (err) {
+            console.error(
+              "[WebRoom Trystero] Error in binary progress handler:",
+              err,
+            );
+          }
+        }
       };
 
       this.room.onPeerJoin = (peerId: string) => {
@@ -137,7 +195,7 @@ export class TrysteroTorrentTransport implements Transport {
     }
   }
 
-  public send(message: WebRoomMessage): void {
+  public send(message: WebRoomMessage, _targetPeerId?: string): void {
     if (this.isClosed || !this.action) {
       return;
     }
@@ -147,9 +205,61 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     try {
+      // Broadcast message to all peers in the room mesh.
+      // Every peer receives the message, and filters messages targeted to other peers
+      // via `if (msg.targetPeerId && msg.targetPeerId !== this.peerId) return;`.
+      // Broadcasting ensures 100% reliable delivery regardless of Trystero internal connection ID mapping.
       this.action.send(message);
     } catch (err) {
       console.warn(`[WebRoom Trystero] Failed to broadcast message:`, err);
+    }
+  }
+
+  public async sendBinary(
+    data: ArrayBuffer | Uint8Array,
+    options?: {
+      target?: string;
+      metadata?: Record<string, unknown>;
+      onProgress?: (percent: number) => void;
+    },
+  ): Promise<void> {
+    if (this.isClosed || !this.fileAction) {
+      return;
+    }
+
+    let trysteroTarget: string | undefined = undefined;
+    if (options?.target) {
+      for (const [tId, pId] of this.remotePeerIdMap.entries()) {
+        if (pId === options.target) {
+          trysteroTarget = tId;
+          break;
+        }
+      }
+      if (!trysteroTarget && this.remotePeerIdMap.has(options.target)) {
+        trysteroTarget = options.target;
+      }
+    }
+
+    try {
+      if (trysteroTarget) {
+        try {
+          await this.fileAction.send(data, {
+            target: trysteroTarget,
+            metadata: options?.metadata,
+            onProgress: options?.onProgress,
+          });
+          return;
+        } catch (targetErr) {
+          console.warn("[WebRoom Trystero] Direct binary target failed, falling back to broadcast:", targetErr);
+        }
+      }
+
+      await this.fileAction.send(data, {
+        metadata: options?.metadata,
+        onProgress: options?.onProgress,
+      });
+    } catch (err) {
+      console.warn(`[WebRoom Trystero] Failed to send binary:`, err);
     }
   }
 
@@ -157,6 +267,20 @@ export class TrysteroTorrentTransport implements Transport {
     this.handlers.add(handler);
     return () => {
       this.handlers.delete(handler);
+    };
+  }
+
+  public onBinaryMessage(handler: BinaryDataHandler): () => void {
+    this.binaryHandlers.add(handler);
+    return () => {
+      this.binaryHandlers.delete(handler);
+    };
+  }
+
+  public onBinaryReceiveProgress(handler: BinaryProgressHandler): () => void {
+    this.binaryProgressHandlers.add(handler);
+    return () => {
+      this.binaryProgressHandlers.delete(handler);
     };
   }
 
@@ -176,7 +300,10 @@ export class TrysteroTorrentTransport implements Transport {
     }
 
     this.action = null;
+    this.fileAction = null;
     this.handlers.clear();
+    this.binaryHandlers.clear();
+    this.binaryProgressHandlers.clear();
     this.seenMessageSignatures.clear();
     this.remotePeerIdMap.clear();
   }
@@ -197,6 +324,8 @@ export class TrysteroTorrentTransport implements Transport {
     // Map remote Trystero connection ID to actual WebRoom peerId
     const senderPeerId =
       (data as any).peerId ||
+      (data as any).senderPeerId ||
+      (data as any).receiverPeerId ||
       (data as any).followerId ||
       (data as any).leaderId;
     if (senderPeerId && typeof senderPeerId === "string" && remotePeerId) {

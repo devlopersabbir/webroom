@@ -1,5 +1,6 @@
 import { ChatMessage, isValidChatMessage } from "../chat/chat-protocol";
 import { FollowMessage, isValidFollowMessage } from "../follow/follow-protocol";
+import { isValidFileTransferMessage, FileTransferSignalingMessage } from "../file-transfer/file-transfer-protocol";
 import { isValidMembershipMessage, MembershipMessage } from "../membership/membership-protocol";
 import { isValidVoiceSignalingMessage, VoiceSignalingMessage } from "../voice/voice-protocol";
 
@@ -25,7 +26,8 @@ export type WebRoomMessage =
   | ChatMessage
   | VoiceSignalingMessage
   | FollowMessage
-  | MembershipMessage;
+  | MembershipMessage
+  | FileTransferSignalingMessage;
 
 const VALID_MESSAGE_TYPES = new Set<PresenceMessageType>(["HELLO", "HEARTBEAT", "GOODBYE"]);
 
@@ -85,7 +87,8 @@ export function isValidWebRoomMessage(
     isValidChatMessage(payload, expectedRoomId) ||
     isValidVoiceSignalingMessage(payload, expectedRoomId) ||
     isValidFollowMessage(payload, expectedRoomId) ||
-    isValidMembershipMessage(payload, expectedRoomId)
+    isValidMembershipMessage(payload, expectedRoomId) ||
+    isValidFileTransferMessage(payload, expectedRoomId)
   );
 }
 

@@ -27,6 +27,14 @@ export const CHANNEL_PREFIX = "webroom:";
 // Maximum allowed character length for an ephemeral chat message
 export const MAX_MESSAGE_LENGTH = 2000;
 
+// File transfer action identifier for Trystero WebRTC data channel streaming
+export const FILE_STREAM_ACTION = "webroom_file_stream";
+
+// File transfer anti-spam rate limiting configuration:
+// If a target peer declines 3 times, sending to that peer is blocked for 5 minutes.
+export const FILE_TRANSFER_REJECTION_THRESHOLD = 3; // 3 rejections
+export const FILE_TRANSFER_COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
 // Predefined pool of playful emoji avatars for temporary peer identity
 export const AVATARS: readonly string[] = [
   "🐸",

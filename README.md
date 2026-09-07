@@ -100,6 +100,14 @@ example.com/page-a → Room A
 example.com/page-b → Room B
 ```
 
+## Documentation & Contributing
+
+- 📖 **[Developer Guide](DEVELOPER_GUIDE.md)** — Architectural deep-dive, local setup, and debugging.
+- 🤝 **[Contributing Guidelines](CONTRIBUTING.md)** — How to contribute, commit conventions, and branch workflow.
+- 📜 **[Code of Conduct](CODE_OF_CONDUCT.md)** — Community standards and enforcement.
+- 🛡️ **[Security Policy](SECURITY.md)** — Vulnerability disclosure policy and supported versions.
+- 🔨 **[Build from Source](BUILD.md)** — AMO reproducible build instructions.
+
 ## License
 
 [MIT License](LICENSE)
