@@ -1756,24 +1756,30 @@ export const INDICATOR_STYLES = `
 }
 
 .webroom-file-modal-overlay {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2147483647;
-  pointer-events: auto;
-  box-sizing: border-box;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483646 !important;
+  pointer-events: auto !important;
+  box-sizing: border-box !important;
   padding: 20px;
   animation: webroom-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.webroom-incoming-modal-overlay {
+  z-index: 2147483647 !important;
+}
+
 .webroom-file-modal {
+  position: relative !important;
+  z-index: 2147483647 !important;
   width: 420px;
   max-width: min(420px, calc(100vw - 32px));
   max-height: min(600px, calc(100vh - 40px));
@@ -2160,6 +2166,22 @@ export const INDICATOR_STYLES = `
   border-radius: 6px;
   border: 1px solid rgba(99, 102, 241, 0.25);
   margin-bottom: 4px;
+}
+
+.webroom-cooldown-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin: 6px 0 10px 0;
+  text-align: left;
+  box-sizing: border-box;
 }
 
 .webroom-transfer-active-header {

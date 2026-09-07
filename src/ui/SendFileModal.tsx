@@ -14,19 +14,44 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
   target,
   onClose,
 }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(
+    room.fileTransferManager.getOutboundTransfer()?.file || null,
+  );
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [outbound, setOutbound] = useState<OutboundTransfer | null>(
     room.fileTransferManager.getOutboundTransfer(),
+  );
+  const [cooldownRemainingMs, setCooldownRemainingMs] = useState<number>(
+    room.fileTransferManager.getRejectionCooldownMs(target.peerId),
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubscribe = room.onOutboundFileTransferChange((transfer) => {
       setOutbound(transfer);
+      if (transfer?.file && !selectedFile) {
+        setSelectedFile(transfer.file);
+      }
     });
     return () => unsubscribe();
-  }, [room]);
+  }, [room, selectedFile]);
+
+  useEffect(() => {
+    const updateCooldown = () => {
+      const remaining = room.fileTransferManager.getRejectionCooldownMs(target.peerId);
+      setCooldownRemainingMs(remaining);
+    };
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [room, target.peerId, outbound?.status]);
+
+  const formatCooldown = (ms: number): string => {
+    const totalSec = Math.ceil(ms / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -256,6 +281,13 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
               <p className="webroom-transfer-subtext">
                 {outbound.errorMessage || `Participant ${target.avatar} declined the file transfer request.`}
               </p>
+
+              {cooldownRemainingMs > 0 && (
+                <div className="webroom-cooldown-badge">
+                  ⏱️ <strong>Rate limit active:</strong> 3 requests declined within a minute. Sending is blocked for {formatCooldown(cooldownRemainingMs)}.
+                </div>
+              )}
+
               <div className="webroom-modal-actions-row">
                 <button
                   type="button"
@@ -264,16 +296,43 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  className="webroom-btn-primary"
-                  onClick={() => {
-                    room.fileTransferManager.clearOutbound();
-                    setSelectedFile(null);
-                  }}
-                >
-                  Pick Another File
-                </button>
+                {cooldownRemainingMs > 0 ? (
+                  <button
+                    type="button"
+                    className="webroom-btn-primary"
+                    disabled
+                  >
+                    Send Again ({formatCooldown(cooldownRemainingMs)})
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="webroom-btn-primary"
+                    onClick={async () => {
+                      if (selectedFile) {
+                        try {
+                          await room.requestSendFile(target.peerId, target.avatar, selectedFile);
+                        } catch (err) {
+                          console.error("[WebRoom UI] Failed to send again:", err);
+                        }
+                      }
+                    }}
+                  >
+                    Send Again ↺
+                  </button>
+                )}
+                {cooldownRemainingMs <= 0 && (
+                  <button
+                    type="button"
+                    className="webroom-btn-secondary"
+                    onClick={() => {
+                      room.fileTransferManager.clearOutbound();
+                      setSelectedFile(null);
+                    }}
+                  >
+                    Pick Another File
+                  </button>
+                )}
               </div>
             </div>
           ) : outbound?.status === "CANCELLED" || outbound?.status === "ERROR" ? (
@@ -371,6 +430,12 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
                 </div>
               )}
 
+              {cooldownRemainingMs > 0 && (
+                <div className="webroom-cooldown-badge">
+                  ⏱️ <strong>Rate limit active:</strong> Participant {target.avatar} declined 3 requests within 1 minute. Please wait {formatCooldown(cooldownRemainingMs)} before requesting again.
+                </div>
+              )}
+
               {/* Privacy Guarantee Footer */}
               <div className="webroom-file-modal-footer">
                 <div className="webroom-transfer-note">
@@ -387,10 +452,12 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
                   <button
                     type="button"
                     className="webroom-btn-primary"
-                    disabled={!selectedFile}
+                    disabled={!selectedFile || cooldownRemainingMs > 0}
                     onClick={handleSend}
                   >
-                    Request Transfer ➔
+                    {cooldownRemainingMs > 0
+                      ? `Blocked (${formatCooldown(cooldownRemainingMs)})`
+                      : "Request Transfer ➔"}
                   </button>
                 </div>
               </div>

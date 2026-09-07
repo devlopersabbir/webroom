@@ -28,7 +28,7 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
     }
   }, [inbound?.status, room]);
 
-  if (!inbound) {
+  if (!inbound || inbound.status === "REJECTED") {
     return null;
   }
 
@@ -92,7 +92,7 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
 
   return (
     <div
-      className="webroom-file-modal-overlay"
+      className="webroom-file-modal-overlay webroom-incoming-modal-overlay"
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
@@ -222,21 +222,6 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
                 onClick={handleDone}
               >
                 Done
-              </button>
-            </div>
-          )}
-
-          {inbound.status === "REJECTED" && (
-            <div className="webroom-transfer-status-view">
-              <div className="webroom-transfer-rejected-icon">✋</div>
-              <h4 className="webroom-transfer-headline">Transfer Declined</h4>
-              <p className="webroom-transfer-subtext">You declined this transfer request.</p>
-              <button
-                type="button"
-                className="webroom-btn-secondary"
-                onClick={handleDone}
-              >
-                Dismiss
               </button>
             </div>
           )}

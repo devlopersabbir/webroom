@@ -277,4 +277,68 @@ describe("FileTransferManager Unit Tests", () => {
     aliceManager.destroy();
     bobManager.destroy();
   });
+
+  it("blocks sender for 5 minutes if recipient declines 3 times within 1 minute", async () => {
+    const transport = new MockTestTransport();
+    const aliceManager = new FileTransferManager("room1", "peer_alice", "🐱", transport);
+    aliceManager.start();
+
+    const fakeFile = new File(["test"], "file.txt", { type: "text/plain" });
+
+    // 1st rejection
+    const tx1 = await aliceManager.requestSendFile("peer_bob", "🐶", fakeFile);
+    transport.emitMessage({
+      type: "FILE_REJECT",
+      transferId: tx1,
+      roomId: "room1",
+      peerId: "peer_bob",
+      receiverPeerId: "peer_bob",
+      targetPeerId: "peer_alice",
+      timestamp: Date.now(),
+    });
+    expect(aliceManager.getRejectionCooldownMs("peer_bob")).toBe(0);
+    expect(aliceManager.getRecentRejectionCount("peer_bob")).toBe(1);
+
+    // 2nd rejection
+    const tx2 = await aliceManager.requestSendFile("peer_bob", "🐶", fakeFile);
+    transport.emitMessage({
+      type: "FILE_REJECT",
+      transferId: tx2,
+      roomId: "room1",
+      peerId: "peer_bob",
+      receiverPeerId: "peer_bob",
+      targetPeerId: "peer_alice",
+      timestamp: Date.now(),
+    });
+    expect(aliceManager.getRejectionCooldownMs("peer_bob")).toBe(0);
+    expect(aliceManager.getRecentRejectionCount("peer_bob")).toBe(2);
+
+    // 3rd rejection within 1 minute
+    const tx3 = await aliceManager.requestSendFile("peer_bob", "🐶", fakeFile);
+    transport.emitMessage({
+      type: "FILE_REJECT",
+      transferId: tx3,
+      roomId: "room1",
+      peerId: "peer_bob",
+      receiverPeerId: "peer_bob",
+      targetPeerId: "peer_alice",
+      timestamp: Date.now(),
+    });
+
+    // Rate limit must be active for ~5 minutes
+    const remainingMs = aliceManager.getRejectionCooldownMs("peer_bob");
+    expect(remainingMs).toBeGreaterThan(4 * 60 * 1000);
+    expect(remainingMs).toBeLessThanOrEqual(5 * 60 * 1000);
+
+    // Further attempts to send to Bob should throw error
+    await expect(
+      aliceManager.requestSendFile("peer_bob", "🐶", fakeFile),
+    ).rejects.toThrow(/Sending blocked/);
+
+    // But sending to another peer (e.g. Charlie) is NOT blocked
+    const txCharlie = await aliceManager.requestSendFile("peer_charlie", "🦊", fakeFile);
+    expect(txCharlie).toBeDefined();
+
+    aliceManager.destroy();
+  });
 });

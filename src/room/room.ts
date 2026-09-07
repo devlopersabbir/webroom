@@ -485,6 +485,13 @@ export class Room {
   }
 
   /**
+   * Returns remaining rate-limit cooldown in ms for a target participant (0 if not blocked).
+   */
+  public getFileTransferCooldownRemaining(targetPeerId: string): number {
+    return this.fileTransferManager.getRejectionCooldownMs(targetPeerId);
+  }
+
+  /**
    * Listens for changes in the outbound file transfer state.
    */
   public onOutboundFileTransferChange(
