@@ -284,7 +284,7 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
 
               {cooldownRemainingMs > 0 && (
                 <div className="webroom-cooldown-badge">
-                  ⏱️ <strong>Rate limit active:</strong> 3 requests declined within a minute. Sending is blocked for {formatCooldown(cooldownRemainingMs)}.
+                  ⏱️ <strong>Rate limit active:</strong> 3 requests declined. Sending is blocked for {formatCooldown(cooldownRemainingMs)}.
                 </div>
               )}
 
@@ -432,7 +432,7 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
 
               {cooldownRemainingMs > 0 && (
                 <div className="webroom-cooldown-badge">
-                  ⏱️ <strong>Rate limit active:</strong> Participant {target.avatar} declined 3 requests within 1 minute. Please wait {formatCooldown(cooldownRemainingMs)} before requesting again.
+                  ⏱️ <strong>Rate limit active:</strong> Participant {target.avatar} declined 3 requests. Please wait {formatCooldown(cooldownRemainingMs)} before requesting again.
                 </div>
               )}
 

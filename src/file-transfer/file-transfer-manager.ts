@@ -53,17 +53,21 @@ export interface InboundTransfer {
   receivedBlob?: Blob;
 }
 
+import {
+  FILE_TRANSFER_COOLDOWN_DURATION_MS,
+  FILE_TRANSFER_REJECTION_THRESHOLD,
+} from "../shared/constants";
+
 export type OutboundStateListener = (transfer: OutboundTransfer | null) => void;
 export type InboundStateListener = (transfer: InboundTransfer | null) => void;
 
 /**
- * Anti-spam rate limiting configuration:
- * If a target peer declines 3 times within 1 minute, sending to that peer is
+ * Anti-spam rate limiting configuration from constants.ts:
+ * If a target peer declines 3 times, sending to that peer is
  * blocked for a minimum of 5 minutes.
  */
-export const REJECTION_WINDOW_MS = 60 * 1000; // 1 minute
-export const REJECTION_THRESHOLD = 3; // 3 rejections
-export const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+export const REJECTION_THRESHOLD = FILE_TRANSFER_REJECTION_THRESHOLD;
+export const COOLDOWN_DURATION_MS = FILE_TRANSFER_COOLDOWN_DURATION_MS;
 
 /**
  * Triggers native browser download for a received Blob.
@@ -112,10 +116,10 @@ export class FileTransferManager {
   private outboundListeners = new Set<OutboundStateListener>();
   private inboundListeners = new Set<InboundStateListener>();
 
-  // Anti-spam rejection rate limit state per targetPeerId
+  // Anti-spam rejection rate limit state per targetPeerId: count of rejections and cooldown expiration
   private rejectionRecords = new Map<
     string,
-    { timestamps: number[]; cooldownUntil: number }
+    { count: number; cooldownUntil: number }
   >();
 
   private unsubscribeTransportMsg: (() => void) | null = null;
@@ -210,18 +214,18 @@ export class FileTransferManager {
   }
 
   /**
-   * Returns number of rejections received from target peer within the trailing 1-minute window.
+   * Returns number of rejections received from target peer towards the 3-rejection limit.
    */
   public getRecentRejectionCount(targetPeerId: string): number {
     const record = this.rejectionRecords.get(targetPeerId);
     if (!record) {
       return 0;
     }
-    const now = Date.now();
-    record.timestamps = record.timestamps.filter(
-      (t) => now - t <= REJECTION_WINDOW_MS,
-    );
-    return record.timestamps.length;
+    if (record.cooldownUntil > 0 && Date.now() > record.cooldownUntil) {
+      record.cooldownUntil = 0;
+      record.count = 0;
+    }
+    return record.count;
   }
 
   /**
@@ -248,7 +252,7 @@ export class FileTransferManager {
       const secs = totalSec % 60;
       const formatted = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
       throw new Error(
-        `Sending blocked: Participant ${targetAvatar} declined 3 requests within 1 minute. Try again in ${formatted}.`,
+        `Sending blocked: Participant ${targetAvatar} declined 3 requests. Try again in ${formatted}.`,
       );
     }
 
@@ -630,29 +634,30 @@ export class FileTransferManager {
     const now = Date.now();
     let record = this.rejectionRecords.get(targetPeerId);
     if (!record) {
-      record = { timestamps: [], cooldownUntil: 0 };
+      record = { count: 0, cooldownUntil: 0 };
       this.rejectionRecords.set(targetPeerId, record);
     }
 
-    // Filter to trailing 1 minute
-    record.timestamps = record.timestamps.filter(
-      (t) => now - t <= REJECTION_WINDOW_MS,
-    );
-    record.timestamps.push(now);
+    if (record.cooldownUntil > 0 && now > record.cooldownUntil) {
+      record.cooldownUntil = 0;
+      record.count = 0;
+    }
+
+    record.count += 1;
 
     let cooldownTriggered = false;
-    if (record.timestamps.length >= REJECTION_THRESHOLD) {
+    if (record.count >= REJECTION_THRESHOLD) {
       record.cooldownUntil = now + COOLDOWN_DURATION_MS;
-      record.timestamps = [];
+      record.count = 0;
       cooldownTriggered = true;
       console.warn(
-        `[WebRoom FileTransfer] ⏱️ 3 rejections within 1 minute from ${targetPeerId}. Rate limiting sender for 5 minutes.`,
+        `[WebRoom FileTransfer] ⏱️ 3 rejections reached for ${targetPeerId}. Rate limiting sender for 5 minutes.`,
       );
     }
 
     this.currentOutbound.status = "REJECTED";
     if (cooldownTriggered) {
-      this.currentOutbound.errorMessage = `Participant ${this.currentOutbound.targetAvatar} declined 3 requests within 1 minute. Sending is blocked for 5 minutes.`;
+      this.currentOutbound.errorMessage = `Participant ${this.currentOutbound.targetAvatar} declined 3 requests. Sending is blocked for 5 minutes.`;
     } else {
       this.currentOutbound.errorMessage =
         msg.reason || `Participant ${this.currentOutbound.targetAvatar} declined the transfer request`;

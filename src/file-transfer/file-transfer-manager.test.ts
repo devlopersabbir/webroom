@@ -278,7 +278,7 @@ describe("FileTransferManager Unit Tests", () => {
     bobManager.destroy();
   });
 
-  it("blocks sender for 5 minutes if recipient declines 3 times within 1 minute", async () => {
+  it("blocks sender for 5 minutes if recipient declines 3 times", async () => {
     const transport = new MockTestTransport();
     const aliceManager = new FileTransferManager("room1", "peer_alice", "🐱", transport);
     aliceManager.start();

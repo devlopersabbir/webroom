@@ -1,5 +1,6 @@
 import { joinRoom, Room as TrysteroRoom } from "trystero";
 import { isValidWebRoomMessage, WebRoomMessage } from "../presence/protocol";
+import { FILE_STREAM_ACTION } from "../shared/constants";
 import { installWebSocketBridge } from "./background-ws-bridge";
 import { installWebRTCBridge, SafeRTCPeerConnection } from "./safe-webrtc";
 import { BinaryDataHandler, BinaryProgressHandler, MessageHandler, Transport } from "./transport";
@@ -87,7 +88,7 @@ export class TrysteroTorrentTransport implements Transport {
       };
 
       // Dedicated WebRTC DataChannel action for 1-to-1 binary streaming
-      const fileStreamAction = this.room.makeAction<any>("webroom_file_stream");
+      const fileStreamAction = this.room.makeAction<any>(FILE_STREAM_ACTION);
       this.fileAction = fileStreamAction;
 
       fileStreamAction.onMessage = (
