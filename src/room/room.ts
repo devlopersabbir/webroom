@@ -23,9 +23,7 @@ import { Transport } from "../transport/transport";
 import {
   FileTransferManager,
   InboundStateListener,
-  InboundTransfer,
   OutboundStateListener,
-  OutboundTransfer,
 } from "../file-transfer/file-transfer-manager";
 import {
   SpeakingPeersListener,
@@ -92,7 +90,9 @@ export class Room {
   private readonly voiceManager: VoiceManager;
   private readonly followManager: FollowManager;
   private sendFileTarget: Participant | null = null;
-  private sendFileTargetListeners = new Set<(target: Participant | null) => void>();
+  private sendFileTargetListeners = new Set<
+    (target: Participant | null) => void
+  >();
 
   private constructor(
     url: string,
