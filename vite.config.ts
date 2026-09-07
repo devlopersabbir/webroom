@@ -88,9 +88,7 @@ function generateManifest() {
         all_frames: false,
       },
     ],
-    ...(targetBrowser === "chrome"
-      ? { minimum_chrome_version: "116.0" }
-      : {}),
+    ...(targetBrowser === "chrome" ? { minimum_chrome_version: "116.0" } : {}),
     ...(browserSpecificSettings
       ? { browser_specific_settings: browserSpecificSettings }
       : {}),
