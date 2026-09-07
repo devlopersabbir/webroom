@@ -28,13 +28,13 @@ export const SendFileModal: React.FC<SendFileModalProps> = ({
 
   useEffect(() => {
     const unsubscribe = room.onOutboundFileTransferChange((transfer) => {
-      setOutbound(transfer);
-      if (transfer?.file && !selectedFile) {
+      setOutbound(transfer ? { ...transfer } : null);
+      if (transfer?.file) {
         setSelectedFile(transfer.file);
       }
     });
     return () => unsubscribe();
-  }, [room, selectedFile]);
+  }, [room]);
 
   useEffect(() => {
     const updateCooldown = () => {

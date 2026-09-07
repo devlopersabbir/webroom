@@ -182,7 +182,7 @@ export class FileTransferManager {
 
   public onOutboundChange(listener: OutboundStateListener): () => void {
     this.outboundListeners.add(listener);
-    listener(this.currentOutbound);
+    listener(this.currentOutbound ? { ...this.currentOutbound } : null);
     return () => {
       this.outboundListeners.delete(listener);
     };
@@ -190,7 +190,7 @@ export class FileTransferManager {
 
   public onInboundChange(listener: InboundStateListener): () => void {
     this.inboundListeners.add(listener);
-    listener(this.currentInbound);
+    listener(this.currentInbound ? { ...this.currentInbound } : null);
     return () => {
       this.inboundListeners.delete(listener);
     };
@@ -623,12 +623,22 @@ export class FileTransferManager {
   }
 
   private handleIncomingReject(msg: FileRejectMessage): void {
+    if (!this.currentOutbound) {
+      return;
+    }
+
+    // Accept reject if transferId matches, OR if it's from the target peer of our active transfer
     if (
-      !this.currentOutbound ||
-      this.currentOutbound.transferId !== msg.transferId
+      this.currentOutbound.transferId !== msg.transferId &&
+      this.currentOutbound.targetPeerId !== msg.peerId &&
+      this.currentOutbound.targetPeerId !== msg.receiverPeerId
     ) {
       return;
     }
+
+    console.log(
+      `[WebRoom FileTransfer] ❌ Received REJECT from ${msg.receiverPeerId || msg.peerId} for transfer ${msg.transferId}`,
+    );
 
     const targetPeerId = this.currentOutbound.targetPeerId;
     const now = Date.now();
@@ -668,7 +678,9 @@ export class FileTransferManager {
   private handleIncomingCancel(msg: FileCancelMessage): void {
     if (
       this.currentOutbound &&
-      this.currentOutbound.transferId === msg.transferId
+      (this.currentOutbound.transferId === msg.transferId ||
+        this.currentOutbound.targetPeerId === msg.peerId ||
+        this.currentOutbound.targetPeerId === msg.senderPeerId)
     ) {
       this.currentOutbound.status = "CANCELLED";
       this.currentOutbound.errorMessage =
@@ -769,9 +781,10 @@ export class FileTransferManager {
   }
 
   private notifyOutboundListeners(): void {
+    const snapshot = this.currentOutbound ? { ...this.currentOutbound } : null;
     for (const listener of this.outboundListeners) {
       try {
-        listener(this.currentOutbound);
+        listener(snapshot);
       } catch (err) {
         console.error("[WebRoom FileTransfer] Error in outbound listener:", err);
       }
@@ -779,9 +792,10 @@ export class FileTransferManager {
   }
 
   private notifyInboundListeners(): void {
+    const snapshot = this.currentInbound ? { ...this.currentInbound } : null;
     for (const listener of this.inboundListeners) {
       try {
-        listener(this.currentInbound);
+        listener(snapshot);
       } catch (err) {
         console.error("[WebRoom FileTransfer] Error in inbound listener:", err);
       }

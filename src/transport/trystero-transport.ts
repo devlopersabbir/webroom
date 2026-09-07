@@ -195,7 +195,7 @@ export class TrysteroTorrentTransport implements Transport {
     }
   }
 
-  public send(message: WebRoomMessage, targetPeerId?: string): void {
+  public send(message: WebRoomMessage, _targetPeerId?: string): void {
     if (this.isClosed || !this.action) {
       return;
     }
@@ -204,31 +204,12 @@ export class TrysteroTorrentTransport implements Transport {
       return;
     }
 
-    const target = targetPeerId || (message as any).targetPeerId;
-
     try {
-      if (target) {
-        let trysteroTarget: string | undefined = undefined;
-        for (const [tId, pId] of this.remotePeerIdMap.entries()) {
-          if (pId === target) {
-            trysteroTarget = tId;
-            break;
-          }
-        }
-        if (!trysteroTarget && this.remotePeerIdMap.has(target)) {
-          trysteroTarget = target;
-        }
-
-        if (trysteroTarget) {
-          this.action.send(message, { target: trysteroTarget });
-        } else {
-          // If direct Trystero target ID is unknown, broadcast so target peer still receives it.
-          // The target peer validates `if (msg.targetPeerId !== this.peerId) return;`
-          this.action.send(message);
-        }
-      } else {
-        this.action.send(message);
-      }
+      // Broadcast message to all peers in the room mesh.
+      // Every peer receives the message, and filters messages targeted to other peers
+      // via `if (msg.targetPeerId && msg.targetPeerId !== this.peerId) return;`.
+      // Broadcasting ensures 100% reliable delivery regardless of Trystero internal connection ID mapping.
+      this.action.send(message);
     } catch (err) {
       console.warn(`[WebRoom Trystero] Failed to broadcast message:`, err);
     }

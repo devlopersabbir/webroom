@@ -14,7 +14,7 @@ export const IncomingFileModal: React.FC<IncomingFileModalProps> = ({ room }) =>
 
   useEffect(() => {
     const unsubscribe = room.onInboundFileTransferChange((transfer) => {
-      setInbound(transfer);
+      setInbound(transfer ? { ...transfer } : null);
     });
     return () => unsubscribe();
   }, [room]);
