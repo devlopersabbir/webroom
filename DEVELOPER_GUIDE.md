@@ -56,7 +56,7 @@ WebRoom transforms any visited webpage into a real-time decentralized room witho
 | `src/content/` | Content script entry (`index.tsx`) injected into web pages. Renders floating badges and interactive panels. |
 | `src/background/` | Background script / service worker (`index.ts`) handling transports, relay bridges, and storage persistence. |
 | `src/options/` | Standalone `OptionsApp` dashboard (`src/options/OptionsApp.tsx`) for telemetry, node health, and contribution limits. |
-| `src/room/` | High-level `Room` orchestration coordinating identity, presence, chat, and voice streams. |
+| `src/room/` | High-level `Room` orchestration coordinating identity, presence, chat, voice, and file transfer. |
 | `src/identity/` | Cryptographic node identity (`node-identity.ts`) providing public keys and verifiable message signatures. |
 | `src/membership/` | Distributed node discovery, signed heartbeat gossip, and node liveness tracking (`membership-manager.ts`). |
 | `src/roles/` | Deterministic coordinator election, standby node assignment, and sticky role protocol (`role-manager.ts`). |
@@ -64,8 +64,9 @@ WebRoom transforms any visited webpage into a real-time decentralized room witho
 | `src/resources/` | User-configurable relay slot budgets and CPU/bandwidth contribution toggles (`resource-manager.ts`). |
 | `src/voice/` | WebRTC multi-party voice signaling, microphone acquisition, and peer audio stream playback. |
 | `src/follow/` | Shared scrolling, viewport following, and real-time cursor broadcast synchronization. |
-| `src/transport/` | Trystero WebRTC transport wrappers and fallback background WebSocket bridges. |
-| `src/ui/` | Modular React components: `WebRoomPanel`, `ParticipantList`, `SettingsModal`, and theme styles. |
+| `src/file-transfer/` | Peer-to-peer file transfer engine (`file-transfer-manager.ts`, `file-transfer-protocol.ts`). Implements offer/accept signaling, chunked binary streaming via WebRTC data channels, progress tracking, and anti-spam rate limiting. |
+| `src/transport/` | Trystero WebRTC transport wrappers, binary stream support, and fallback broadcast channel bridges. |
+| `src/ui/` | Modular React components: `WebRoomPanel`, `ParticipantList`, `SettingsModal`, `SendFileModal`, `IncomingFileModal`, and theme styles. |
 
 ---
 
