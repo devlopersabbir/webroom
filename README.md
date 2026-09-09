@@ -113,11 +113,24 @@ URL tracking parameters (UTM tags, click IDs, session tokens) are automatically 
 ## Documentation & Contributing
 
 - 📖 **[Developer Guide](DEVELOPER_GUIDE.md)** — Architecture deep-dive, local setup, multi-peer testing, and debugging.
+- 🔒 **[Privacy Policy](PRIVACY.md)** — Zero-data-collection policy and permissions explanation.
 - 🤝 **[Contributing Guidelines](CONTRIBUTING.md)** — How to contribute, commit conventions, and branch workflow.
 - 📜 **[Code of Conduct](CODE_OF_CONDUCT.md)** — Community standards and enforcement.
 - 🛡️ **[Security Policy](SECURITY.md)** — Vulnerability disclosure policy and supported versions.
 - 🔨 **[Build from Source](BUILD.md)** — AMO reproducible build instructions.
 
+## Privacy & Security
+
+WebRoom operates on a strict **zero-data-collection policy**:
+
+- **No Personal Data Collected:** WebRoom does not collect, store, transmit, or sell any personally identifiable information (PII).
+- **No Browsing History or Telemetry:** WebRoom contains no tracking scripts, analytics libraries, or advertising endpoints. URLs are processed purely client-side in your browser to compute room identifiers.
+- **Direct Peer-to-Peer:** All text messages, voice audio streams, cursor sharing, and file transfers flow directly browser-to-browser via encrypted WebRTC channels. No central server intercepts or records user traffic.
+- **Local Storage Only:** Local browser storage is used exclusively to store cryptographic keypairs and local user preferences.
+
+Read the full [Privacy Policy](PRIVACY.md).
+
 ## License
 
 [MIT License](LICENSE)
+

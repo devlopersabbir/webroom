@@ -1,0 +1,52 @@
+name: Deploy to Chrome Web Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Submit for Chrome Web Store Review after upload"
+        required: true
+        default: true
+        type: boolean
+      publish_target:
+        description: "Publish target (default = public store, trustedTesters = private tester group)"
+        required: true
+        default: "default"
+        type: choice
+        options:
+          - default
+          - trustedTesters
+
+jobs:
+  deploy-chrome:
+    name: Build & Submit to Chrome Web Store
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Tests
+        run: bun test
+
+      - name: Deploy to Chrome Web Store (API v2)
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.publish }}" = "false" ]; then
+            bun run deploy:chrome --target=${{ github.event.inputs.publish_target || 'default' }}
+          else
+            bun run deploy:chrome --publish --target=${{ github.event.inputs.publish_target || 'default' }}
+          fi
