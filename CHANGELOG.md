@@ -1,3 +1,10 @@
+# [3.2.0](https://github.com/devlopersabbir/webroom/compare/v3.1.1...v3.2.0) (2026-09-09)
+
+
+### Features
+
+* implement Chrome Web Store deployment pipeline with automated build, submission, and documentation. ([e905649](https://github.com/devlopersabbir/webroom/commit/e90564931f971630796427ab441c87b9321f7714))
+
 ## [3.1.1](https://github.com/devlopersabbir/webroom/compare/v3.1.0...v3.1.1) (2026-09-08)
 
 # [3.1.0](https://github.com/devlopersabbir/webroom/compare/v3.0.1...v3.1.0) (2026-09-07)
