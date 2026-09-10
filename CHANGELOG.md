@@ -1,3 +1,10 @@
+# [3.3.0](https://github.com/devlopersabbir/webroom/compare/v3.2.0...v3.3.0) (2026-09-10)
+
+
+### Features
+
+* initialize manifest.json with cross-browser extension configuration ([2dfe058](https://github.com/devlopersabbir/webroom/commit/2dfe05821586ffdb1f759fe4f9146c98ac61e601))
+
 # [3.2.0](https://github.com/devlopersabbir/webroom/compare/v3.1.1...v3.2.0) (2026-09-09)
 
 
