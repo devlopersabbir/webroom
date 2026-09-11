@@ -1,3 +1,10 @@
+## [3.3.1](https://github.com/devlopersabbir/webroom/compare/v3.3.0...v3.3.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* update Firefox extension ID to beta and add automated deployment script for Mozilla Add-ons ([be71c84](https://github.com/devlopersabbir/webroom/commit/be71c848e94bbcf4e60311ce8d9f02b6d964dd97))
+
 # [3.3.0](https://github.com/devlopersabbir/webroom/compare/v3.2.0...v3.3.0) (2026-09-10)
 
 
