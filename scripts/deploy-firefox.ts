@@ -8,7 +8,8 @@ import { spawnSync } from "child_process";
 function getCredentials(): { issuer: string; secret: string; id?: string } {
   let issuer = process.env.AMO_JWT_ISSUER || "";
   let secret = process.env.AMO_JWT_SECRET || "";
-  const id = process.env.AMO_EXTENSION_ID || "webroom@devlopersabbir.github.io";
+  const id =
+    process.env.AMO_EXTENSION_ID || "webroom-beta@devlopersabbir.github.io";
 
   // Fallback to local secret.txt if environment variables are not set
   const secretPath = resolve(process.cwd(), "secret.txt");
