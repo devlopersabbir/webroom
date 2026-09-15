@@ -339,4 +339,36 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     chromePeer.leave();
     edgePeer.leave();
   });
+
+  it("exposes voice quota exceeded listener and audio/file-sharing preferences", async () => {
+    const bus = new MockBus();
+    const url = "https://example.com/options-test";
+
+    const room = await Room.join(url, {
+      customPeerId: "peer_pref_test",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    // Test file sharing preference delegation
+    expect(room.isFileSharingEnabled()).toBe(true);
+    room.setFileSharingEnabled(false);
+    expect(room.isFileSharingEnabled()).toBe(false);
+
+    // Test audio input device preference delegation
+    expect(room.getAudioInputDevice()).toBeNull();
+    await room.setAudioInputDevice("mic_device_123");
+    expect(room.getAudioInputDevice()).toBe("mic_device_123");
+
+    // Test voice quota exceeded notification
+    let quotaNotice: string | null = null;
+    const unsubQuota = room.onVoiceQuotaExceeded((msg) => {
+      quotaNotice = msg;
+    });
+
+    ((room as any).voiceManager).notifyQuotaListeners?.("At a time, more than 5 people cannot speak.");
+    expect(quotaNotice).toBe("At a time, more than 5 people cannot speak.");
+
+    unsubQuota();
+    room.leave();
+  });
 });

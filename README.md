@@ -47,7 +47,7 @@
 
 WebRoom is available for Chrome on the Chrome Web Store:
 
-[Chrome Web Store — WebRoom](https://chrome.google.com/u/2/webstore/devconsole/3e98cab9-e14a-4271-8735-153e79622edb)
+[Chrome Web Store — WebRoom](https://chromewebstore.google.com/detail/webroom/odmpcbnajmppejdepgilofhlemajjmnp)
 
 ### Firefox
 

@@ -1,624 +1,565 @@
 import React, { useEffect, useRef, useState } from "react";
-import { NodeIdentity } from "../identity/node-identity";
-import { NetworkNode } from "../membership/membership-store";
-import { DEFAULT_RESOURCE_BUDGET, NodeCapabilities } from "../resources/resource-budget";
-import { ResourceManager, RESOURCE_SHARING_STORAGE_KEY } from "../resources/resource-manager";
-import { NodeRole, ROLE_DISPLAY_CONFIG } from "../roles/role-types";
-import { Room } from "../room/room";
-import { RoutingPlan } from "../routing/routing-types";
-import { APP_VERSION } from "../shared/constants";
+import {
+  APP_VERSION,
+  AUDIO_DEVICE_STORAGE_KEY,
+  FILE_SHARING_STORAGE_KEY,
+} from "../shared/constants";
 
 declare const chrome: any;
 
-const GLOBAL_CLUSTER_MESH_URL = "webroom://global-cluster-mesh";
-
-interface PacketLog {
-  id: string;
-  time: string;
-  type: "IN" | "OUT" | "SYS" | "ROLE" | "ROUTE";
-  summary: string;
-  data?: any;
+interface AudioDevice {
+  deviceId: string;
+  label: string;
+  groupId: string;
 }
 
 export const OptionsApp: React.FC = () => {
-  const [networkMode, setNetworkMode] = useState<"global" | "custom">("global");
-  const [customUrl, setCustomUrl] = useState<string>("https://devlopersabbir.github.io/");
-  const [activeUrl, setActiveUrl] = useState<string>(GLOBAL_CLUSTER_MESH_URL);
+  // Settings State
+  const [fileSharingEnabled, setFileSharingEnabled] = useState<boolean>(true);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
+  const [hasDeviceLabels, setHasDeviceLabels] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  const [identity, setIdentity] = useState<NodeIdentity | null>(null);
-  const [resourceManager, setResourceManager] = useState<ResourceManager | null>(null);
-  const [nodeId, setNodeId] = useState<string>("Initializing...");
-  const [contributionEnabled, setContributionEnabled] = useState<boolean>(true);
-  const [capabilities, setCapabilities] = useState<NodeCapabilities | null>(null);
+  // Mic Test State
+  const [isTestingMic, setIsTestingMic] = useState<boolean>(false);
+  const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [testError, setTestError] = useState<string | null>(null);
 
-  // Live Cluster State
-  const [room, setRoom] = useState<Room | null>(null);
-  const [members, setMembers] = useState<NetworkNode[]>([]);
-  const [selfRole, setSelfRole] = useState<NodeRole>("coordinator");
-  const [roles, setRoles] = useState<Map<string, NodeRole>>(new Map());
-  const [routingPlan, setRoutingPlan] = useState<RoutingPlan | null>(null);
-  const [logs, setLogs] = useState<PacketLog[]>([]);
-  const [showJsonState, setShowJsonState] = useState<boolean>(false);
-  const [isUpdating, setIsUpdating] = useState<boolean>(false);
-  const [now, setNow] = useState<number>(Date.now());
+  const testStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
-  const roomRef = useRef<Room | null>(null);
-  const logEndRef = useRef<HTMLDivElement | null>(null);
+  // 1. Load Initial Saved Settings from chrome.storage.local or localStorage
+  useEffect(() => {
+    // Load File Sharing preference
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.get(
+        [FILE_SHARING_STORAGE_KEY, AUDIO_DEVICE_STORAGE_KEY],
+        (items: Record<string, any>) => {
+          if (items && FILE_SHARING_STORAGE_KEY in items) {
+            setFileSharingEnabled(Boolean(items[FILE_SHARING_STORAGE_KEY]));
+          } else {
+            const localVal = localStorage.getItem(FILE_SHARING_STORAGE_KEY);
+            setFileSharingEnabled(localVal !== "false");
+          }
 
-  const addLog = (type: PacketLog["type"], summary: string, data?: any) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [
-      ...prev.slice(-99),
-      {
-        id: Math.random().toString(36).slice(2),
-        time: timestamp,
-        type,
-        summary,
-        data,
-      },
-    ]);
+          if (items && AUDIO_DEVICE_STORAGE_KEY in items) {
+            setSelectedDeviceId(String(items[AUDIO_DEVICE_STORAGE_KEY] || ""));
+          } else {
+            const localDevice = localStorage.getItem(AUDIO_DEVICE_STORAGE_KEY) || "";
+            setSelectedDeviceId(localDevice);
+          }
+        }
+      );
+    } else {
+      const localSharing = localStorage.getItem(FILE_SHARING_STORAGE_KEY);
+      setFileSharingEnabled(localSharing !== "false");
+
+      const localDevice = localStorage.getItem(AUDIO_DEVICE_STORAGE_KEY) || "";
+      setSelectedDeviceId(localDevice);
+    }
+
+    // Enumerate audio devices
+    loadAudioDevices();
+
+    // Listen for device changes (plugged/unplugged mic)
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      const handleDeviceChange = () => {
+        loadAudioDevices();
+      };
+      navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+      return () => {
+        navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      };
+    }
+  }, []);
+
+  const showSavedNotice = (msg: string = "Saved!") => {
+    setSaveStatus(msg);
+    setTimeout(() => {
+      setSaveStatus(null);
+    }, 2500);
   };
 
-  // 1-second ticker for real-time ping / lastSeen & polling latest cluster state
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const currentNow = Date.now();
-      setNow(currentNow);
-
-      if (roomRef.current) {
-        const liveMembers = roomRef.current.membershipManager.getMembers();
-        const liveRoles = roomRef.current.roleManager.getAllRoles();
-        const liveSelfRole = roomRef.current.getSelfRole();
-        const livePlan = roomRef.current.getRoutingPlan();
-
-        setMembers([...liveMembers]);
-        setRoles(new Map(liveRoles));
-        setSelfRole(liveSelfRole);
-        if (livePlan) {
-          setRoutingPlan({ ...livePlan });
-        }
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Scroll log
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  // Initialize Identity & Resources
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function init() {
-      try {
-        const id = await NodeIdentity.initialize();
-        const resMgr = await ResourceManager.initialize();
-
-        if (isCancelled) return;
-
-        setIdentity(id);
-        setResourceManager(resMgr);
-        setNodeId(id.getNodeId());
-        setContributionEnabled(resMgr.isContributionEnabled());
-        setCapabilities(resMgr.getCapabilities());
-
-        addLog("SYS", `Node Identity initialized: ${id.getNodeId().slice(0, 16)}... (ECDSA NIST P-256)`);
-
-        resMgr.onCapabilitiesChange((caps) => {
-          setCapabilities(caps);
-          setContributionEnabled(caps.contributionEnabled);
-          addLog("SYS", `Resource budget: ${caps.contributionEnabled ? "CONTRIBUTING" : "DISABLED"} (${caps.availableRelaySlots}/${caps.maxRelaySlots} slots)`);
-        });
-      } catch (err) {
-        addLog("SYS", `Error initializing identity: ${String(err)}`);
-      }
+  // Enumerate audio input devices
+  const loadAudioDevices = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      return;
     }
 
-    init();
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  // Connect to Live Real-Time Room
-  useEffect(() => {
-    if (!identity || !resourceManager) return;
-
-    let isCancelled = false;
-
-    if (roomRef.current) {
-      roomRef.current.leave(false);
-      roomRef.current = null;
-    }
-
-    async function connectRoom() {
-      try {
-        const isGlobal = activeUrl === GLOBAL_CLUSTER_MESH_URL;
-        addLog("SYS", isGlobal ? "Connecting to Global Decentralized Cluster Mesh..." : `Connecting to Subnet Room: ${activeUrl}`);
-
-        const liveRoom = await Room.join(activeUrl, {
-          identity: identity || undefined,
-          resourceManager: resourceManager || undefined,
-        });
-
-        if (isCancelled) {
-          liveRoom.leave(false);
-          return;
-        }
-
-        roomRef.current = liveRoom;
-        setRoom(liveRoom);
-        setSelfRole(liveRoom.getSelfRole());
-        setRoles(liveRoom.roleManager.getAllRoles());
-        setMembers(liveRoom.membershipManager.getMembers());
-        setRoutingPlan(liveRoom.getRoutingPlan());
-
-        addLog("SYS", `Connected to Mesh ${liveRoom.roomId.slice(0, 16)}... (Peer: ${liveRoom.peerId})`);
-
-        // Subscribe to live membership changes
-        liveRoom.membershipManager.onMembershipChange((updatedMembers) => {
-          if (!isCancelled) {
-            setMembers([...updatedMembers]);
-            addLog("IN", `Cluster membership updated: ${updatedMembers.length} active node(s) discovered`);
-          }
-        });
-
-        // Subscribe to live role changes
-        liveRoom.onRoleChange((newSelfRole, allRoles) => {
-          if (!isCancelled) {
-            setSelfRole(newSelfRole);
-            setRoles(new Map(allRoles));
-            const coordId = liveRoom.roleManager.getCoordinatorNodeId();
-            addLog("ROLE", `Role updated: Local is ${newSelfRole.toUpperCase()} (Coordinator: ${coordId?.slice(0, 14)}...)`);
-          }
-        });
-
-        // Subscribe to live routing plan updates
-        liveRoom.onRoutingChange((newPlan) => {
-          if (!isCancelled) {
-            setRoutingPlan({ ...newPlan });
-            addLog("ROUTE", `Routing plan: ${newPlan.directRouteCount} direct, ${newPlan.relayRouteCount} relayed`);
-          }
-        });
-      } catch (err) {
-        addLog("SYS", `Failed to join mesh: ${String(err)}`);
-      }
-    }
-
-    connectRoom();
-
-    return () => {
-      isCancelled = true;
-      if (roomRef.current) {
-        roomRef.current.leave(false);
-        roomRef.current = null;
-      }
-    };
-  }, [activeUrl, identity, resourceManager]);
-
-  const handleToggleContribution = async () => {
-    if (!resourceManager) return;
-    setIsUpdating(true);
     try {
-      const nextState = !contributionEnabled;
-      await resourceManager.setContributionEnabled(nextState);
-      setContributionEnabled(nextState);
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({ [RESOURCE_SHARING_STORAGE_KEY]: nextState ? "true" : "false" });
-      } else if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem(RESOURCE_SHARING_STORAGE_KEY, nextState ? "true" : "false");
-      }
-    } finally {
-      setIsUpdating(false);
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices
+        .filter((device) => device.kind === "audioinput")
+        .map((device, index) => ({
+          deviceId: device.deviceId,
+          label: device.label || `Microphone ${index + 1}`,
+          groupId: device.groupId,
+        }));
+
+      setAudioDevices(audioInputs);
+      const hasLabels = audioInputs.some((d) => Boolean(d.label && !d.label.startsWith("Microphone ")));
+      setHasDeviceLabels(hasLabels);
+    } catch (err) {
+      console.warn("[Options] Could not enumerate audio devices:", err);
     }
   };
 
-  const handleSwitchToGlobal = () => {
-    setNetworkMode("global");
-    setActiveUrl(GLOBAL_CLUSTER_MESH_URL);
-  };
-
-  const handleApplyCustomUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (customUrl.trim()) {
-      setNetworkMode("custom");
-      setActiveUrl(customUrl.trim());
+  // Explicitly prompt user for mic permission so hardware labels become readable
+  const requestMicPermission = async () => {
+    try {
+      setTestError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Release tracks immediately
+      stream.getTracks().forEach((track) => track.stop());
+      await loadAudioDevices();
+      showSavedNotice("Microphone access granted!");
+    } catch (err: any) {
+      console.error("[Options] Permission request error:", err);
+      setTestError("Microphone permission was denied. Please allow microphone access in browser settings.");
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      addLog("SYS", `Copied: ${text.slice(0, 24)}...`);
+  // Toggle File Sharing Preference
+  const handleToggleFileSharing = () => {
+    const nextVal = !fileSharingEnabled;
+    setFileSharingEnabled(nextVal);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(FILE_SHARING_STORAGE_KEY, String(nextVal));
+    } catch (_) {}
+
+    // Save to chrome.storage.local
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.set({ [FILE_SHARING_STORAGE_KEY]: nextVal }, () => {
+        showSavedNotice(nextVal ? "File sharing enabled" : "File sharing disabled");
+      });
+    } else {
+      showSavedNotice(nextVal ? "File sharing enabled" : "File sharing disabled");
     }
   };
 
-  const selfRoleConfig = ROLE_DISPLAY_CONFIG[selfRole] || ROLE_DISPLAY_CONFIG.participant;
-  const coordinatorNodeId = room?.roleManager.getCoordinatorNodeId();
+  // Select Audio Input Device (instantly affects active calls via chrome.storage / window storage)
+  const handleSelectDevice = (deviceId: string) => {
+    setSelectedDeviceId(deviceId);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(AUDIO_DEVICE_STORAGE_KEY, deviceId);
+      // Dispatch storage event in case extension panel is sharing the same window context
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: AUDIO_DEVICE_STORAGE_KEY,
+          newValue: deviceId,
+        })
+      );
+    } catch (_) {}
+
+    // Save to chrome.storage.local (broadcasts to all active tabs and WebRoom panels)
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.set({ [AUDIO_DEVICE_STORAGE_KEY]: deviceId }, () => {
+        showSavedNotice("Microphone updated!");
+      });
+    } else {
+      showSavedNotice("Microphone updated!");
+    }
+
+    // If currently testing mic, restart test with the new device
+    if (isTestingMic) {
+      stopMicTest();
+      setTimeout(() => {
+        startMicTest(deviceId);
+      }, 150);
+    }
+  };
+
+  // Start Mic Audio VU Meter Test
+  const startMicTest = async (deviceIdToUse = selectedDeviceId) => {
+    stopMicTest();
+    setTestError(null);
+
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: deviceIdToUse ? { deviceId: { exact: deviceIdToUse } } : true,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      testStreamRef.current = stream;
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContextClass();
+      audioContextRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      setIsTestingMic(true);
+
+      const updateMeter = () => {
+        if (!analyser) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        // Normalize volume level between 0% and 100%
+        const normalized = Math.min(100, Math.round((average / 128) * 100 * 1.5));
+        setAudioLevel(normalized);
+
+        animFrameRef.current = requestAnimationFrame(updateMeter);
+      };
+
+      animFrameRef.current = requestAnimationFrame(updateMeter);
+    } catch (err: any) {
+      console.error("[Options] Failed to start microphone test:", err);
+      setTestError(
+        err.message || "Failed to access microphone. Please check permissions or device availability."
+      );
+      stopMicTest();
+    }
+  };
+
+  // Stop Mic Audio VU Meter Test
+  const stopMicTest = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (testStreamRef.current) {
+      testStreamRef.current.getTracks().forEach((track) => track.stop());
+      testStreamRef.current = null;
+    }
+    setIsTestingMic(false);
+    setAudioLevel(0);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopMicTest();
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] p-4 font-mono text-xs selection:bg-[#1f6feb] selection:text-white">
-      {/* Top Header */}
-      <header className="border-b border-[#30363d] pb-3 mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="px-2 py-1 bg-[#238636] text-white font-bold text-xs rounded">
-            WEBROOM CLUSTER DEVTOOLS
-          </div>
-          <span className="text-[#8b949e]">v{APP_VERSION}</span>
-          <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            REAL-TIME MESH ACTIVE
-          </span>
-          <span className="text-[#8b949e] border-l border-[#30363d] pl-3">
-            Mesh ID: <code className="text-[#58a6ff]">{room?.roomId ? room.roomId.slice(0, 16) : "connecting"}...</code>
-          </span>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center py-10 px-4 sm:px-6 lg:px-8 selection:bg-indigo-600 selection:text-white">
+      {/* Toast Save Notification */}
+      {saveStatus && (
+        <div className="fixed top-6 right-6 z-50 flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2.5 rounded-lg shadow-xl shadow-emerald-950/40 text-sm font-medium animate-fade-in transition-all">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{saveStatus}</span>
         </div>
+      )}
 
-        {/* Network Mode Switcher */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSwitchToGlobal}
-            className={`px-2.5 py-1 border rounded text-xs font-medium transition ${
-              networkMode === "global"
-                ? "bg-[#1f6feb] border-[#1f6feb] text-white font-bold"
-                : "bg-[#21262d] hover:bg-[#30363d] border-[#30363d] text-[#c9d1d9]"
-            }`}
-          >
-            🌐 Global Cluster (All Nodes)
-          </button>
-
-          <form onSubmit={handleApplyCustomUrl} className="flex items-center gap-1.5">
-            <input
-              type="text"
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-              placeholder="Specific Room / URL..."
-              className="bg-[#161b22] border border-[#30363d] focus:border-[#58a6ff] focus:outline-none rounded px-2 py-1 text-xs text-[#c9d1d9] w-52"
-            />
-            <button
-              type="submit"
-              className={`px-2 py-1 border rounded text-xs font-medium transition ${
-                networkMode === "custom"
-                  ? "bg-[#1f6feb] border-[#1f6feb] text-white font-bold"
-                  : "bg-[#21262d] hover:bg-[#30363d] border-[#30363d] text-[#c9d1d9]"
-              }`}
+      {/* Main Container */}
+      <div className="w-full max-w-3xl space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-800 gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-2xl">
+              🌐
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-2xl font-bold tracking-tight text-white">WebRoom</h1>
+                <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                  v{APP_VERSION}
+                </span>
+              </div>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Decentralized Presence, P2P Voice & File Sharing Preferences
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <a
+              href="https://github.com/devlopersabbir/webroom"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center space-x-1.5 text-xs font-medium text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
             >
-              Filter Room
-            </button>
-          </form>
-
-          <button
-            type="button"
-            onClick={() => setShowJsonState(!showJsonState)}
-            className={`px-2.5 py-1 border rounded transition ${
-              showJsonState
-                ? "bg-[#1f6feb] border-[#1f6feb] text-white"
-                : "bg-[#21262d] hover:bg-[#30363d] border-[#30363d] text-[#c9d1d9]"
-            }`}
-          >
-            {showJsonState ? "Hide JSON" : "Inspect JSON"}
-          </button>
-        </div>
-      </header>
-
-      {/* Cluster Overview Banner */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase">This Browser Client (Self)</div>
-          <div className="text-[#58a6ff] font-bold truncate mt-0.5" title={nodeId}>
-            {nodeId}
-          </div>
-          <div className="text-[10px] text-[#8b949e] mt-1">ECDSA NIST P-256 Keypair</div>
-        </div>
-
-        <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase">Elected Coordinator</div>
-          <div className="font-bold text-white mt-0.5 flex items-center gap-1.5">
-            <span className="text-amber-400">👑</span>
-            <span className="truncate text-amber-300">
-              {coordinatorNodeId
-                ? coordinatorNodeId === nodeId
-                  ? "YOU (Coordinator)"
-                  : `${coordinatorNodeId.slice(0, 14)}...`
-                : "Electing..."}
-            </span>
-          </div>
-          <div className="text-[10px] text-[#8b949e] mt-1">
-            Local Role: <span className="font-bold text-slate-200">{selfRole.toUpperCase()}</span>
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+              </svg>
+              <span>GitHub</span>
+            </a>
           </div>
         </div>
 
-        <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase flex justify-between">
-            <span>Resource Contribution</span>
+        {/* Section 1: Microphone Selection & Audio Testing */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">🎙️</span>
+                <h2 className="text-lg font-semibold text-white">Microphone Input Device</h2>
+              </div>
+              <p className="text-sm text-slate-400">
+                Choose the audio input device for your peer-to-peer voice calls. Switching your microphone
+                takes effect <strong className="text-slate-200">instantly</strong>, even while actively speaking in a room.
+              </p>
+            </div>
             <button
-              onClick={handleToggleContribution}
-              disabled={isUpdating}
-              className="text-[#58a6ff] hover:underline text-[10px]"
+              type="button"
+              onClick={loadAudioDevices}
+              title="Refresh devices"
+              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
             >
-              [Toggle]
+              🔄
             </button>
           </div>
-          <div className="font-bold text-white mt-0.5">
-            {contributionEnabled ? (
-              <span className="text-emerald-400">ENABLED (Voluntary)</span>
-            ) : (
-              <span className="text-slate-400">DISABLED</span>
-            )}
-          </div>
-          <div className="text-[10px] text-[#8b949e] mt-1">
-            Slots: {capabilities?.activeRelays ?? 0}/{capabilities?.maxRelaySlots ?? DEFAULT_RESOURCE_BUDGET.maxRelaySlots} &bull; {DEFAULT_RESOURCE_BUDGET.networkBudgetKbps} Kbps
-          </div>
-        </div>
 
-        <div className="bg-[#161b22] border border-[#30363d] p-2.5 rounded">
-          <div className="text-[#8b949e] text-[10px] uppercase">Decentralized Mesh Scope</div>
-          <div className="font-bold text-white mt-0.5">
-            {members.length} Discovered Node(s)
-          </div>
-          <div className="text-[10px] text-[#8b949e] mt-1 truncate" title={activeUrl}>
-            Mode: {networkMode === "global" ? "Global Cluster" : activeUrl}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Discovered Cluster Nodes Table (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="bg-[#161b22] border border-[#30363d] rounded overflow-hidden">
-            <div className="bg-[#21262d] px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
-              <span className="font-bold text-white text-xs flex items-center gap-2">
-                <span>ALL DISCOVERED CLIENTS IN CLUSTER ({members.length})</span>
-              </span>
-              <span className="text-[#8b949e] text-[10px]">
-                Real-Time ECDSA Signed Heartbeats
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px]">
-                <thead className="bg-[#0d1117] text-[#8b949e] border-b border-[#30363d]">
-                  <tr>
-                    <th className="p-2">Client / Node ID</th>
-                    <th className="p-2">Role</th>
-                    <th className="p-2">Status</th>
-                    <th className="p-2">Heartbeat</th>
-                    <th className="p-2">Ping</th>
-                    <th className="p-2">Relay Slots</th>
-                    <th className="p-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#30363d]">
-                  {members.map((node) => {
-                    const isSelf = node.nodeId === nodeId;
-                    const nodeRole = roles.get(node.nodeId) || node.role || (isSelf ? selfRole : "participant");
-                    const elapsed = Math.max(0, Math.round((now - node.lastSeen) / 1000));
-
-                    return (
-                      <tr
-                        key={node.nodeId}
-                        className={`hover:bg-[#21262d]/50 ${isSelf ? "bg-[#1f6feb]/10 font-semibold" : ""}`}
-                      >
-                        <td className="p-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[#58a6ff]">{node.nodeId.slice(0, 14)}...</span>
-                            {isSelf && (
-                              <span className="px-1 bg-[#1f6feb] text-white text-[9px] rounded font-bold">
-                                YOU
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-[#8b949e] font-mono">{node.peerId}</div>
-                        </td>
-                        <td className="p-2">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
-                              nodeRole === "coordinator"
-                                ? "bg-amber-900/40 text-amber-300 border border-amber-700/50"
-                                : nodeRole === "relay"
-                                ? "bg-blue-900/40 text-blue-300 border border-blue-700/50"
-                                : nodeRole === "standby"
-                                ? "bg-emerald-900/40 text-emerald-300 border border-emerald-700/50"
-                                : "bg-slate-800 text-slate-400"
-                            }`}
-                          >
-                            {nodeRole}
-                          </span>
-                        </td>
-                        <td className="p-2">
-                          {node.status === "online" ? (
-                            <span className="text-emerald-400 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> online
-                            </span>
-                          ) : node.status === "suspected" ? (
-                            <span className="text-amber-400 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> suspected
-                            </span>
-                          ) : (
-                            <span className="text-rose-400">offline</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-[#8b949e]">#{node.sequence}</td>
-                        <td className="p-2 text-[#8b949e]">{isSelf ? "0s (local)" : `${elapsed}s ago`}</td>
-                        <td className="p-2">
-                          {node.contributionEnabled ? (
-                            <span className="text-emerald-400 font-semibold">
-                              {node.capabilities?.availableRelaySlots ?? 2}/{node.capabilities?.maxRelaySlots ?? 2}
-                            </span>
-                          ) : (
-                            <span className="text-[#8b949e]">off</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <button
-                            onClick={() => copyToClipboard(node.nodeId)}
-                            className="px-1.5 py-0.5 bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] rounded text-[10px] text-[#c9d1d9]"
-                          >
-                            Copy ID
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Media Routing Streams Matrix */}
-          <div className="bg-[#161b22] border border-[#30363d] rounded overflow-hidden">
-            <div className="bg-[#21262d] px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
-              <span className="font-bold text-white text-xs">
-                MEDIA ROUTING & STREAM FORWARDING MATRIX ({routingPlan?.routes.size ?? 0})
-              </span>
-              <span className="text-[#8b949e] text-[10px]">
-                Adaptive Direct / Relay Topology
-              </span>
-            </div>
-
-            <div className="p-3">
-              {!routingPlan || routingPlan.routes.size === 0 ? (
-                <div className="text-center py-4 text-[#8b949e] text-xs">
-                  Zero active media streams. Speaking in any connected tab activates live loop-free routes.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="bg-[#0d1117] text-[#8b949e]">
-                      <tr>
-                        <th className="p-2">Speaker</th>
-                        <th className="p-2">Type</th>
-                        <th className="p-2">Forwarding Traversal Path</th>
-                        <th className="p-2">Listener</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#30363d]">
-                      {Array.from(routingPlan.routes.values()).map((r, idx) => (
-                        <tr key={idx}>
-                          <td className="p-2 text-[#58a6ff]">{r.speakerNodeId.slice(0, 12)}...</td>
-                          <td className="p-2">
-                            <span className={r.routeType === "relay" ? "text-blue-400 font-bold" : "text-emerald-400"}>
-                              {r.routeType.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="p-2 text-[#8b949e]">
-                            {r.path.map((id, pIdx) => (
-                              <span key={pIdx}>
-                                <span className={id === r.relayNodeId ? "text-blue-300 font-bold" : ""}>
-                                  {id.slice(0, 10)}...
-                                </span>
-                                {pIdx < r.path.length - 1 && <span className="mx-1">➔</span>}
-                              </span>
-                            ))}
-                          </td>
-                          <td className="p-2 text-[#c9d1d9]">{r.listenerNodeId.slice(0, 12)}...</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Live Event / Packet Stream (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-[#161b22] border border-[#30363d] rounded flex flex-col h-[520px]">
-            <div className="bg-[#21262d] px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
-              <span className="font-bold text-white text-xs flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                LIVE PACKET & EVENT STREAM
-              </span>
+          {!hasDeviceLabels && audioDevices.length > 0 && (
+            <div className="flex items-center justify-between p-3.5 bg-indigo-950/40 border border-indigo-900/60 rounded-xl text-xs text-indigo-300">
+              <div className="flex items-center space-x-2">
+                <span>ℹ️</span>
+                <span>Browser permissions are needed to display detailed microphone model names.</span>
+              </div>
               <button
-                onClick={() => setLogs([])}
-                className="text-[10px] text-[#8b949e] hover:text-[#c9d1d9]"
+                type="button"
+                onClick={requestMicPermission}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition text-xs shadow-md shadow-indigo-600/30"
               >
-                Clear Log
+                Grant Mic Access
+              </button>
+            </div>
+          )}
+
+          {/* Select Dropdown */}
+          <div className="space-y-2">
+            <label htmlFor="mic-select" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Active Audio Input
+            </label>
+            <select
+              id="mic-select"
+              value={selectedDeviceId}
+              onChange={(e) => handleSelectDevice(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-700 hover:border-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-white transition outline-none cursor-pointer"
+            >
+              <option value="">Default System Microphone</option>
+              {audioDevices.map((device, idx) => (
+                <option key={device.deviceId || idx} value={device.deviceId}>
+                  {device.label || `Microphone ${idx + 1}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Microphone Live VU Meter & Audio Test */}
+          <div className="pt-2 border-t border-slate-800/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-slate-300">Live Audio Level Check</span>
+                {isTestingMic && (
+                  <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Listening</span>
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => (isTestingMic ? stopMicTest() : startMicTest())}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 ${
+                  isTestingMic
+                    ? "bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/30"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer"
+                }`}
+              >
+                <span>{isTestingMic ? "⏹️ Stop Test" : "▶️ Test Microphone"}</span>
               </button>
             </div>
 
-            <div className="flex-1 p-3 overflow-y-auto font-mono text-[11px] space-y-1.5 bg-[#0d1117]">
-              {logs.length === 0 ? (
-                <div className="text-[#8b949e] py-8 text-center">
-                  Waiting for incoming/outgoing packet events...
-                </div>
-              ) : (
-                logs.map((log) => (
-                  <div key={log.id} className="leading-tight flex items-start gap-1.5">
-                    <span className="text-[#8b949e] shrink-0">[{log.time}]</span>
-                    <span
-                      className={`px-1 py-0.2 rounded text-[9px] font-bold shrink-0 ${
-                        log.type === "IN"
-                          ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
-                          : log.type === "OUT"
-                          ? "bg-blue-950 text-blue-400 border border-blue-800"
-                          : log.type === "ROLE"
-                          ? "bg-amber-950 text-amber-300 border border-amber-800"
-                          : log.type === "ROUTE"
-                          ? "bg-purple-950 text-purple-300 border border-purple-800"
-                          : "bg-slate-900 text-slate-400"
-                      }`}
-                    >
-                      {log.type}
-                    </span>
-                    <span className="text-[#c9d1d9] break-all">{log.summary}</span>
-                  </div>
-                ))
-              )}
-              <div ref={logEndRef} />
+            {/* Visual VU Meter Bar */}
+            <div className="space-y-1.5">
+              <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                <div
+                  className="h-full rounded-full transition-all duration-75 bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500"
+                  style={{ width: `${isTestingMic ? audioLevel : 0}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>Quiet</span>
+                <span>{isTestingMic ? `${audioLevel}% Level` : "Mic test inactive"}</span>
+                <span>Loud</span>
+              </div>
+            </div>
+
+            {testError && (
+              <p className="text-xs text-rose-400 bg-rose-950/30 border border-rose-900/50 p-2.5 rounded-lg">
+                {testError}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Section 2: Auto File Sharing Enable / Disable */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1 pr-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">📁</span>
+                <h2 className="text-lg font-semibold text-white">Peer-to-Peer File Sharing</h2>
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Control whether peers in your current room can send you file transfer requests.
+                When disabled, all incoming transfer offers are automatically declined to prevent unsolicited requests.
+              </p>
+            </div>
+
+            {/* Toggle Button */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={fileSharingEnabled}
+              onClick={handleToggleFileSharing}
+              className={`relative inline-flex h-7 w-13 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+                fileSharingEnabled ? "bg-emerald-500" : "bg-slate-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  fileSharingEnabled ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="pt-2">
+            <div
+              className={`inline-flex items-center space-x-2 px-3 py-1 rounded-lg text-xs font-medium ${
+                fileSharingEnabled
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "bg-slate-800 text-slate-400 border border-slate-700"
+              }`}
+            >
+              <span>{fileSharingEnabled ? "✅ File sharing enabled (requests accepted)" : "🚫 File sharing disabled (incoming requests blocked)"}</span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Raw JSON State Modal / View */}
-      {showJsonState && (
-        <div className="mt-4 bg-[#161b22] border border-[#30363d] rounded p-3">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#30363d]">
-            <span className="font-bold text-white text-xs">RAW CLUSTER STATE JSON</span>
-            <button
-              onClick={() => copyToClipboard(JSON.stringify({ nodeId, selfRole, members, roles: Object.fromEntries(roles), routingPlan }, null, 2))}
-              className="px-2 py-0.5 bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] rounded text-[10px] text-[#c9d1d9]"
-            >
-              Copy JSON
-            </button>
+        {/* Section 3: Support Developer & Buy Me a Coffee */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-xl">☕</span>
+              <h2 className="text-lg font-semibold text-white">Support WebRoom Development</h2>
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              WebRoom is completely free, decentralized, and open-source with no advertisements or central server tracking.
+              If WebRoom makes your online collaboration and co-browsing easier, buying me a coffee fuels maintenance and new features!
+            </p>
           </div>
-          <pre className="text-[10px] text-emerald-400 bg-[#0d1117] p-3 rounded overflow-x-auto max-h-80">
-            {JSON.stringify(
-              {
-                localNode: {
-                  nodeId,
-                  selfRole,
-                  contributionEnabled,
-                  capabilities,
-                },
-                cluster: {
-                  room: room?.roomId,
-                  meshUrl: activeUrl,
-                  onlineCount: members.length,
-                  coordinator: coordinatorNodeId,
-                  members,
-                  roles: Object.fromEntries(roles.entries()),
-                },
-                routing: routingPlan
-                  ? {
-                      directCount: routingPlan.directRouteCount,
-                      relayCount: routingPlan.relayRouteCount,
-                      routes: Array.from(routingPlan.routes.entries()),
-                    }
-                  : null,
-              },
-              null,
-              2
-            )}
-          </pre>
+
+          {/* Buy Me a Coffee Button */}
+          <div>
+            <a
+              href="https://buymeacoffee.com/devlopersabbir"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center space-x-3 px-6 py-3.5 rounded-xl font-bold text-slate-950 bg-[#FFDD00] hover:bg-[#ffe338] shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transform hover:-translate-y-0.5 active:translate-y-0 transition duration-150 text-sm"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.216 6.415l-.132-.666c-.119-.597-.388-1.157-.78-1.618C18.704 3.42 17.848 3 16.797 3H4.402C3.078 3 2 4.078 2 5.402v7.716C2 17.514 5.504 21 9.9 21h4.202c4.394 0 7.898-3.486 7.898-7.882v-4.82c0-.663-.292-1.306-.784-1.883zm-1.816 6.703c0 3.256-2.64 5.882-5.898 5.882H9.9C6.643 19 4 16.374 4 13.118V5.402c0-.222.18-.402.402-.402h12.395c.42 0 .753.155.972.413.176.207.294.464.348.742l.142.716c-.452.12-.892.29-1.312.508-1.425.736-2.28 2.112-2.28 3.676 0 1.564.855 2.94 2.28 3.676.136.07.275.132.417.185v.202zm1.6-2.585c-.328-.155-.662-.303-1.002-.42.063-.674-.084-1.378-.456-1.954.512.213.987.525 1.385.92.057.057.073.085.073.125v1.329z" />
+              </svg>
+              <span>Buy me a coffee (@devlopersabbir)</span>
+            </a>
+          </div>
+
+          {/* Social Links & Connections */}
+          <div className="pt-4 border-t border-slate-800/80">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+              Developer & Social Links
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* GitHub */}
+              <a
+                href="https://github.com/devlopersabbir"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center space-x-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/60 transition group"
+              >
+                <span className="text-lg">🐙</span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-slate-200 group-hover:text-white">GitHub</div>
+                  <div className="text-xs text-slate-400">@devlopersabbir</div>
+                </div>
+              </a>
+
+              {/* Website */}
+              <a
+                href="https://devlopersabbir.github.io/"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center space-x-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/60 transition group"
+              >
+                <span className="text-lg">🌐</span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-slate-200 group-hover:text-white">Portfolio</div>
+                  <div className="text-xs text-slate-400">devlopersabbir.github.io</div>
+                </div>
+              </a>
+
+              {/* Email */}
+              <a
+                href="mailto:devlopersabbir@gmail.com"
+                className="flex items-center space-x-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/60 transition group"
+              >
+                <span className="text-lg">✉️</span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-slate-200 group-hover:text-white">Email</div>
+                  <div className="text-xs text-slate-400">devlopersabbir@gmail.com</div>
+                </div>
+              </a>
+
+              {/* WebRoom Project Repo */}
+              <a
+                href="https://github.com/devlopersabbir/webroom"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center space-x-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/60 transition group"
+              >
+                <span className="text-lg">⭐</span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-slate-200 group-hover:text-white">Star on GitHub</div>
+                  <div className="text-xs text-slate-400">devlopersabbir/webroom</div>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="text-center text-xs text-slate-500 pb-8 space-y-1">
+          <p>
+            WebRoom v{APP_VERSION} • Built with WebRTC mesh & WebTorrent trackers
+          </p>
+          <p>
+            Crafted with ❤️ by{" "}
+            <a
+              href="https://github.com/devlopersabbir"
+              target="_blank"
+              rel="noreferrer"
+              className="text-slate-400 hover:text-slate-300 underline underline-offset-2"
+            >
+              Sabbir Hossain Shuvo
+            </a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

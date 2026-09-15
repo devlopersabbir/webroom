@@ -111,3 +111,7 @@ export const KNOWN_TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "igshid",
   "si", // Spotify/YouTube share identifiers
 ]);
+
+// Persistent storage keys for user preferences
+export const AUDIO_DEVICE_STORAGE_KEY = "webroom_audio_input_device_id";
+export const FILE_SHARING_STORAGE_KEY = "webroom_file_sharing_enabled";

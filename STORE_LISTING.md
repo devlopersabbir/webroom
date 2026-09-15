@@ -11,6 +11,9 @@ Use these exact copy-paste details when submitting and managing your listing on 
   > Real-time presence, voice chat, and peer-to-peer file sharing for every webpage. No accounts, no servers, no central backend.
 * **Category:** Social & Communication / Productivity
 * **Version:** `3.0.2`
+* **Chrome Web Store URL:** `https://chromewebstore.google.com/detail/webroom/odmpcbnajmppejdepgilofhlemajjmnp`
+* **Chrome Extension ID:** `odmpcbnajmppejdepgilofhlemajjmnp`
+* **Firefox Add-ons URL:** `https://addons.mozilla.org/en-US/firefox/addon/webroom`
 * **Homepage / Repository:** `https://github.com/devlopersabbir/webroom`
 * **Support Email:** `devlopersabbir@gmail.com`
 * **Support Website:** `https://github.com/devlopersabbir/webroom/issues`

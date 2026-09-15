@@ -341,4 +341,45 @@ describe("FileTransferManager Unit Tests", () => {
 
     aliceManager.destroy();
   });
+
+  it("automatically rejects incoming file offers when file sharing is disabled", async () => {
+    const transport = new MockTestTransport();
+    const manager = new FileTransferManager("room1", "peer_bob", "🐶", transport);
+    manager.start();
+
+    // Verify default is true, then disable it
+    expect(manager.isFileSharingEnabled()).toBe(true);
+    manager.setFileSharingEnabled(false);
+    expect(manager.isFileSharingEnabled()).toBe(false);
+
+    // Incoming file offer from Alice
+    transport.emitMessage({
+      type: "FILE_OFFER",
+      transferId: "tx_auto_reject",
+      roomId: "room1",
+      peerId: "peer_alice",
+      senderPeerId: "peer_alice",
+      senderAvatar: "🐱",
+      targetPeerId: "peer_bob",
+      fileMeta: {
+        id: "f1",
+        name: "test.pdf",
+        size: 1024,
+        type: "application/pdf",
+      },
+      timestamp: Date.now(),
+    });
+
+    // Inbound transfer should NOT be set
+    expect(manager.getInboundTransfer()).toBeNull();
+
+    // Auto-reject message should have been transmitted
+    const sentRejection = transport.sentMessages.find(
+      (m) => m.type === "FILE_REJECT" && (m as any).transferId === "tx_auto_reject"
+    );
+    expect(sentRejection).toBeDefined();
+    expect((sentRejection as any).reason).toContain("disabled file sharing");
+
+    manager.destroy();
+  });
 });

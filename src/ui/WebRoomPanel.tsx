@@ -6,21 +6,28 @@ import { VoiceState } from "../voice/voice-manager";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { MessageComposer } from "./MessageComposer";
 import { ParticipantList } from "./ParticipantList";
-import { SettingsModal } from "./SettingsModal";
+
+declare const chrome: any;
+declare const browser: any;
 
 interface WebRoomPanelProps {
   room: Room;
   onClose?: () => void;
+  onHeaderPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
 }
 
-export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => {
+export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({
+  room,
+  onClose,
+  onHeaderPointerDown,
+}) => {
   const [onlineCount, setOnlineCount] = useState<number>(room.getOnlineCount());
   const [messages, setMessages] = useState<ChatMessage[]>(room.getMessages());
   const [voiceState, setVoiceState] = useState<VoiceState>(room.getVoiceState());
   const [speakingPeers, setSpeakingPeers] = useState<Set<string>>(room.getSpeakingPeers());
   const [followingLeader, setFollowingLeader] = useState<FollowPeerInfo | null>(room.getFollowing());
   const [showParticipants, setShowParticipants] = useState<boolean>(false);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef<boolean>(true);
 
@@ -30,6 +37,22 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
       setOnlineCount(newCount);
     });
     return () => unsubscribe();
+  }, [room]);
+
+  // Subscribe to voice quota notices (e.g. max 5 concurrent speakers)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = room.onVoiceQuotaExceeded((msg) => {
+      setVoiceNotice(msg);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setVoiceNotice(null);
+      }, 4000);
+    });
+    return () => {
+      unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   }, [room]);
 
   // Subscribe to follow changes
@@ -115,14 +138,25 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
     e.stopPropagation();
   };
 
+  const handleOpenSettings = () => {
+    if (typeof chrome !== "undefined" && chrome.runtime?.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    } else if (
+      typeof browser !== "undefined" &&
+      (browser as any).runtime?.openOptionsPage
+    ) {
+      (browser as any).runtime.openOptionsPage();
+    } else if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+      window.open(chrome.runtime.getURL("src/options/index.html"), "_blank");
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation();
 
     if (e.key === "Escape") {
       e.preventDefault();
-      if (showSettings) {
-        setShowSettings(false);
-      } else if (showParticipants) {
+      if (showParticipants) {
         setShowParticipants(false);
       } else if (onClose) {
         onClose();
@@ -144,7 +178,10 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
       onWheel={(e) => e.stopPropagation()}
     >
       {/* Panel Header */}
-      <div className="webroom-panel-header">
+      <div
+        className="webroom-panel-header"
+        onPointerDown={onHeaderPointerDown}
+      >
         <div className="webroom-header-left">
           <div className="webroom-header-title-row">
             <span className="webroom-header-title">WebRoom</span>
@@ -154,6 +191,7 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
             type="button"
             className={`webroom-header-presence-btn ${showParticipants ? "webroom-header-presence-btn-active" : ""}`}
             onClick={() => setShowParticipants((prev) => !prev)}
+            onPointerDown={(e) => e.stopPropagation()}
             title="View participants & follow"
             aria-label={presenceText}
           >
@@ -162,7 +200,7 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
         </div>
 
         {/* Top-Right Voice Controls & Settings */}
-        <div className="webroom-header-controls">
+        <div className="webroom-header-controls" onPointerDown={(e) => e.stopPropagation()}>
           {/* Microphone Toggle (🎙️) */}
           <button
             type="button"
@@ -189,9 +227,9 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
           {/* Settings Button */}
           <button
             type="button"
-            className={`webroom-settings-btn ${showSettings ? "webroom-settings-btn-active" : ""}`}
-            onClick={() => setShowSettings((prev) => !prev)}
-            title="Settings & Resource Contribution"
+            className="webroom-settings-btn"
+            onClick={handleOpenSettings}
+            title="Settings"
             aria-label="Settings"
           >
             ⚙️
@@ -199,9 +237,12 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({ room, onClose }) => 
         </div>
       </div>
 
-      {/* Settings Modal */}
-      {showSettings && (
-        <SettingsModal room={room} onClose={() => setShowSettings(false)} />
+      {/* Voice Quota Notification Toast */}
+      {voiceNotice && (
+        <div className="webroom-voice-toast" role="alert">
+          <span className="webroom-voice-toast-icon">⚠️</span>
+          <span className="webroom-voice-toast-text">{voiceNotice}</span>
+        </div>
       )}
 
       {/* Participant List Overlay / Modal */}

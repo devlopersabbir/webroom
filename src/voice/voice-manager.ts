@@ -1,5 +1,6 @@
 import { Transport } from "../transport/transport";
 import { DEFAULT_RTC_CONFIG } from "../transport/trystero-transport";
+import { AUDIO_DEVICE_STORAGE_KEY } from "../shared/constants";
 import { StreamAudioAnalyser } from "./audio-analyser";
 import {
   isValidVoiceSignalingMessage,
@@ -9,6 +10,8 @@ import {
   VoiceStateMessage,
 } from "./voice-protocol";
 
+declare const chrome: any;
+
 export interface VoiceState {
   isMicOn: boolean;
   isSpeakerOn: boolean;
@@ -17,6 +20,10 @@ export interface VoiceState {
 
 export type VoiceStateListener = (state: VoiceState) => void;
 export type SpeakingPeersListener = (speakingPeerIds: Set<string>) => void;
+export type VoiceQuotaListener = (message: string) => void;
+
+/** Maximum simultaneous active speakers allowed in a single room */
+export const MAX_CONCURRENT_SPEAKERS = 5;
 
 interface RemoteVoiceState {
   isMicOn: boolean;
@@ -109,6 +116,10 @@ export class VoiceManager {
 
   private speakingPeers = new Set<string>();
 
+  private needsNegotiation = new Map<string, boolean>();
+  private quotaListeners = new Set<VoiceQuotaListener>();
+  private selectedAudioDeviceId: string | null = null;
+
   private stateListeners = new Set<VoiceStateListener>();
   private speakingListeners = new Set<SpeakingPeersListener>();
 
@@ -119,6 +130,13 @@ export class VoiceManager {
     this.roomId = roomId;
     this.peerId = peerId;
     this.transport = transport;
+
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(AUDIO_DEVICE_STORAGE_KEY);
+      if (stored) {
+        this.selectedAudioDeviceId = stored;
+      }
+    }
   }
 
   /**
@@ -129,13 +147,130 @@ export class VoiceManager {
       return;
     }
 
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.get([AUDIO_DEVICE_STORAGE_KEY], (res: any) => {
+        if (res && res[AUDIO_DEVICE_STORAGE_KEY]) {
+          this.setAudioInputDevice(res[AUDIO_DEVICE_STORAGE_KEY]).catch(() => {});
+        }
+      });
+      chrome.storage.onChanged.addListener((changes: any, area: string) => {
+        if (area === "local" && changes[AUDIO_DEVICE_STORAGE_KEY]) {
+          const newId = changes[AUDIO_DEVICE_STORAGE_KEY].newValue;
+          if (typeof newId === "string") {
+            this.setAudioInputDevice(newId).catch(() => {});
+          }
+        }
+      });
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", (e) => {
+        if (e.key === AUDIO_DEVICE_STORAGE_KEY && e.newValue) {
+          this.setAudioInputDevice(e.newValue).catch(() => {});
+        }
+      });
+    }
+
     this.unsubscribeTransport = this.transport.onMessage((msg) => {
-      this.handleTransportMessage(msg);
+      return this.handleTransportMessage(msg);
     });
 
     // Announce initial voice state to the room so existing peers know our presence
     this.broadcastVoiceState();
     this.notifyStateListeners();
+  }
+
+  public getAudioInputDevice(): string | null {
+    return this.selectedAudioDeviceId;
+  }
+
+  /**
+   * Changes the active microphone device. If speaking, immediately hot-swaps
+   * the live audio track across all active WebRTC peer connections.
+   */
+  public async setAudioInputDevice(deviceId: string): Promise<void> {
+    if (this.isDestroyed || this.selectedAudioDeviceId === deviceId) {
+      return;
+    }
+    this.selectedAudioDeviceId = deviceId;
+    if (typeof localStorage !== "undefined") {
+      try {
+        localStorage.setItem(AUDIO_DEVICE_STORAGE_KEY, deviceId);
+      } catch {}
+    }
+
+    // If microphone is currently ON, switch the active hardware track on the fly
+    if (this.isMicOn && this.localStream) {
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: deviceId ? { exact: deviceId } : undefined,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000,
+            latency: 0,
+            googEchoCancellation: true,
+            googAutoGainControl: true,
+            googNoiseSuppression: true,
+            googHighpassFilter: true,
+            googTypingNoiseDetection: true,
+          } as any,
+          video: false,
+        });
+
+        const newTrack = newStream.getAudioTracks()[0];
+        if (newTrack && "contentHint" in newTrack) {
+          newTrack.contentHint = "speech";
+        }
+
+        const oldTracks = this.localStream.getAudioTracks();
+
+        // Hot-swap audio track on all active peer connections without interrupting calls
+        for (const pc of this.peerConnections.values()) {
+          try {
+            const transceivers = pc.getTransceivers ? pc.getTransceivers() : [];
+            const audioTransceiver = transceivers.find(
+              (t) =>
+                t.receiver?.track?.kind === "audio" ||
+                t.sender?.track?.kind === "audio" ||
+                (t as any).mid !== undefined,
+            );
+            if (audioTransceiver?.sender) {
+              await audioTransceiver.sender.replaceTrack(newTrack);
+            }
+          } catch (err) {
+            console.warn("[WebRoom Voice] Error replacing track on peer:", err);
+          }
+        }
+
+        // Rebind local audio analyser
+        if (this.localAnalyser) {
+          this.localAnalyser.destroy();
+        }
+        this.localAnalyser = new StreamAudioAnalyser(newStream, (isSpeaking) => {
+          if (this.isDestroyed || !this.isMicOn) return;
+          if (isSpeaking) {
+            this.speakingPeers.add(this.peerId);
+          } else {
+            this.speakingPeers.delete(this.peerId);
+          }
+          this.notifySpeakingListeners();
+        });
+
+        // Clean up previous stream tracks
+        oldTracks.forEach((track) => {
+          try {
+            track.stop();
+          } catch {}
+        });
+
+        this.localStream = newStream;
+      } catch (err) {
+        console.error("[WebRoom Voice] Failed to switch microphone input device:", err);
+      }
+    }
   }
 
   public getState(): VoiceState {
@@ -170,6 +305,23 @@ export class VoiceManager {
     };
   }
 
+  public onQuotaExceeded(listener: VoiceQuotaListener): () => void {
+    this.quotaListeners.add(listener);
+    return () => {
+      this.quotaListeners.delete(listener);
+    };
+  }
+
+  private notifyQuotaListeners(message: string): void {
+    for (const listener of this.quotaListeners) {
+      try {
+        listener(message);
+      } catch (err) {
+        console.error("[WebRoom Voice] Error in quota listener:", err);
+      }
+    }
+  }
+
   /**
    * Toggles the user's microphone state.
    * If turning ON and stream does not exist, requests microphone permission.
@@ -198,7 +350,14 @@ export class VoiceManager {
       return false;
     }
 
-    // Turning ON
+    // Turning ON: Check speaker quota (maximum 5 simultaneous speakers in a room)
+    const activeRemoteSpeakers = Array.from(
+      this.remoteVoiceStates.values(),
+    ).filter((s) => s.isMicOn).length;
+    if (activeRemoteSpeakers >= MAX_CONCURRENT_SPEAKERS) {
+      this.notifyQuotaListeners("At a time, more than 5 people cannot speak.");
+      return false;
+    }
     try {
       if (
         !this.localStream ||
@@ -213,6 +372,9 @@ export class VoiceManager {
 
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
+            deviceId: this.selectedAudioDeviceId
+              ? { exact: this.selectedAudioDeviceId }
+              : undefined,
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
@@ -397,6 +559,7 @@ export class VoiceManager {
       return;
     }
 
+    const hadPc = Boolean(pc);
     if (!pc) {
       const newPc = this.createPeerConnection(remotePeerId);
       if (!newPc) return;
@@ -409,6 +572,8 @@ export class VoiceManager {
         ? this.localStream.getAudioTracks()[0]
         : null;
 
+    let trackOrDirectionChanged = !hadPc;
+
     try {
       const transceivers = pc.getTransceivers ? pc.getTransceivers() : [];
       const audioTransceiver = transceivers.find(
@@ -420,18 +585,25 @@ export class VoiceManager {
 
       if (audioTransceiver) {
         if (audioTrack && this.isMicOn) {
+          if (audioTransceiver.direction !== "sendrecv") {
+            audioTransceiver.direction = "sendrecv";
+            trackOrDirectionChanged = true;
+          }
           await audioTransceiver.sender.replaceTrack(audioTrack);
-          audioTransceiver.direction = "sendrecv";
           configureSenderParameters(audioTransceiver.sender);
         } else {
+          if (audioTransceiver.direction !== "recvonly") {
+            audioTransceiver.direction = "recvonly";
+            trackOrDirectionChanged = true;
+          }
           await audioTransceiver.sender.replaceTrack(null);
-          audioTransceiver.direction = "recvonly";
         }
       } else if (audioTrack && this.isMicOn) {
         const sender = pc.addTrack(audioTrack, this.localStream!);
         if (sender) {
           configureSenderParameters(sender);
         }
+        trackOrDirectionChanged = true;
       }
     } catch (err) {
       console.warn(
@@ -440,10 +612,34 @@ export class VoiceManager {
       );
     }
 
-    // WebRTC Perfect Negotiation: initiate offer if signaling is stable
-    if (pc.signalingState === "stable") {
-      await this.initiateOffer(remotePeerId, pc);
+    if (trackOrDirectionChanged) {
+      this.needsNegotiation.set(remotePeerId, true);
     }
+
+    // WebRTC Perfect Negotiation: drain negotiation queue when state is stable
+    await this.drainNegotiationQueue(remotePeerId);
+  }
+
+  private async drainNegotiationQueue(remotePeerId: string): Promise<void> {
+    if (this.isDestroyed) {
+      return;
+    }
+
+    const pc = this.peerConnections.get(remotePeerId);
+    if (!pc) {
+      return;
+    }
+
+    if (!this.needsNegotiation.get(remotePeerId)) {
+      return;
+    }
+
+    if (pc.signalingState !== "stable" || this.makingOffer.get(remotePeerId)) {
+      return;
+    }
+
+    this.needsNegotiation.set(remotePeerId, false);
+    await this.initiateOffer(remotePeerId, pc);
   }
 
   private async syncAllPeerConnections(): Promise<void> {
@@ -622,7 +818,9 @@ export class VoiceManager {
       this.remoteAudioElements.set(remotePeerId, audioElement);
     }
 
-    audioElement.srcObject = stream;
+    if (audioElement.srcObject !== stream) {
+      audioElement.srcObject = stream;
+    }
     audioElement.volume = 1.0;
     audioElement.muted = !this.isSpeakerOn;
 
@@ -660,6 +858,31 @@ export class VoiceManager {
     });
 
     this.remoteAnalysers.set(remotePeerId, analyser);
+  }
+
+  private ensureRemoteTracksAttached(
+    remotePeerId: string,
+    pc: RTCPeerConnection,
+  ): void {
+    if (this.isDestroyed) return;
+    try {
+      const transceivers = pc.getTransceivers ? pc.getTransceivers() : [];
+      for (const t of transceivers) {
+        if (
+          t.receiver?.track &&
+          t.receiver.track.kind === "audio" &&
+          t.receiver.track.readyState === "live"
+        ) {
+          const stream =
+            typeof MediaStream !== "undefined"
+              ? new MediaStream([t.receiver.track])
+              : ({ getAudioTracks: () => [t.receiver.track] } as any);
+          this.attachRemoteStream(remotePeerId, stream);
+        }
+      }
+    } catch {
+      // In mock/non-transceiver test environments, ontrack handles it
+    }
   }
 
   private async handleTransportMessage(msg: unknown): Promise<void> {
@@ -714,6 +937,8 @@ export class VoiceManager {
       // Polite peer rolls back local offer
       try {
         await pc.setLocalDescription({ type: "rollback" });
+        // Polite peer rolled back its own offer; ensure its pending changes are re-offered once stable
+        this.needsNegotiation.set(msg.peerId, true);
       } catch (err) {
         console.warn(
           `[WebRoom Voice] Rollback error for peer ${msg.peerId}:`,
@@ -723,14 +948,20 @@ export class VoiceManager {
     }
 
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      const remoteDesc =
+        typeof RTCSessionDescription !== "undefined"
+          ? new RTCSessionDescription(msg.sdp)
+          : (msg.sdp as any);
+      await pc.setRemoteDescription(remoteDesc);
 
       // Flush pending ICE candidates if any were buffered
       const pending = this.pendingCandidates.get(msg.peerId) || [];
       for (const candidate of pending) {
-        await pc
-          .addIceCandidate(new RTCIceCandidate(candidate))
-          .catch(() => {});
+        const iceCandidate =
+          typeof RTCIceCandidate !== "undefined"
+            ? new RTCIceCandidate(candidate)
+            : (candidate as any);
+        await pc.addIceCandidate(iceCandidate).catch(() => {});
       }
       this.pendingCandidates.delete(msg.peerId);
 
@@ -754,6 +985,12 @@ export class VoiceManager {
         timestamp: Date.now(),
       };
       this.transport.send(response);
+
+      // Verify and attach any receiver tracks from this peer
+      this.ensureRemoteTracksAttached(msg.peerId, pc);
+
+      // Drain queue if polite peer had pending renegotiation
+      await this.drainNegotiationQueue(msg.peerId);
     } catch (err) {
       console.warn(
         `[WebRoom Voice] Error handling offer from ${msg.peerId}:`,
@@ -769,16 +1006,28 @@ export class VoiceManager {
     }
 
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      const remoteDesc =
+        typeof RTCSessionDescription !== "undefined"
+          ? new RTCSessionDescription(msg.sdp)
+          : (msg.sdp as any);
+      await pc.setRemoteDescription(remoteDesc);
 
       // Flush pending ICE candidates
       const pending = this.pendingCandidates.get(msg.peerId) || [];
       for (const candidate of pending) {
-        await pc
-          .addIceCandidate(new RTCIceCandidate(candidate))
-          .catch(() => {});
+        const iceCandidate =
+          typeof RTCIceCandidate !== "undefined"
+            ? new RTCIceCandidate(candidate)
+            : (candidate as any);
+        await pc.addIceCandidate(iceCandidate).catch(() => {});
       }
       this.pendingCandidates.delete(msg.peerId);
+
+      // Verify and attach any receiver tracks from this peer
+      this.ensureRemoteTracksAttached(msg.peerId, pc);
+
+      // Drain queue if renegotiation was requested while offer was in flight
+      await this.drainNegotiationQueue(msg.peerId);
     } catch (err) {
       console.warn(
         `[WebRoom Voice] Error setting remote description from answer from ${msg.peerId}:`,
@@ -799,7 +1048,11 @@ export class VoiceManager {
     }
 
     try {
-      await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+      const iceCandidate =
+        typeof RTCIceCandidate !== "undefined"
+          ? new RTCIceCandidate(msg.candidate)
+          : (msg.candidate as any);
+      await pc.addIceCandidate(iceCandidate);
     } catch (err) {
       console.warn(
         `[WebRoom Voice] Error adding ICE candidate from ${msg.peerId}:`,
@@ -849,6 +1102,7 @@ export class VoiceManager {
 
     this.pendingCandidates.delete(remotePeerId);
     this.makingOffer.delete(remotePeerId);
+    this.needsNegotiation.delete(remotePeerId);
 
     const analyser = this.remoteAnalysers.get(remotePeerId);
     if (analyser) {
@@ -931,6 +1185,8 @@ export class VoiceManager {
     this.knownPeers.clear();
     this.remoteVoiceStates.clear();
     this.makingOffer.clear();
+    this.needsNegotiation.clear();
+    this.quotaListeners.clear();
     this.stateListeners.clear();
     this.speakingListeners.clear();
     this.speakingPeers.clear();

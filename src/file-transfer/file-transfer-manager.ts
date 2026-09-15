@@ -9,6 +9,8 @@ import {
   isValidFileTransferMessage,
 } from "./file-transfer-protocol";
 
+declare const chrome: any;
+
 export type OutboundTransferStatus =
   | "AWAITING_CONSENT"
   | "TRANSFERRING"
@@ -54,6 +56,7 @@ export interface InboundTransfer {
 }
 
 import {
+  FILE_SHARING_STORAGE_KEY,
   FILE_TRANSFER_COOLDOWN_DURATION_MS,
   FILE_TRANSFER_REJECTION_THRESHOLD,
 } from "../shared/constants";
@@ -129,6 +132,7 @@ export class FileTransferManager {
   private lastProgressTime = 0;
   private lastTransferredBytes = 0;
   private isDestroyed = false;
+  private fileSharingEnabled = true;
 
   constructor(
     roomId: string,
@@ -140,11 +144,53 @@ export class FileTransferManager {
     this.peerId = peerId;
     this.avatar = avatar;
     this.transport = transport;
+
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(FILE_SHARING_STORAGE_KEY);
+      if (stored !== null) {
+        this.fileSharingEnabled = stored === "true" || stored === "1";
+      }
+    }
+  }
+
+  public isFileSharingEnabled(): boolean {
+    return this.fileSharingEnabled;
+  }
+
+  public setFileSharingEnabled(enabled: boolean): void {
+    this.fileSharingEnabled = enabled;
+    if (typeof localStorage !== "undefined") {
+      try {
+        localStorage.setItem(FILE_SHARING_STORAGE_KEY, enabled ? "true" : "false");
+      } catch {}
+    }
   }
 
   public start(): void {
     if (this.isDestroyed) {
       return;
+    }
+
+    // Read initial preference from chrome.storage if available
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.get([FILE_SHARING_STORAGE_KEY], (res: any) => {
+        if (res && res[FILE_SHARING_STORAGE_KEY] !== undefined) {
+          this.fileSharingEnabled = Boolean(res[FILE_SHARING_STORAGE_KEY]);
+        }
+      });
+      chrome.storage.onChanged.addListener((changes: any, area: string) => {
+        if (area === "local" && changes[FILE_SHARING_STORAGE_KEY]) {
+          this.fileSharingEnabled = Boolean(changes[FILE_SHARING_STORAGE_KEY].newValue);
+        }
+      });
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", (e) => {
+        if (e.key === FILE_SHARING_STORAGE_KEY && e.newValue !== null) {
+          this.fileSharingEnabled = e.newValue === "true" || e.newValue === "1";
+        }
+      });
     }
 
     // Subscribe to signaling messages
@@ -502,6 +548,22 @@ export class FileTransferManager {
   }
 
   private handleIncomingOffer(msg: FileOfferMessage): void {
+    // If file sharing is disabled in user options, decline immediately
+    if (!this.isFileSharingEnabled()) {
+      const reject: FileRejectMessage = {
+        type: "FILE_REJECT",
+        transferId: msg.transferId,
+        roomId: this.roomId,
+        peerId: this.peerId,
+        receiverPeerId: this.peerId,
+        targetPeerId: msg.senderPeerId,
+        reason: "Recipient has disabled file sharing requests",
+        timestamp: Date.now(),
+      };
+      this.transport.send(reject, msg.senderPeerId);
+      return;
+    }
+
     // If already receiving or reviewing another transfer, reject with busy status
     if (
       this.currentInbound &&
