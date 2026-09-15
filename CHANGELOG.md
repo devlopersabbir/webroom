@@ -1,3 +1,15 @@
+# [3.4.0](https://github.com/devlopersabbir/webroom/compare/v3.3.1...v3.4.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **voice:** resolve WebRTC multi-peer renegotiation glare, enforce 5-speaker limit, and redesign options ([#31](https://github.com/devlopersabbir/webroom/issues/31)) ([c65ad97](https://github.com/devlopersabbir/webroom/commit/c65ad97d35af48bf85f4fee825dcc87cb6266b19))
+
+
+### Features
+
+* **dev:** auto-fallback to Brave Browser when Google Chrome is not installed ([b04f90c](https://github.com/devlopersabbir/webroom/commit/b04f90cc2a522b6241b4cec45d57e0afd745125d))
+
 ## [3.3.1](https://github.com/devlopersabbir/webroom/compare/v3.3.0...v3.3.1) (2026-09-11)
 
 
