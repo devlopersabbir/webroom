@@ -28,6 +28,7 @@ import {
 import {
   SpeakingPeersListener,
   VoiceManager,
+  VoiceQuotaListener,
   VoiceState,
   VoiceStateListener,
 } from "../voice/voice-manager";
@@ -348,6 +349,41 @@ export class Room {
    */
   public onSpeakingChange(listener: SpeakingPeersListener): () => void {
     return this.voiceManager.onSpeakingChange(listener);
+  }
+
+  /**
+   * Subscribes to voice quota exceeded notifications (e.g. max concurrent speakers).
+   */
+  public onVoiceQuotaExceeded(listener: VoiceQuotaListener): () => void {
+    return this.voiceManager.onQuotaExceeded(listener);
+  }
+
+  /**
+   * Gets the currently selected audio input device ID.
+   */
+  public getAudioInputDevice(): string | null {
+    return this.voiceManager.getAudioInputDevice();
+  }
+
+  /**
+   * Selects and hot-swaps the audio input device across active calls.
+   */
+  public async setAudioInputDevice(deviceId: string): Promise<void> {
+    return this.voiceManager.setAudioInputDevice(deviceId);
+  }
+
+  /**
+   * Checks if file sharing is enabled by user preference.
+   */
+  public isFileSharingEnabled(): boolean {
+    return this.fileTransferManager.isFileSharingEnabled();
+  }
+
+  /**
+   * Updates file sharing preference.
+   */
+  public setFileSharingEnabled(enabled: boolean): void {
+    this.fileTransferManager.setFileSharingEnabled(enabled);
   }
 
   /**

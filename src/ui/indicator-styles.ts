@@ -18,14 +18,10 @@ export const INDICATOR_STYLES = `
 
 .webroom-floating-wrapper {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  inset: 0;
   z-index: 2147483647;
-  pointer-events: auto;
+  pointer-events: none;
   user-select: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
 }
 
 /* ==========================================================================
@@ -33,6 +29,11 @@ export const INDICATOR_STYLES = `
    ========================================================================== */
 
 .webroom-pill {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: none;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -51,10 +52,37 @@ export const INDICATOR_STYLES = `
   font-size: 13px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  cursor: pointer;
+  cursor: grab;
   outline: none;
   transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
+}
+
+.webroom-pill-dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+  transform: scale(1.04) !important;
+  box-shadow: 
+    0 16px 36px rgba(0, 0, 0, 0.55),
+    0 4px 12px rgba(99, 102, 241, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+.webroom-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  opacity: 0.45;
+  margin-right: -1px;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.webroom-pill:hover .webroom-drag-handle {
+  opacity: 0.85;
+  color: #c7d2fe;
 }
 
 .webroom-pill:hover {
@@ -157,23 +185,22 @@ export const INDICATOR_STYLES = `
    ========================================================================== */
 
 .webroom-panel-wrapper {
-  position: absolute;
-  bottom: 44px;
-  right: 0;
-  z-index: 20;
-  transform-origin: bottom right;
-  animation: webroom-panel-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: fixed;
+  z-index: 2147483646;
+  pointer-events: auto;
+  user-select: auto;
+  animation: webroom-panel-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes webroom-panel-in {
   0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.95);
+    transform: scale(0.95);
     filter: blur(4px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
     filter: blur(0px);
   }
 }
@@ -181,8 +208,8 @@ export const INDICATOR_STYLES = `
 .webroom-panel {
   display: flex;
   flex-direction: column;
-  width: min(360px, calc(100vw - 32px));
-  height: min(520px, calc(100vh - 85px));
+  width: 100%;
+  height: 100%;
   background: rgba(16, 16, 20, 0.94);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
@@ -210,6 +237,51 @@ export const INDICATOR_STYLES = `
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   user-select: none;
   flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.webroom-panel-header:active {
+  cursor: grabbing !important;
+}
+
+/* Voice Quota Notification Toast */
+.webroom-voice-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 8px 12px 0 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  animation: webroom-toast-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.webroom-voice-toast-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.webroom-voice-toast-text {
+  flex: 1;
+}
+
+@keyframes webroom-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .webroom-header-left {

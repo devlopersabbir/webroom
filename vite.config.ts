@@ -2,6 +2,115 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import webExtension, { readJsonFile } from "vite-plugin-web-extension";
+import fs from "fs";
+import os from "os";
+import { execSync } from "child_process";
+
+function canAccess(file?: string): boolean {
+  if (!file) return false;
+  try {
+    fs.accessSync(file, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findInPath(executable: string): string | null {
+  try {
+    const cmd = process.platform === "win32" ? `where ${executable}` : `which ${executable}`;
+    const output = execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const firstLine = output.split(/\r?\n/)[0];
+    if (firstLine && canAccess(firstLine)) {
+      return firstLine;
+    }
+  } catch {
+    // not found in PATH
+  }
+  return null;
+}
+
+/**
+ * Resolves the Chromium binary to launch during dev server execution.
+ * Checks for Google Chrome first; if not found on the machine, falls back to Brave Browser.
+ */
+function resolveChromiumBinary(): string | undefined {
+  if (process.env.WEB_EXT_CHROMIUM_BINARY && canAccess(process.env.WEB_EXT_CHROMIUM_BINARY)) {
+    return process.env.WEB_EXT_CHROMIUM_BINARY;
+  }
+
+  const home = os.homedir();
+
+  // 1. Check if Google Chrome / Chromium exists on the machine
+  const chromeCandidates: (string | undefined)[] = [
+    process.env.CHROME_BIN,
+    process.env.CHROME_PATH,
+    process.env.LIGHTHOUSE_CHROMIUM_PATH,
+    // macOS
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    `${home}/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`,
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+    `${home}/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary`,
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    `${home}/Applications/Chromium.app/Contents/MacOS/Chromium`,
+    // Linux
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/snap/bin/chromium",
+    // Windows
+    process.env.PROGRAMFILES ? `${process.env.PROGRAMFILES}\\Google\\Chrome\\Application\\chrome.exe` : undefined,
+    process.env["PROGRAMFILES(X86)"] ? `${process.env["PROGRAMFILES(X86)"]}\\Google\\Chrome\\Application\\chrome.exe` : undefined,
+    process.env.LOCALAPPDATA ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe` : undefined,
+  ];
+
+  for (const candidate of chromeCandidates) {
+    if (candidate && canAccess(candidate)) {
+      return candidate;
+    }
+  }
+
+  for (const cmd of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]) {
+    const found = findInPath(cmd);
+    if (found) return found;
+  }
+
+  // 2. Otherwise, check if Brave exists on the machine
+  const braveCandidates: (string | undefined)[] = [
+    process.env.BRAVE_BIN,
+    process.env.BRAVE_PATH,
+    // macOS
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    `${home}/Applications/Brave Browser.app/Contents/MacOS/Brave Browser`,
+    "/Applications/Brave Browser Beta.app/Contents/MacOS/Brave Browser Beta",
+    `${home}/Applications/Brave Browser Beta.app/Contents/MacOS/Brave Browser Beta`,
+    "/Applications/Brave Browser Nightly.app/Contents/MacOS/Brave Browser Nightly",
+    `${home}/Applications/Brave Browser Nightly.app/Contents/MacOS/Brave Browser Nightly`,
+    // Linux
+    "/usr/bin/brave-browser",
+    "/usr/bin/brave-browser-stable",
+    "/usr/bin/brave",
+    "/snap/bin/brave",
+    // Windows
+    process.env.PROGRAMFILES ? `${process.env.PROGRAMFILES}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe` : undefined,
+    process.env["PROGRAMFILES(X86)"] ? `${process.env["PROGRAMFILES(X86)"]}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe` : undefined,
+    process.env.LOCALAPPDATA ? `${process.env.LOCALAPPDATA}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe` : undefined,
+  ];
+
+  for (const candidate of braveCandidates) {
+    if (candidate && canAccess(candidate)) {
+      return candidate;
+    }
+  }
+
+  for (const cmd of ["brave-browser", "brave-browser-stable", "brave"]) {
+    const found = findInPath(cmd);
+    if (found) return found;
+  }
+
+  return undefined;
+}
 
 /**
  * Strict version validator adhering to SemVer and Chrome/Firefox Extension specifications.
@@ -183,6 +292,9 @@ function extensionSecuritySanitizerPlugin() {
   };
 }
 
+const resolvedChromiumBinary =
+  targetBrowser === "chrome" ? resolveChromiumBinary() : undefined;
+
 export default defineConfig({
   build: {
     // Disable minification for Firefox to provide clean, readable code to AMO reviewers and avoid obfuscation flags
@@ -196,6 +308,11 @@ export default defineConfig({
     webExtension({
       manifest: generateManifest,
       browser: targetBrowser,
+      webExtConfig: resolvedChromiumBinary
+        ? {
+            chromiumBinary: resolvedChromiumBinary,
+          }
+        : undefined,
     }),
   ],
 });
