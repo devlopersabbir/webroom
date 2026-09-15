@@ -15,8 +15,8 @@ class MockTransport implements Transport {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
   }
-  public emitMessage(message: WebRoomMessage): void {
-    for (const h of this.handlers) h(message);
+  public async emitMessage(message: WebRoomMessage): Promise<void> {
+    for (const h of this.handlers) await h(message);
   }
   public close(): void {
     this.handlers.clear();
@@ -238,6 +238,193 @@ describe("VoiceManager", () => {
     expect(peerCVoiceStates.length).toBeGreaterThanOrEqual(1);
 
     vmC.destroy();
+  });
+
+  it("enforces maximum 5 active speakers quota and triggers notification", async () => {
+    const vm = new VoiceManager(roomId, "peer_user_6", transport);
+    vm.start();
+
+    // Mock mediaDevices
+    const mockTrack = { kind: "audio", enabled: true, readyState: "live", stop: vi.fn() };
+    const mockStream = { getAudioTracks: () => [mockTrack], getTracks: () => [mockTrack] };
+    const originalMediaDevices = globalThis.navigator.mediaDevices;
+    // @ts-expect-error Mocking mediaDevices
+    globalThis.navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(mockStream) };
+
+    let quotaNotice: string | null = null;
+    vm.onQuotaExceeded((msg) => {
+      quotaNotice = msg;
+    });
+
+    // 5 peers are already actively speaking in the room
+    for (let i = 1; i <= 5; i++) {
+      transport.emitMessage({
+        type: "VOICE_STATE",
+        roomId,
+        peerId: `peer_speaker_${i}`,
+        isMicOn: true,
+        isSpeakerOn: true,
+        timestamp: Date.now(),
+      });
+    }
+
+    // 6th peer attempts to turn ON microphone
+    const micToggled = await vm.toggleMicrophone();
+
+    // Must be blocked
+    expect(micToggled).toBe(false);
+    expect(vm.getState().isMicOn).toBe(false);
+    expect(quotaNotice).toBe("At a time, more than 5 people cannot speak.");
+
+    // One of the 5 speakers turns OFF their microphone
+    transport.emitMessage({
+      type: "VOICE_STATE",
+      roomId,
+      peerId: "peer_speaker_1",
+      isMicOn: false,
+      isSpeakerOn: true,
+      timestamp: Date.now(),
+    });
+
+    // Now 6th peer should successfully acquire microphone
+    const micAllowed = await vm.toggleMicrophone();
+    expect(micAllowed).toBe(true);
+    expect(vm.getState().isMicOn).toBe(true);
+
+    vm.destroy();
+    // @ts-expect-error Restoring mediaDevices
+    globalThis.navigator.mediaDevices = originalMediaDevices;
+  });
+
+  it("queues and drains pending renegotiation cleanly during polite rollback", async () => {
+    class MockRTCPeerConnection {
+      public signalingState: string = "stable";
+      public onicecandidate: ((ev: any) => any) | null = null;
+      public ontrack: ((ev: any) => any) | null = null;
+      public oniceconnectionstatechange: (() => void) | null = null;
+      public onconnectionstatechange: (() => void) | null = null;
+      private transceivers: any[] = [];
+
+      public addTransceiver(trackOrKind: any, init?: any) {
+        const transceiver = {
+          direction: init?.direction || "sendrecv",
+          sender: {
+            track: null,
+            replaceTrack: vi.fn().mockResolvedValue(undefined),
+            getParameters: vi.fn().mockReturnValue({ encodings: [] }),
+            setParameters: vi.fn().mockResolvedValue(undefined),
+          },
+          receiver: {
+            track: { kind: "audio", readyState: "live" },
+          },
+        };
+        this.transceivers.push(transceiver);
+        return transceiver;
+      }
+
+      public getTransceivers() {
+        return this.transceivers;
+      }
+
+      public addTrack(track: any, stream: any) {
+        const sender = {
+          track,
+          replaceTrack: vi.fn().mockResolvedValue(undefined),
+          getParameters: vi.fn().mockReturnValue({ encodings: [] }),
+          setParameters: vi.fn().mockResolvedValue(undefined),
+        };
+        this.transceivers.push({
+          direction: "sendrecv",
+          sender,
+          receiver: { track: { kind: "audio", readyState: "live" } },
+        });
+        return sender;
+      }
+
+      public createOffer() {
+        return Promise.resolve({
+          type: "offer" as const,
+          sdp: "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=rtpmap:111 opus/48000/2\r\n",
+        });
+      }
+
+      public createAnswer() {
+        return Promise.resolve({
+          type: "answer" as const,
+          sdp: "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=rtpmap:111 opus/48000/2\r\n",
+        });
+      }
+
+      public setLocalDescription(desc?: any) {
+        if (desc?.type === "rollback") {
+          this.signalingState = "stable";
+        } else if (desc?.type === "offer") {
+          this.signalingState = "have-local-offer";
+        } else if (desc?.type === "answer") {
+          this.signalingState = "stable";
+        }
+        return Promise.resolve();
+      }
+
+      public setRemoteDescription(desc: any) {
+        if (desc?.type === "offer") {
+          this.signalingState = "have-remote-offer";
+        } else if (desc?.type === "answer") {
+          this.signalingState = "stable";
+        }
+        return Promise.resolve();
+      }
+
+      public addIceCandidate() {
+        return Promise.resolve();
+      }
+
+      public close() {
+        this.signalingState = "closed";
+      }
+    }
+
+    const originalPC = (globalThis as any).RTCPeerConnection;
+    (globalThis as any).RTCPeerConnection = MockRTCPeerConnection;
+
+    const vmA = new VoiceManager(roomId, "peer_a", transport);
+    vmA.start();
+
+    // Mock mediaDevices
+    const mockTrack = { kind: "audio", enabled: true, readyState: "live", stop: vi.fn() };
+    const mockStream = { getAudioTracks: () => [mockTrack], getTracks: () => [mockTrack] };
+    const originalMediaDevices = globalThis.navigator.mediaDevices;
+    // @ts-expect-error Mocking mediaDevices
+    globalThis.navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(mockStream) };
+
+    await vmA.handlePeerDiscovered("peer_b");
+
+    // Peer A turns on mic
+    await vmA.toggleMicrophone();
+    expect(vmA.getState().isMicOn).toBe(true);
+
+    // Simulate incoming offer from Peer B causing offer collision (peer_a < peer_b => polite)
+    await transport.emitMessage({
+      type: "VOICE_OFFER",
+      roomId,
+      peerId: "peer_b",
+      targetPeerId: "peer_a",
+      sdp: { type: "offer", sdp: "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=rtpmap:111 opus/48000/2\r\n" },
+      timestamp: Date.now(),
+    });
+
+    // Verify Peer A gracefully answers the remote offer
+    const answers = transport.sent.filter((m) => m.type === "VOICE_ANSWER");
+    expect(answers.length).toBeGreaterThanOrEqual(1);
+
+    // Verify Peer A queued and re-offered its own track once state returned to stable
+    const offers = transport.sent.filter((m) => m.type === "VOICE_OFFER" && m.peerId === "peer_a");
+    expect(offers.length).toBeGreaterThanOrEqual(1);
+
+    vmA.destroy();
+    // @ts-expect-error Restoring mediaDevices
+    globalThis.navigator.mediaDevices = originalMediaDevices;
+    (globalThis as any).RTCPeerConnection = originalPC;
   });
 });
 
