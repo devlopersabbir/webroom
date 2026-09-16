@@ -1,3 +1,10 @@
+## [3.4.1](https://github.com/devlopersabbir/webroom/compare/v3.4.0...v3.4.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* Refactor code structure for improved readability and maintainability ([c8e6993](https://github.com/devlopersabbir/webroom/commit/c8e6993f11d1e783afda81261825a08f54e2fcfc))
+
 # [3.4.0](https://github.com/devlopersabbir/webroom/compare/v3.3.1...v3.4.0) (2026-09-15)
 
 
