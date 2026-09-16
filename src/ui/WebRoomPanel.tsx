@@ -139,15 +139,15 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({
   };
 
   const handleOpenSettings = () => {
-    if (typeof chrome !== "undefined" && chrome.runtime?.openOptionsPage) {
-      chrome.runtime.openOptionsPage();
-    } else if (
-      typeof browser !== "undefined" &&
-      (browser as any).runtime?.openOptionsPage
-    ) {
-      (browser as any).runtime.openOptionsPage();
-    } else if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-      window.open(chrome.runtime.getURL("src/options/index.html"), "_blank");
+    const runtime =
+      typeof browser !== "undefined" && browser.runtime?.getURL
+        ? browser.runtime
+        : typeof chrome !== "undefined" && chrome.runtime?.getURL
+          ? chrome.runtime
+          : null;
+
+    if (runtime) {
+      window.open(runtime.getURL("src/options/index.html"), "_blank");
     }
   };
 

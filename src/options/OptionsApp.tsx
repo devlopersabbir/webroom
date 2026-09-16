@@ -17,7 +17,7 @@ type TabType = "audio" | "files" | "about";
 
 export const OptionsApp: React.FC = () => {
   // Navigation
-  const [activeTab, setActiveTab] = useState<TabType>("audio");
+  const [activeTab, setActiveTab] = useState<TabType>("about");
 
   // Settings State
   const [fileSharingEnabled, setFileSharingEnabled] = useState<boolean>(true);
