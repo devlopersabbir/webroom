@@ -1,3 +1,10 @@
+## [3.4.2](https://github.com/devlopersabbir/webroom/compare/v3.4.1...v3.4.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* implement room identification, constants, trystero transport, and presence modules ([3b34694](https://github.com/devlopersabbir/webroom/commit/3b346945dde5dbc46a7563a91e5fcb6f165926ac))
+
 ## [3.4.1](https://github.com/devlopersabbir/webroom/compare/v3.4.0...v3.4.1) (2026-09-16)
 
 
