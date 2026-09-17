@@ -23,7 +23,8 @@ export function canonicalizeUrl(rawUrl: string): string {
 
   // Only handle standard web protocols
   const protocol = parsed.protocol.toLowerCase();
-  const hostname = parsed.hostname.toLowerCase();
+  // Strip leading 'www.' so that www.example.com and example.com hash to the same room
+  const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
 
   // Normalize port
   let port = parsed.port;
@@ -31,8 +32,13 @@ export function canonicalizeUrl(rawUrl: string): string {
     port = "";
   }
 
-  // Normalize pathname: collapse multiple slashes, remove trailing slash if path != "/"
+  // Normalize pathname: collapse multiple slashes
   let pathname = parsed.pathname.replace(/\/+/g, "/");
+
+  // Strip default index documents (/index.html, /index.htm, /index.php)
+  pathname = pathname.replace(/\/(index\.(html?|php))$/i, "");
+
+  // Remove trailing slash if path != "/"
   if (pathname.length > 1 && pathname.endsWith("/")) {
     pathname = pathname.slice(0, -1);
   }

@@ -35,7 +35,7 @@ export class PresenceManager {
     peerId: string,
     transport: Transport,
     peerStore = new PeerStore(),
-    avatar: string = "🐸"
+    avatar: string = "🐸",
   ) {
     this.roomId = roomId;
     this.peerId = peerId;
@@ -181,7 +181,11 @@ export class PresenceManager {
       return;
     }
 
-    if (msg.type !== "HELLO" && msg.type !== "HEARTBEAT" && msg.type !== "GOODBYE") {
+    if (
+      msg.type !== "HELLO" &&
+      msg.type !== "HEARTBEAT" &&
+      msg.type !== "GOODBYE"
+    ) {
       return;
     }
 
@@ -194,7 +198,11 @@ export class PresenceManager {
       case "HELLO": {
         // A new peer joined. Update their presence using local receiver timestamp
         // and immediately reply with HEARTBEAT so the new peer discovers us.
-        const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
+        const isNew = this.peerStore.updatePeer(
+          msg.peerId,
+          Date.now(),
+          msg.avatar,
+        );
         this.broadcastMessage("HEARTBEAT");
         if (isNew) {
           this.notifyCountChange();
@@ -204,7 +212,11 @@ export class PresenceManager {
       }
 
       case "HEARTBEAT": {
-        const isNew = this.peerStore.updatePeer(msg.peerId, Date.now(), msg.avatar);
+        const isNew = this.peerStore.updatePeer(
+          msg.peerId,
+          Date.now(),
+          msg.avatar,
+        );
         if (isNew) {
           this.notifyCountChange();
           this.notifyPeerJoin(msg.peerId);
@@ -285,4 +297,3 @@ export class PresenceManager {
     }
   }
 }
-

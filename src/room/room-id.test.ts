@@ -54,8 +54,36 @@ describe("Room ID & URL Canonicalization", () => {
     expect(canonicalizeUrl(urlWithHash)).toBe(canonicalizeUrl(urlNoHash));
   });
 
+  it("strips www. prefix from hostname", () => {
+    const withWww = "https://www.example.com/products/item";
+    const withoutWww = "https://example.com/products/item";
+    expect(canonicalizeUrl(withWww)).toBe("https://example.com/products/item");
+    expect(canonicalizeUrl(withWww)).toBe(canonicalizeUrl(withoutWww));
+  });
+
+  it("strips default index documents (/index.html, /index.htm, /index.php)", () => {
+    const urlHtml = "https://example.com/index.html";
+    const urlHtm = "https://example.com/index.htm";
+    const urlPhp = "https://example.com/index.php";
+    const urlRoot = "https://example.com/";
+    const urlSubdirHtml = "https://example.com/blog/index.html";
+    const urlSubdir = "https://example.com/blog";
+
+    expect(canonicalizeUrl(urlHtml)).toBe("https://example.com/");
+    expect(canonicalizeUrl(urlHtm)).toBe("https://example.com/");
+    expect(canonicalizeUrl(urlPhp)).toBe("https://example.com/");
+    expect(canonicalizeUrl(urlHtml)).toBe(canonicalizeUrl(urlRoot));
+    expect(canonicalizeUrl(urlSubdirHtml)).toBe(canonicalizeUrl(urlSubdir));
+  });
+
+  it("strips expanded social/referral parameters like feature, si, channel, spm", () => {
+    const raw = "https://youtube.com/watch?v=dQw4w9WgXcQ&feature=shared&si=abcd1234&channel=UC123";
+    const clean = "https://youtube.com/watch?v=dQw4w9WgXcQ";
+    expect(canonicalizeUrl(raw)).toBe(canonicalizeUrl(clean));
+  });
+
   it("generates deterministic SHA-256 room ID", async () => {
-    const url1 = "https://youtube.com/watch?v=ABC123&utm_source=share";
+    const url1 = "https://www.youtube.com/watch?v=ABC123&utm_source=share&feature=shared";
     const url2 = "https://youtube.com/watch?v=ABC123";
 
     const roomId1 = await getRoomId(url1);

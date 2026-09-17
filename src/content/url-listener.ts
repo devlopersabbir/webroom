@@ -12,6 +12,7 @@ export class UrlListener {
   private originalReplaceState: typeof window.history.replaceState | null = null;
   private popstateListener: (() => void) | null = null;
   private hashchangeListener: (() => void) | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
   private isListening = false;
 
   constructor() {
@@ -53,6 +54,13 @@ export class UrlListener {
       this.checkUrlChange();
     };
     window.addEventListener("hashchange", this.hashchangeListener);
+
+    // 5. Periodic polling (350ms) to guarantee detection of SPA route changes
+    // (Next.js, React Router, Vue Router, YouTube SPA) running in the webpage's main world
+    // where content script pushState patches are isolated.
+    this.pollTimer = setInterval(() => {
+      this.checkUrlChange();
+    }, 350);
   }
 
   public onChange(handler: UrlChangeHandler): () => void {
@@ -86,6 +94,11 @@ export class UrlListener {
     if (this.hashchangeListener) {
       window.removeEventListener("hashchange", this.hashchangeListener);
       this.hashchangeListener = null;
+    }
+
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
     }
 
     this.handlers.clear();

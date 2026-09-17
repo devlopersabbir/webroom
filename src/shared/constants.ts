@@ -110,6 +110,10 @@ export const KNOWN_TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "yclid",
   "igshid",
   "si", // Spotify/YouTube share identifiers
+  "feature", // YouTube & social feature parameter (e.g. feature=shared, feature=youtu.be)
+  "spm", // E-commerce / AliExpress tracking
+  "channel", // YouTube / marketing channel parameter
+  "ved", // Google search click tracking
 ]);
 
 // Persistent storage keys for user preferences
