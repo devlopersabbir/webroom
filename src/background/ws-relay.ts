@@ -103,7 +103,7 @@ export function initWebSocketRelayBridge(runtime: any): void {
 
             socket.onerror = (event: Event) => {
               if (isPortClosed) return;
-              console.warn(
+              console.debug(
                 "[WebRoom Background WS] Relay connection error for:",
                 url,
               );

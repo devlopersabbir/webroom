@@ -316,7 +316,7 @@ export class BackgroundWebSocket implements EventTarget {
   }
 
   private handleError(errorDetails: any): void {
-    console.warn(
+    console.debug(
       `[WebRoom WS Bridge] Bridge WebSocket error on ${this.url}:`,
       errorDetails,
     );

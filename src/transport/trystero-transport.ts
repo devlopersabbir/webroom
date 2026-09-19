@@ -12,14 +12,18 @@ export const WEBROOM_APP_ID = "webroom.presence.p2p.v2";
  * All relays verified active and tested for reliable real-time ephemeral signaling.
  */
 export const DEFAULT_RELAY_URLS = [
-  "wss://nos.lol", // Verified: ACCEPTED (Global edge CDN, instant delivery)
   "wss://purplerelay.com", // Verified: ACCEPTED (Cloudflare edge, sub-second latency)
   "wss://nostr.data.haus", // Verified: ACCEPTED (High reliability open relay)
-  "wss://offchain.pub", // Verified: ACCEPTED (High throughput open relay)
-  "wss://relay.nostr.net", // Verified: ACCEPTED (High capacity open relay)
   "wss://yabu.me", // Verified: ACCEPTED (Global / Asia-Pacific edge)
-  "wss://nostr-pub.wellorder.net", // Verified: ACCEPTED (Stable longstanding open relay)
   "wss://relay.primal.net", // Verified: ACCEPTED (High availability global CDN)
+  "wss://bucket.coracle.social", // Verified: ACCEPTED (Coracle open relay)
+  "wss://chorus.pjv.me", // Verified: ACCEPTED (Fast open relay)
+  "wss://nostr-relay.corb.net", // Verified: ACCEPTED (High reliability open relay)
+  "wss://relay.mostr.pub", // Verified: ACCEPTED (High capacity open relay)
+  "wss://relay.sigit.io", // Verified: ACCEPTED (High availability open relay)
+  "wss://schnorr.me", // Verified: ACCEPTED (Dedicated Nostr open relay)
+  "wss://nostr.islandarea.net", // Verified: ACCEPTED (Stable open relay)
+  "wss://top.testrelay.top", // Verified: ACCEPTED (Fast open relay)
 ];
 
 /**
@@ -75,7 +79,7 @@ export class TrysteroTorrentTransport implements Transport {
           relayConfig: {
             urls: DEFAULT_RELAY_URLS,
             redundancy: 4,
-            warnOnRelayFailure: true,
+            warnOnRelayFailure: false,
           },
           rtcConfig: DEFAULT_RTC_CONFIG,
           rtcPolyfill: SafeRTCPeerConnection as any,
