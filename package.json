@@ -128,8 +128,8 @@
   },
   "readme": "./README.md",
   "scripts": {
-    "dev": "rm -rf dist && vite",
-    "build": "tsc && vite build",
+    "dev": "node init && rm -rf dist && vite",
+    "build": "node init && tsc && vite build",
     "test": "vitest",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "lint": "bun run lint:firefox",
@@ -140,12 +140,14 @@
     "zip:all": "bun ./zip.ts TARGET=all",
     "zip:chrome": "bun ./zip.ts TARGET=chrome",
     "zip:firefox": "bun ./zip.ts TARGET=firefox",
-    "build:chrome": "tsc && cross-env TARGET=chrome vite build",
-    "build:firefox": "tsc && cross-env TARGET=firefox vite build"
+    "build:chrome": "node init && tsc && cross-env TARGET=chrome vite build",
+    "build:firefox": "node init && tsc && cross-env TARGET=firefox vite build"
   },
   "dependencies": {
     "@trystero-p2p/mqtt": "^0.25.3",
     "@trystero-p2p/torrent": "^0.25.3",
+    "dotenv": "^8.2.0",
+    "node-fetch": "^3.3.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "trystero": "^0.25.3",
