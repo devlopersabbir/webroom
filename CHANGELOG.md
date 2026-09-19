@@ -1,3 +1,10 @@
+# [3.5.0](https://github.com/devlopersabbir/webroom/compare/v3.4.2...v3.5.0) (2026-09-19)
+
+
+### Features
+
+* implement background WebSocket bridge and relay for extension networking ([b19fdab](https://github.com/devlopersabbir/webroom/commit/b19fdab8b726f4a4ad3db2fd940ef076d936420d))
+
 ## [3.4.2](https://github.com/devlopersabbir/webroom/compare/v3.4.1...v3.4.2) (2026-09-17)
 
 
