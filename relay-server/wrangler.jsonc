@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "webroom-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-22",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ROOM_RELAY",
+        "class_name": "RoomRelayDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RoomRelayDO"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

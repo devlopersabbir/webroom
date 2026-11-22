@@ -1,0 +1,35 @@
+app = "webroom-relay"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+  MAX_PEERS_PER_ROOM = "250"
+  READ_TIMEOUT_SEC = "70"
+  WRITE_TIMEOUT_SEC = "10"
+  PING_INTERVAL_SEC = "30"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25000
+    soft_limit = 20000
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

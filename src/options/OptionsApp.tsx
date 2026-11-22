@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   APP_VERSION,
   AUDIO_DEVICE_STORAGE_KEY,
+  DEFAULT_RELAY_URL,
   FILE_SHARING_STORAGE_KEY,
+  RELAY_URL_STORAGE_KEY,
 } from "../shared/constants";
+import { normalizeRelayBaseUrl } from "../transport/relay-transport";
 
 declare const chrome: any;
 
@@ -13,7 +16,7 @@ interface AudioDevice {
   groupId: string;
 }
 
-type TabType = "audio" | "files" | "about";
+type TabType = "audio" | "files" | "relay" | "about";
 
 export const OptionsApp: React.FC = () => {
   // Navigation
@@ -22,6 +25,11 @@ export const OptionsApp: React.FC = () => {
   // Settings State
   const [fileSharingEnabled, setFileSharingEnabled] = useState<boolean>(true);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [relayUrl, setRelayUrl] = useState<string>("");
+  const [relayTestStatus, setRelayTestStatus] = useState<{
+    state: "idle" | "testing" | "ok" | "error";
+    message?: string;
+  }>({ state: "idle" });
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [hasDeviceLabels, setHasDeviceLabels] = useState<boolean>(false);
   const [isRefreshingDevices, setIsRefreshingDevices] = useState<boolean>(false);
@@ -40,7 +48,7 @@ export const OptionsApp: React.FC = () => {
   useEffect(() => {
     if (typeof chrome !== "undefined" && chrome.storage?.local) {
       chrome.storage.local.get(
-        [FILE_SHARING_STORAGE_KEY, AUDIO_DEVICE_STORAGE_KEY],
+        [FILE_SHARING_STORAGE_KEY, AUDIO_DEVICE_STORAGE_KEY, RELAY_URL_STORAGE_KEY],
         (items: Record<string, any>) => {
           if (items && FILE_SHARING_STORAGE_KEY in items) {
             setFileSharingEnabled(Boolean(items[FILE_SHARING_STORAGE_KEY]));
@@ -55,6 +63,12 @@ export const OptionsApp: React.FC = () => {
             const localDevice = localStorage.getItem(AUDIO_DEVICE_STORAGE_KEY) || "";
             setSelectedDeviceId(localDevice);
           }
+
+          if (items && RELAY_URL_STORAGE_KEY in items) {
+            setRelayUrl(String(items[RELAY_URL_STORAGE_KEY] || ""));
+          } else {
+            setRelayUrl(localStorage.getItem(RELAY_URL_STORAGE_KEY) || "");
+          }
         }
       );
     } else {
@@ -63,6 +77,8 @@ export const OptionsApp: React.FC = () => {
 
       const localDevice = localStorage.getItem(AUDIO_DEVICE_STORAGE_KEY) || "";
       setSelectedDeviceId(localDevice);
+
+      setRelayUrl(localStorage.getItem(RELAY_URL_STORAGE_KEY) || "");
     }
 
     loadAudioDevices();
@@ -124,6 +140,68 @@ export const OptionsApp: React.FC = () => {
       setTestError(
         "Microphone access denied. Please enable microphone permissions in your browser address bar."
       );
+    }
+  };
+
+  const handleSaveRelayUrl = (valueToSave: string) => {
+    const normalized = valueToSave.trim() ? normalizeRelayBaseUrl(valueToSave) : "";
+    setRelayUrl(normalized);
+    setRelayTestStatus({ state: "idle" });
+
+    try {
+      if (normalized) {
+        localStorage.setItem(RELAY_URL_STORAGE_KEY, normalized);
+      } else {
+        localStorage.removeItem(RELAY_URL_STORAGE_KEY);
+      }
+    } catch (_) {}
+
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.set({ [RELAY_URL_STORAGE_KEY]: normalized }, () => {
+        showSavedNotice(normalized ? "Relay server saved" : "Reset to default relay");
+      });
+    } else {
+      showSavedNotice(normalized ? "Relay server saved" : "Reset to default relay");
+    }
+  };
+
+  const handleTestRelay = async () => {
+    const target = (relayUrl.trim() || DEFAULT_RELAY_URL).trim();
+    if (!target) {
+      setRelayTestStatus({
+        state: "error",
+        message: "Enter a relay URL (e.g. wss://webroom-relay.your-subdomain.workers.dev)",
+      });
+      return;
+    }
+
+    const normalized = normalizeRelayBaseUrl(target);
+    const healthUrl =
+      normalized.replace(/^wss:\/\//, "https://").replace(/^ws:\/\//, "http://") +
+      "/health";
+
+    setRelayTestStatus({ state: "testing", message: "Checking relay health..." });
+    try {
+      const started = performance.now();
+      const res = await fetch(healthUrl, { method: "GET" });
+      const latency = Math.round(performance.now() - started);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      if (json?.ok) {
+        setRelayTestStatus({
+          state: "ok",
+          message: `Connected (${latency} ms) — ${json.service || "webroom-relay"}`,
+        });
+      } else {
+        throw new Error("Unexpected health response");
+      }
+    } catch (err: any) {
+      setRelayTestStatus({
+        state: "error",
+        message: `Unreachable: ${err?.message || "Connection failed"}`,
+      });
     }
   };
 
@@ -332,6 +410,21 @@ export const OptionsApp: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
             </svg>
             <span>File Sharing</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("relay")}
+            className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              activeTab === "relay"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+            </svg>
+            <span>Relay Server</span>
           </button>
 
           <button
@@ -605,7 +698,86 @@ export const OptionsApp: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 3: SUPPORT & AUTHOR */}
+        {/* TAB 3: RELAY SERVER */}
+        {activeTab === "relay" && (
+          <div className="space-y-5">
+            <div className="bg-[#101726] border border-slate-800/90 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
+              <div>
+                <h2 className="text-sm font-semibold text-white">Custom WebSocket Relay Server</h2>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Route presence, chat, and WebRTC signaling through your own WebRoom relay server
+                  for instant, reliable peer discovery. Voice audio and file transfers still run
+                  peer-to-peer.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-slate-300">
+                  Relay Base URL
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={relayUrl}
+                    onChange={(e) => setRelayUrl(e.target.value)}
+                    placeholder={
+                      DEFAULT_RELAY_URL || "wss://relay.yourdomain.com"
+                    }
+                    className="flex-1 bg-[#090d16] border border-slate-700/90 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSaveRelayUrl(relayUrl)}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition cursor-pointer"
+                  >
+                    Save
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {DEFAULT_RELAY_URL
+                    ? `Built-in default: ${DEFAULT_RELAY_URL}`
+                    : "Leave empty to use built-in fallback relays. Reload open tabs after changing."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleTestRelay}
+                  disabled={relayTestStatus.state === "testing"}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition cursor-pointer disabled:opacity-50"
+                >
+                  {relayTestStatus.state === "testing" ? "Testing..." : "Test Connection"}
+                </button>
+                {relayUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveRelayUrl("")}
+                    className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                  >
+                    Reset to Default
+                  </button>
+                )}
+              </div>
+
+              {relayTestStatus.state !== "idle" && relayTestStatus.message && (
+                <div
+                  className={`p-3 rounded-xl border text-xs ${
+                    relayTestStatus.state === "ok"
+                      ? "bg-emerald-950/25 border-emerald-800/40 text-emerald-300"
+                      : relayTestStatus.state === "error"
+                        ? "bg-rose-950/25 border-rose-800/40 text-rose-300"
+                        : "bg-slate-900 border-slate-800 text-slate-300"
+                  }`}
+                >
+                  {relayTestStatus.message}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: SUPPORT & AUTHOR */}
         {activeTab === "about" && (
           <div className="space-y-5">
             {/* Buy Me a Coffee Card */}

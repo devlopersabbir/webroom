@@ -119,3 +119,9 @@ export const KNOWN_TRACKING_PARAMS: ReadonlySet<string> = new Set([
 // Persistent storage keys for user preferences
 export const AUDIO_DEVICE_STORAGE_KEY = "webroom_audio_input_device_id";
 export const FILE_SHARING_STORAGE_KEY = "webroom_file_sharing_enabled";
+export const RELAY_URL_STORAGE_KEY = "webroom_relay_url";
+
+// Build-time default relay URL (overridable via VITE_RELAY_URL in .env or Options UI)
+export const DEFAULT_RELAY_URL: string =
+  ((import.meta as any).env?.VITE_RELAY_URL as string | undefined)?.trim() ||
+  "wss://webroom-relay.webroom-relay-server.workers.dev";

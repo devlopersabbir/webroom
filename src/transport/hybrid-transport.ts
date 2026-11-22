@@ -1,28 +1,57 @@
 import { WebRoomMessage } from "../presence/protocol";
 import { BroadcastChannelTransport } from "./broadcast-channel";
+import {
+  getConfiguredRelayUrlSync,
+  RelayWebSocketTransport,
+} from "./relay-transport";
 import { BinaryDataHandler, BinaryProgressHandler, MessageHandler, Transport } from "./transport";
 import { TrysteroTorrentTransport } from "./trystero-transport";
 
 /**
+ * Selects the default remote transport:
+ * - Uses the dedicated WebRoom WebSocket Relay when a relay URL is configured
+ *   (via VITE_RELAY_URL or user Options override).
+ * - Falls back to Trystero public relays if no custom relay URL is configured yet.
+ */
+function createDefaultRemoteTransport(
+  roomId: string,
+  peerId?: string,
+  relayUrl?: string,
+): Transport {
+  const effectiveRelayUrl = relayUrl?.trim() || getConfiguredRelayUrlSync();
+  if (effectiveRelayUrl) {
+    const effectivePeerId =
+      peerId || `peer_${Math.random().toString(36).substring(2, 14)}`;
+    return new RelayWebSocketTransport(roomId, effectivePeerId, {
+      relayUrl: effectiveRelayUrl,
+    });
+  }
+  return new TrysteroTorrentTransport(roomId);
+}
+
+/**
  * Hybrid transport combining local BroadcastChannel (instant tab-to-tab)
- * and decentralized serverless WebRTC (cross-machine WAN).
+ * and remote WebSocket Relay / WebRTC (cross-machine WAN).
  */
 export class HybridTransport implements Transport {
   public readonly roomId: string;
-  private readonly localTransport: BroadcastChannelTransport;
-  private readonly remoteTransport: TrysteroTorrentTransport;
+  private readonly localTransport: Transport;
+  private readonly remoteTransport: Transport;
   private handlers = new Set<MessageHandler>();
   private isClosed = false;
   private seenSignatures = new Set<string>();
 
   constructor(
     roomId: string,
-    localTransport = new BroadcastChannelTransport(roomId),
-    remoteTransport = new TrysteroTorrentTransport(roomId)
+    localTransport: Transport = new BroadcastChannelTransport(roomId),
+    remoteTransport?: Transport,
+    peerId?: string,
+    relayUrl?: string,
   ) {
     this.roomId = roomId;
     this.localTransport = localTransport;
-    this.remoteTransport = remoteTransport;
+    this.remoteTransport =
+      remoteTransport || createDefaultRemoteTransport(roomId, peerId, relayUrl);
   }
 
   public start(): void {

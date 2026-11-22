@@ -19,6 +19,7 @@ import { MediaRoutingLayer } from "../routing/media-routing-layer";
 import { RoutingPlan, RoutingPlanListener } from "../routing/routing-types";
 import { getRandomAvatar } from "../shared/constants";
 import { HybridTransport } from "../transport/hybrid-transport";
+import { resolveConfiguredRelayUrl } from "../transport/relay-transport";
 import { Transport } from "../transport/transport";
 import {
   FileTransferManager,
@@ -144,9 +145,13 @@ export class Room {
     const peerId = options.customPeerId || generatePeerId();
     const avatar = options.customAvatar || getRandomAvatar();
 
+    const relayUrl = options.transportFactory
+      ? ""
+      : await resolveConfiguredRelayUrl();
+
     const transport = options.transportFactory
       ? options.transportFactory(roomId)
-      : new HybridTransport(roomId);
+      : new HybridTransport(roomId, undefined, undefined, peerId, relayUrl);
 
     const presenceManager = new PresenceManager(
       roomId,

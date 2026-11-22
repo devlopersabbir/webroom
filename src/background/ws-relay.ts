@@ -6,6 +6,27 @@
  * context guarantees that connections to BitTorrent trackers and signaling relays
  * are NEVER blocked by third-party website security policies.
  */
+/**
+ * Validates that a WebSocket URL uses secure wss:// (or ws:// strictly for local dev).
+ */
+function isAllowedWebSocketUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === "wss:") {
+      return true;
+    }
+    if (
+      parsed.protocol === "ws:" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    ) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function initWebSocketRelayBridge(runtime: any): void {
   if (!runtime || !runtime.onConnect) {
     return;
@@ -50,7 +71,25 @@ export function initWebSocketRelayBridge(runtime: any): void {
       switch (msg.type) {
         case "init": {
           const { url, protocols } = msg;
-          if (!url) return;
+          if (!url || typeof url !== "string" || !isAllowedWebSocketUrl(url)) {
+            if (!isPortClosed) {
+              try {
+                port.postMessage({
+                  type: "error",
+                  error: "Blocked disallowed WebSocket URL scheme",
+                });
+                port.postMessage({
+                  type: "close",
+                  code: 1008,
+                  reason: "Disallowed WebSocket URL",
+                  wasClean: false,
+                });
+              } catch {
+                // Port might be closed
+              }
+            }
+            return;
+          }
 
           try {
             cleanup();
