@@ -30,8 +30,6 @@ release/
 
 secret.txt
 chrome_secrets.json
-.env
-.env.*
 v*_chrome
 v*_firefox
 branch_structure.json
