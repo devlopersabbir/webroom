@@ -1,3 +1,10 @@
+# [3.6.0](https://github.com/devlopersabbir/webroom/compare/v3.5.0...v3.6.0) (2026-11-22)
+
+
+### Features
+
+* add Go relay server implementation and configure Cloudflare relay server ([d2015e6](https://github.com/devlopersabbir/webroom/commit/d2015e6fe465d54dd4779a3584beab62deac36e2))
+
 # [3.5.0](https://github.com/devlopersabbir/webroom/compare/v3.4.2...v3.5.0) (2026-09-19)
 
 
