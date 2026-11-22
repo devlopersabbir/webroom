@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canonicalizeUrl, getRoomId } from "./room-id";
+import {
+  canonicalizeHost,
+  canonicalizeUrl,
+  getHostLabel,
+  getRoomId,
+} from "./room-id";
 
 describe("Room ID & URL Canonicalization", () => {
   it("normalizes scheme and hostname to lowercase", () => {
@@ -93,9 +98,43 @@ describe("Room ID & URL Canonicalization", () => {
     expect(roomId1).toBe(roomId2);
   });
 
-  it("produces different room IDs for distinct URLs", async () => {
-    const roomIdA = await getRoomId("https://example.com/page-a");
-    const roomIdB = await getRoomId("https://example.com/page-b");
+  it("normalizes hosts for Domain Lobby rooms (strips www, ports, paths, and queries)", () => {
+    expect(canonicalizeHost("https://www.github.com/devlopersabbir/webroom")).toBe(
+      "https://github.com",
+    );
+    expect(
+      canonicalizeHost("HTTPS://GITHUB.COM:443/devlopersabbir/webroom/blob/main/BUILD.md?tab=1#top"),
+    ).toBe("https://github.com");
+    expect(canonicalizeHost("https://docs.github.com/en/get-started")).toBe(
+      "https://docs.github.com",
+    );
+    expect(getHostLabel("https://www.github.com/devlopersabbir/webroom")).toBe(
+      "github.com",
+    );
+  });
+
+  it("shares the same default (domain) room ID across different paths on the same host", async () => {
+    const roomIdA = await getRoomId("https://github.com/devlopersabbir/webroom");
+    const roomIdB = await getRoomId(
+      "https://www.github.com/devlopersabbir/webroom/blob/main/BUILD.md",
+    );
+
+    expect(roomIdA).toHaveLength(64);
+    expect(roomIdA).toBe(roomIdB);
+  });
+
+  it("produces different default (domain) room IDs for distinct hosts and subdomains", async () => {
+    const githubId = await getRoomId("https://github.com/devlopersabbir/webroom");
+    const docsId = await getRoomId("https://docs.github.com/en");
+    const gitlabId = await getRoomId("https://gitlab.com/devlopersabbir/webroom");
+
+    expect(githubId).not.toBe(docsId);
+    expect(githubId).not.toBe(gitlabId);
+  });
+
+  it("produces different room IDs for distinct paths when using page scope", async () => {
+    const roomIdA = await getRoomId("https://example.com/page-a", "page");
+    const roomIdB = await getRoomId("https://example.com/page-b", "page");
 
     expect(roomIdA).not.toBe(roomIdB);
   });

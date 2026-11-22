@@ -7,16 +7,17 @@ import pkg from "../../package.json";
 // Application version dynamically matching package.json release SemVer
 export const APP_VERSION = pkg.version;
 
-// Heartbeat transmission interval in milliseconds (2.5 seconds)
-export const HEARTBEAT_INTERVAL_MS = 2500;
+// Heartbeat transmission interval in milliseconds (10 seconds)
+// Optimized for domain-wide rooms (75% less relay traffic; disconnects remain instant via relay peer_leave)
+export const HEARTBEAT_INTERVAL_MS = 10000;
 
-// Suspected peer failure threshold in milliseconds (5 seconds = 2 missed heartbeats)
-export const SUSPECTED_TIMEOUT_MS = 5000;
+// Suspected peer failure threshold in milliseconds (20 seconds = 2 missed heartbeats)
+export const SUSPECTED_TIMEOUT_MS = 20000;
 
-// Peer inactivity timeout threshold in milliseconds (10 seconds)
-// Generous 4x heartbeat window ensures internet jitter never causes false disconnects.
-export const PEER_TIMEOUT_MS = 10000;
-export const NODE_TIMEOUT_MS = 10000;
+// Peer inactivity timeout threshold in milliseconds (35 seconds)
+// Generous 3.5x heartbeat window prevents false disconnects on domain lobbies with internet jitter.
+export const PEER_TIMEOUT_MS = 35000;
+export const NODE_TIMEOUT_MS = 35000;
 
 // Peer store cleanup scan interval in milliseconds (1 second)
 export const CLEANUP_INTERVAL_MS = 1000;
@@ -120,6 +121,8 @@ export const KNOWN_TRACKING_PARAMS: ReadonlySet<string> = new Set([
 export const AUDIO_DEVICE_STORAGE_KEY = "webroom_audio_input_device_id";
 export const FILE_SHARING_STORAGE_KEY = "webroom_file_sharing_enabled";
 export const RELAY_URL_STORAGE_KEY = "webroom_relay_url";
+export const ROOM_SCOPE_STORAGE_KEY = "webroom_room_scope";
+export const SESSION_AVATAR_STORAGE_KEY = "webroom_session_avatar";
 
 // Build-time default relay URL (overridable via VITE_RELAY_URL in .env or Options UI)
 export const DEFAULT_RELAY_URL: string =

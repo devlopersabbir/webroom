@@ -40,35 +40,85 @@ export const FollowCursor: React.FC<FollowCursorProps> = ({ room }) => {
 
   return (
     <div className="webroom-follow-cursor-overlay" aria-hidden="true">
-      {/* Live Text Selection Highlight from Leader */}
+      {/* Live Text Selection Highlight from Leader (DOM-Range wrapped rects or fallback rect) */}
       {selection && selection.selectedText && (
-        <div
-          className="webroom-selection-highlight"
-          style={
-            selection.rect
-              ? {
+        selection.rects && selection.rects.length > 0 ? (
+          <>
+            {selection.rects.map((r, idx) => (
+              <div
+                key={`sel-${idx}`}
+                className="webroom-selection-highlight"
+                style={{
                   position: "fixed",
-                  top: `${selection.rect.top}px`,
-                  left: `${selection.rect.left}px`,
-                  width: `${Math.max(20, selection.rect.width)}px`,
-                  height: `${Math.max(16, selection.rect.height)}px`,
-                }
-              : {
-                  position: "fixed",
-                  bottom: "24px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                }
-          }
-        >
-          <div className="webroom-selection-box" />
-          <div className="webroom-selection-badge">
-            <span className="webroom-selection-avatar">{selection.leaderAvatar}</span>
-            <span className="webroom-selection-text">
-              Selected: "{selection.selectedText.length > 28 ? selection.selectedText.slice(0, 28) + "…" : selection.selectedText}"
-            </span>
+                  top: `${r.top}px`,
+                  left: `${r.left}px`,
+                  width: `${Math.max(8, r.width)}px`,
+                  height: `${Math.max(14, r.height)}px`,
+                }}
+              >
+                <div className="webroom-selection-box" />
+                {idx === 0 && (
+                  <div className="webroom-selection-badge">
+                    <span className="webroom-selection-avatar">{selection.leaderAvatar}</span>
+                    <span className="webroom-selection-text">
+                      Selected: "{selection.selectedText.length > 28 ? selection.selectedText.slice(0, 28) + "…" : selection.selectedText}"
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        ) : (
+          <div
+            className="webroom-selection-highlight"
+            style={
+              selection.rect
+                ? {
+                    position: "fixed",
+                    top: `${selection.rect.top}px`,
+                    left: `${selection.rect.left}px`,
+                    width: `${Math.max(20, selection.rect.width)}px`,
+                    height: `${Math.max(16, selection.rect.height)}px`,
+                  }
+                : {
+                    position: "fixed",
+                    bottom: "24px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                  }
+            }
+          >
+            <div className="webroom-selection-box" />
+            <div className="webroom-selection-badge">
+              <span className="webroom-selection-avatar">{selection.leaderAvatar}</span>
+              <span className="webroom-selection-text">
+                Selected: "{selection.selectedText.length > 28 ? selection.selectedText.slice(0, 28) + "…" : selection.selectedText}"
+              </span>
+            </div>
           </div>
-        </div>
+        )
+      )}
+
+      {/* Subtle element highlight ring when leader hovers/clicks an interactive DOM element */}
+      {cursor?.elementRect && (cursor.isHovering || cursor.isClicking) && (
+        <div
+          style={{
+            position: "fixed",
+            top: `${cursor.elementRect.top - 2}px`,
+            left: `${cursor.elementRect.left - 2}px`,
+            width: `${cursor.elementRect.width + 4}px`,
+            height: `${cursor.elementRect.height + 4}px`,
+            borderRadius: "6px",
+            border: cursor.isClicking
+              ? "2px solid rgba(139, 92, 246, 0.95)"
+              : "1.5px dashed rgba(139, 92, 246, 0.65)",
+            backgroundColor: cursor.isClicking
+              ? "rgba(139, 92, 246, 0.14)"
+              : "rgba(139, 92, 246, 0.05)",
+            pointerEvents: "none",
+            transition: "all 90ms ease-out",
+          }}
+        />
       )}
 
       {/* Click ripple bursts */}

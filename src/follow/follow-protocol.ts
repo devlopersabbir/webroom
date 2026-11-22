@@ -31,6 +31,14 @@ export interface FollowScrollMessage {
   type: "FOLLOW_SCROLL";
   roomId: string;
   leaderId: string;
+  url?: string;
+  pathname?: string;
+  anchorSelector?: string;
+  anchorTopRatio?: number;
+  containerSelector?: string;
+  containerScrollPctY?: number;
+  containerScrollPctX?: number;
+  isSettled?: boolean;
   scrollX: number;
   scrollY: number;
   maxScrollX: number;
@@ -45,6 +53,10 @@ export interface FollowCursorMessage {
   roomId: string;
   leaderId: string;
   leaderAvatar: string;
+  pathname?: string;
+  elementSelector?: string;
+  elementOffsetX?: number;
+  elementOffsetY?: number;
   clientX: number;
   clientY: number;
   pageX: number;
@@ -68,6 +80,9 @@ export interface FollowSelectionMessage {
   roomId: string;
   leaderId: string;
   leaderAvatar?: string;
+  pathname?: string;
+  elementSelector?: string;
+  startOffset?: number;
   selectedText: string;
   rect?: SelectionRect;
   timestamp: number;
@@ -77,6 +92,8 @@ export interface FollowNavigateMessage {
   type: "FOLLOW_NAVIGATE";
   roomId: string;
   leaderId: string;
+  url?: string;
+  pathname?: string;
   timestamp: number;
 }
 
