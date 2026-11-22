@@ -266,6 +266,7 @@ export class Room {
     this.url = newUrl;
     this.canonicalUrl =
       this.scope === "page" ? canonicalizeUrl(newUrl) : canonicalizeHost(newUrl);
+    this.followManager.handleLocalPathChange(newUrl);
   }
 
   /**
