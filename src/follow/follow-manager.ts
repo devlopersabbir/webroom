@@ -1,6 +1,14 @@
 import { WebRoomMessage } from "../presence/protocol";
 import { Transport } from "../transport/transport";
 import {
+  captureCursorAnchor,
+  captureScrollAnchor,
+  captureSelectionAnchor,
+  resolveCursorPosition,
+  resolveElementSelector,
+  resolveSelectionRects,
+} from "./dom-anchor";
+import {
   FollowCursorMessage,
   FollowNavigateMessage,
   FollowScrollMessage,
@@ -25,6 +33,7 @@ export interface FollowCursorState {
   pageY: number;
   percentageX: number;
   percentageY: number;
+  elementRect?: SelectionRect;
   isHovering?: boolean;
   isClicking?: boolean;
   timestamp: number;
@@ -35,6 +44,7 @@ export interface FollowSelectionState {
   leaderAvatar: string;
   selectedText: string;
   rect?: SelectionRect;
+  rects?: SelectionRect[];
   timestamp: number;
 }
 
@@ -42,6 +52,9 @@ export type FollowCursorListener = (cursor: FollowCursorState | null) => void;
 export type FollowSelectionListener = (
   selection: FollowSelectionState | null,
 ) => void;
+
+const PENDING_FOLLOW_STORAGE_KEY = "webroom_pending_follow";
+const PENDING_FOLLOW_TTL_MS = 15000;
 
 /**
  * Coordinates follow relationships, live mouse cursor broadcast,
@@ -68,15 +81,21 @@ export class FollowManager {
   private isApplyingRemoteScroll = false;
   private remoteScrollResetTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Smooth scroll interpolation loop
+  // Smooth scroll interpolation loop (continuous delta-time exponential smoothing)
   private smoothScrollRafId: number | null = null;
+  private smoothScrollLastFrameTime = 0;
   private targetScrollX = 0;
   private targetScrollY = 0;
+  private targetContainerEl: Element | null = null;
+  private targetContainerX = 0;
+  private targetContainerY = 0;
 
-  // Scroll throttling
+  // Scroll throttling + settle alignment
   private scrollThrottleTimer: ReturnType<typeof setTimeout> | null = null;
+  private scrollSettleTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingScrollBroadcast = false;
-  private boundScrollListener: (() => void) | null = null;
+  private lastScrollTarget: EventTarget | null = null;
+  private boundScrollListener: ((e: Event) => void) | null = null;
 
   // Cursor tracking & throttling (when leading)
   private boundMouseMoveListener: ((e: MouseEvent) => void) | null = null;
@@ -117,9 +136,13 @@ export class FollowManager {
       this.handleMessage(msg);
     });
 
+    // Resume an active follow session seamlessly if the tab just navigated to follow a leader
+    this.restorePendingFollowIfAny();
+
     if (typeof window !== "undefined") {
-      this.boundScrollListener = () => this.handleLocalScroll();
+      this.boundScrollListener = (e: Event) => this.handleLocalScroll(e);
       window.addEventListener("scroll", this.boundScrollListener, {
+        capture: true,
         passive: true,
       });
 
@@ -306,7 +329,9 @@ export class FollowManager {
     }
 
     if (this.boundScrollListener && typeof window !== "undefined") {
-      window.removeEventListener("scroll", this.boundScrollListener);
+      window.removeEventListener("scroll", this.boundScrollListener, {
+        capture: true,
+      });
       this.boundScrollListener = null;
     }
 
@@ -343,6 +368,11 @@ export class FollowManager {
       this.scrollThrottleTimer = null;
     }
 
+    if (this.scrollSettleTimer) {
+      clearTimeout(this.scrollSettleTimer);
+      this.scrollSettleTimer = null;
+    }
+
     if (this.cursorThrottleTimer) {
       clearTimeout(this.cursorThrottleTimer);
       this.cursorThrottleTimer = null;
@@ -365,6 +395,33 @@ export class FollowManager {
   }
 
   /**
+   * Notifies followers when the leader navigates to a new path on the same host (SPA navigation),
+   * so followers' tabs stay in sync on the same page.
+   */
+  public handleLocalPathChange(newUrl: string): void {
+    if (this.isDestroyed || this.store.getFollowerCount() === 0) {
+      return;
+    }
+
+    let pathname: string | undefined;
+    try {
+      pathname = new URL(newUrl).pathname;
+    } catch {
+      pathname = undefined;
+    }
+
+    const message: FollowNavigateMessage = {
+      type: "FOLLOW_NAVIGATE",
+      roomId: this.roomId,
+      leaderId: this.peerId,
+      url: newUrl,
+      pathname,
+      timestamp: Date.now(),
+    };
+    this.transport.send(message);
+  }
+
+  /**
    * Handles incoming WebRoom messages for Follow Mode.
    */
   private handleMessage(msg: WebRoomMessage): void {
@@ -381,8 +438,14 @@ export class FollowManager {
           );
           if (isNew) {
             this.notifyStateChange();
-            // Broadcast initial scroll position immediately to newly joined follower
-            this.broadcastCurrentScroll();
+          }
+          // Sync leader's current path, scroll position, and cursor immediately
+          if (typeof window !== "undefined" && window.location?.href) {
+            this.handleLocalPathChange(window.location.href);
+          }
+          this.broadcastCurrentScroll();
+          if (this.latestMouseCoords) {
+            this.broadcastCursor(this.latestMouseCoords, false);
           }
         }
         break;
@@ -398,6 +461,7 @@ export class FollowManager {
           msg.followerId === this.peerId &&
           this.store.getFollowing()?.peerId === msg.leaderId
         ) {
+          this.clearPendingFollow();
           this.store.clearFollowing();
           this.currentLeaderCursor = null;
           this.currentLeaderSelection = null;
@@ -409,15 +473,21 @@ export class FollowManager {
       }
 
       case "FOLLOW_NAVIGATE": {
-        // Leader navigated away to a different URL -> terminate follow relationship
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
-          this.store.clearFollowing();
-          this.currentLeaderCursor = null;
-          this.currentLeaderSelection = null;
-          this.notifyCursorChange(null);
-          this.notifySelectionChange(null);
-          this.notifyStateChange();
+          if (msg.url) {
+            // Leader navigated to another path on the same host -> follow them there!
+            this.navigateToLeaderUrl(msg.url, currentFollowing);
+          } else {
+            // Leader left the host / closed tab -> terminate follow relationship
+            this.clearPendingFollow();
+            this.store.clearFollowing();
+            this.currentLeaderCursor = null;
+            this.currentLeaderSelection = null;
+            this.notifyCursorChange(null);
+            this.notifySelectionChange(null);
+            this.notifyStateChange();
+          }
         }
         break;
       }
@@ -425,7 +495,8 @@ export class FollowManager {
       case "FOLLOW_SCROLL": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
-          if (this.isDifferentPath(msg.pathname)) {
+          if (msg.url && this.isDifferentPath(msg.pathname)) {
+            this.navigateToLeaderUrl(msg.url, currentFollowing);
             return;
           }
           this.applyRemoteScroll(msg);
@@ -436,22 +507,27 @@ export class FollowManager {
       case "FOLLOW_CURSOR": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
-          if (this.isDifferentPath(msg.pathname)) {
-            if (this.currentLeaderCursor !== null) {
-              this.currentLeaderCursor = null;
-              this.notifyCursorChange(null);
-            }
-            return;
-          }
+          const resolved = resolveCursorPosition(
+            {
+              selector: msg.elementSelector,
+              offsetXRatio: msg.elementOffsetX,
+              offsetYRatio: msg.elementOffsetY,
+            },
+            msg.percentageX,
+            msg.percentageY,
+          );
           this.currentLeaderCursor = {
             leaderId: msg.leaderId,
             leaderAvatar: msg.leaderAvatar,
-            clientX: msg.clientX,
-            clientY: msg.clientY,
+            clientX:
+              typeof window !== "undefined" ? resolved.clientX : msg.clientX,
+            clientY:
+              typeof window !== "undefined" ? resolved.clientY : msg.clientY,
             pageX: msg.pageX,
             pageY: msg.pageY,
             percentageX: msg.percentageX,
             percentageY: msg.percentageY,
+            elementRect: resolved.elementRect,
             isHovering: msg.isHovering,
             isClicking: msg.isClicking,
             timestamp: msg.timestamp,
@@ -464,19 +540,18 @@ export class FollowManager {
       case "FOLLOW_SELECTION": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
-          if (this.isDifferentPath(msg.pathname)) {
-            if (this.currentLeaderSelection !== null) {
-              this.currentLeaderSelection = null;
-              this.notifySelectionChange(null);
-            }
-            return;
-          }
           if (msg.selectedText && msg.selectedText.trim().length > 0) {
+            const rects = resolveSelectionRects(
+              msg.selectedText,
+              msg.elementSelector,
+              msg.startOffset,
+            );
             this.currentLeaderSelection = {
               leaderId: msg.leaderId,
               leaderAvatar: msg.leaderAvatar || currentFollowing.avatar || "🐸",
               selectedText: msg.selectedText,
-              rect: msg.rect,
+              rect: rects[0] || msg.rect,
+              rects: rects.length > 0 ? rects : undefined,
               timestamp: msg.timestamp,
             };
           } else {
@@ -490,9 +565,9 @@ export class FollowManager {
   }
 
   /**
-   * Captures and throttles local window scrolling when leading followers.
+   * Captures and throttles local window & inner-container scrolling when leading followers.
    */
-  private handleLocalScroll(): void {
+  private handleLocalScroll(event?: Event): void {
     if (this.isDestroyed || this.isApplyingRemoteScroll) {
       return;
     }
@@ -501,20 +576,33 @@ export class FollowManager {
       return;
     }
 
+    this.lastScrollTarget = event?.target || null;
+
+    // Schedule a settled anchor-alignment pulse once leader stops scrolling (140ms)
+    if (this.scrollSettleTimer) {
+      clearTimeout(this.scrollSettleTimer);
+    }
+    this.scrollSettleTimer = setTimeout(() => {
+      this.scrollSettleTimer = null;
+      if (!this.isDestroyed && this.store.getFollowerCount() > 0) {
+        this.broadcastCurrentScroll(this.lastScrollTarget, true);
+      }
+    }, 140);
+
     if (this.scrollThrottleTimer) {
       this.pendingScrollBroadcast = true;
       return;
     }
 
-    this.broadcastCurrentScroll();
+    this.broadcastCurrentScroll(this.lastScrollTarget, false);
 
     this.scrollThrottleTimer = setTimeout(() => {
       this.scrollThrottleTimer = null;
       if (this.pendingScrollBroadcast) {
         this.pendingScrollBroadcast = false;
-        this.broadcastCurrentScroll();
+        this.broadcastCurrentScroll(this.lastScrollTarget, false);
       }
-    }, 25);
+    }, 50);
   }
 
   /**
@@ -595,11 +683,15 @@ export class FollowManager {
       try {
         const range = sel.getRangeAt(0);
         const rect = range.getBoundingClientRect();
+        const anchor = captureSelectionAnchor(sel);
         const message: FollowSelectionMessage = {
           type: "FOLLOW_SELECTION",
           roomId: this.roomId,
           leaderId: this.peerId,
           leaderAvatar: this.avatar,
+          pathname: window.location?.pathname,
+          elementSelector: anchor.selector,
+          startOffset: anchor.startOffset,
           selectedText: text,
           rect: {
             top: Math.round(rect.top),
@@ -627,13 +719,100 @@ export class FollowManager {
 
   /**
    * Returns true if a remote follow message originates from a different pathname
-   * on the same host (in Domain Lobby mode), preventing mismatched scroll/cursor sync.
+   * on the same host (in Domain Lobby mode).
    */
   private isDifferentPath(remotePathname?: string): boolean {
     if (!remotePathname || typeof window === "undefined" || !window.location) {
       return false;
     }
     return window.location.pathname !== remotePathname;
+  }
+
+  /**
+   * Safely navigates the follower's tab to the leader's new URL on the exact same origin,
+   * persisting the follow state across page reload so cursor & scroll resume immediately.
+   */
+  private navigateToLeaderUrl(
+    leaderUrl: string,
+    following: FollowPeerInfo,
+  ): void {
+    if (typeof window === "undefined" || !window.location) {
+      return;
+    }
+
+    try {
+      const target = new URL(leaderUrl, window.location.origin);
+      // Security: strictly enforce same-origin navigation so peers can never redirect off-site
+      if (target.origin !== window.location.origin) {
+        return;
+      }
+      if (target.href === window.location.href) {
+        return;
+      }
+
+      this.savePendingFollow(following);
+      window.location.assign(target.href);
+    } catch {
+      // Ignore malformed URLs
+    }
+  }
+
+  private savePendingFollow(following: FollowPeerInfo): void {
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem(
+          PENDING_FOLLOW_STORAGE_KEY,
+          JSON.stringify({
+            roomId: this.roomId,
+            leaderId: following.peerId,
+            leaderAvatar: following.avatar,
+            savedAt: Date.now(),
+          }),
+        );
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  private clearPendingFollow(): void {
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem(PENDING_FOLLOW_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  private restorePendingFollowIfAny(): void {
+    try {
+      if (typeof sessionStorage === "undefined") {
+        return;
+      }
+      const raw = sessionStorage.getItem(PENDING_FOLLOW_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      sessionStorage.removeItem(PENDING_FOLLOW_STORAGE_KEY);
+      const parsed = JSON.parse(raw) as {
+        roomId?: string;
+        leaderId?: string;
+        leaderAvatar?: string;
+        savedAt?: number;
+      };
+      if (
+        parsed.roomId === this.roomId &&
+        parsed.leaderId &&
+        parsed.leaderId !== this.peerId &&
+        parsed.savedAt &&
+        Date.now() - parsed.savedAt <= PENDING_FOLLOW_TTL_MS
+      ) {
+        this.followUser(parsed.leaderId, parsed.leaderAvatar || "🐸");
+      }
+    } catch {
+      // Ignore malformed storage data
+    }
   }
 
   /**
@@ -655,6 +834,7 @@ export class FollowManager {
 
     const winW = window.innerWidth || 1;
     const winH = window.innerHeight || 1;
+    const anchor = captureCursorAnchor(coords.clientX, coords.clientY);
 
     const message: FollowCursorMessage = {
       type: "FOLLOW_CURSOR",
@@ -662,6 +842,9 @@ export class FollowManager {
       leaderId: this.peerId,
       leaderAvatar: this.avatar,
       pathname: window.location?.pathname,
+      elementSelector: anchor?.selector,
+      elementOffsetX: anchor?.offsetXRatio,
+      elementOffsetY: anchor?.offsetYRatio,
       clientX: Math.round(coords.clientX),
       clientY: Math.round(coords.clientY),
       pageX: Math.round(coords.pageX),
@@ -677,9 +860,12 @@ export class FollowManager {
   }
 
   /**
-   * Reads the current viewport scroll position and broadcasts to followers.
+   * Reads the current viewport (or inner container) scroll position + DOM anchor and broadcasts to followers.
    */
-  public broadcastCurrentScroll(): void {
+  public broadcastCurrentScroll(
+    scrollTarget?: EventTarget | null,
+    isSettled = true,
+  ): void {
     if (
       typeof window === "undefined" ||
       typeof document === "undefined" ||
@@ -698,11 +884,24 @@ export class FollowManager {
     const scrollPercentageX = maxScrollX > 0 ? scrollX / maxScrollX : 0;
     const scrollPercentageY = maxScrollY > 0 ? scrollY / maxScrollY : 0;
 
+    // Only compute DOM content anchor when settled (or for inner containers) to avoid mid-scroll jitter
+    const scrollAnchor =
+      isSettled || (scrollTarget && scrollTarget instanceof Element)
+        ? captureScrollAnchor(scrollTarget)
+        : {};
+
     const message: FollowScrollMessage = {
       type: "FOLLOW_SCROLL",
       roomId: this.roomId,
       leaderId: this.peerId,
+      url: window.location?.href,
       pathname: window.location?.pathname,
+      anchorSelector: scrollAnchor.anchorSelector,
+      anchorTopRatio: scrollAnchor.anchorTopRatio,
+      containerSelector: scrollAnchor.containerSelector,
+      containerScrollPctY: scrollAnchor.containerScrollPctY,
+      containerScrollPctX: scrollAnchor.containerScrollPctX,
+      isSettled,
       scrollX: Math.round(scrollX),
       scrollY: Math.round(scrollY),
       maxScrollX: Math.round(maxScrollX),
@@ -716,65 +915,140 @@ export class FollowManager {
   }
 
   /**
-   * Applies remote scroll position with ultra-smooth spring/lerp loop.
+   * Applies remote scroll position with jitter-free continuous tracking during scroll,
+   * exact DOM-element alignment on settle, and smooth delta-time exponential gliding.
    */
   private applyRemoteScroll(msg: FollowScrollMessage): void {
     if (typeof window === "undefined" || typeof document === "undefined") {
       return;
     }
 
+    // 1. Inner scrollable container (Notion, Jira, Gmail, sidebars, modals)
+    if (msg.containerSelector) {
+      const container = resolveElementSelector(msg.containerSelector);
+      if (container) {
+        const maxY = Math.max(0, container.scrollHeight - container.clientHeight);
+        const maxX = Math.max(0, container.scrollWidth - container.clientWidth);
+        this.targetContainerEl = container;
+        this.targetContainerY =
+          typeof msg.containerScrollPctY === "number"
+            ? Math.round(msg.containerScrollPctY * maxY)
+            : container.scrollTop;
+        this.targetContainerX =
+          typeof msg.containerScrollPctX === "number"
+            ? Math.round(msg.containerScrollPctX * maxX)
+            : container.scrollLeft;
+        this.isApplyingRemoteScroll = true;
+        this.ensureSmoothScrollLoopRunning();
+        return;
+      }
+    }
+
+    this.targetContainerEl = null;
+
     const doc = document.documentElement || document.body;
     const localMaxScrollY = Math.max(0, doc.scrollHeight - window.innerHeight);
     const localMaxScrollX = Math.max(0, doc.scrollWidth - window.innerWidth);
 
-    let targetY = msg.scrollY;
-    let targetX = msg.scrollX;
+    // Base monotonic target (zero jumping while leader is actively scrolling)
+    let targetY =
+      msg.maxScrollY > 0 && Math.abs(msg.maxScrollY - localMaxScrollY) > 40
+        ? Math.round(msg.scrollPercentageY * localMaxScrollY)
+        : msg.scrollY;
+    let targetX =
+      msg.maxScrollX > 0 && Math.abs(msg.maxScrollX - localMaxScrollX) > 40
+        ? Math.round(msg.scrollPercentageX * localMaxScrollX)
+        : msg.scrollX;
 
-    // Percentage interpolation when page layout differs between devices
-    if (msg.maxScrollY > 0 && Math.abs(msg.maxScrollY - localMaxScrollY) > 50) {
-      targetY = Math.round(msg.scrollPercentageY * localMaxScrollY);
-    }
-    if (msg.maxScrollX > 0 && Math.abs(msg.maxScrollX - localMaxScrollX) > 50) {
-      targetX = Math.round(msg.scrollPercentageX * localMaxScrollX);
+    // 2. When leader settles (or on initial join), snap smoothly to the exact DOM anchor element
+    // so both users land on the exact same heading/paragraph regardless of display width.
+    if (
+      msg.isSettled &&
+      msg.anchorSelector &&
+      typeof msg.anchorTopRatio === "number"
+    ) {
+      const anchorEl = resolveElementSelector(msg.anchorSelector);
+      if (anchorEl) {
+        const rect = anchorEl.getBoundingClientRect();
+        const currentScrollY = window.scrollY || window.pageYOffset || 0;
+        const desiredTop = msg.anchorTopRatio * window.innerHeight;
+        const anchoredY = Math.round(currentScrollY + (rect.top - desiredTop));
+        // Only apply anchor correction if reasonable (prevents wild jumps on dynamic ads/headers)
+        if (Math.abs(anchoredY - targetY) < window.innerHeight * 1.25) {
+          targetY = anchoredY;
+        }
+      }
     }
 
     this.targetScrollY = Math.max(0, Math.min(targetY, localMaxScrollY));
     this.targetScrollX = Math.max(0, Math.min(targetX, localMaxScrollX));
 
     this.isApplyingRemoteScroll = true;
-
-    // Start direct RAF-based smooth lerp scroll loop
-    this.startSmoothScrollLoop();
+    this.ensureSmoothScrollLoopRunning();
   }
 
   /**
-   * Linear Interpolation (Lerp) spring animation loop for butter-smooth viewport following.
-   * Uses behavior: 'auto' to prevent conflicts with host webpage smooth-scroll CSS.
+   * Starts a single uninterrupted delta-time exponential smoothing RAF loop.
+   * Never cancels/restarts RAF on incoming packets, eliminating mid-scroll stutter on 60Hz/120Hz/144Hz displays.
    */
-  private startSmoothScrollLoop(): void {
+  private ensureSmoothScrollLoopRunning(): void {
     if (
       typeof window === "undefined" ||
       typeof requestAnimationFrame === "undefined"
     ) {
-      try {
-        window.scrollTo({
-          top: this.targetScrollY,
-          left: this.targetScrollX,
-          behavior: "auto",
-        });
-      } catch {
-        window.scrollTo(this.targetScrollX, this.targetScrollY);
+      if (this.targetContainerEl) {
+        this.targetContainerEl.scrollTop = this.targetContainerY;
+        this.targetContainerEl.scrollLeft = this.targetContainerX;
+      } else {
+        try {
+          window.scrollTo({
+            top: this.targetScrollY,
+            left: this.targetScrollX,
+            behavior: "auto",
+          });
+        } catch {
+          window.scrollTo(this.targetScrollX, this.targetScrollY);
+        }
       }
       return;
     }
 
+    // Already running: it will smoothly chase the updated target on the very next frame!
     if (this.smoothScrollRafId !== null) {
-      cancelAnimationFrame(this.smoothScrollRafId);
+      return;
     }
 
-    const step = () => {
+    this.smoothScrollLastFrameTime = performance.now();
+
+    const step = (now: number) => {
       if (this.isDestroyed) {
         this.isApplyingRemoteScroll = false;
+        this.smoothScrollRafId = null;
+        return;
+      }
+
+      const dt = Math.min(0.05, Math.max(0.001, (now - this.smoothScrollLastFrameTime) / 1000));
+      this.smoothScrollLastFrameTime = now;
+      // Frame-rate-independent exponential smoothing factor (~16/s responsiveness)
+      const alpha = 1 - Math.exp(-16 * dt);
+
+      if (this.targetContainerEl) {
+        const currY = this.targetContainerEl.scrollTop;
+        const currX = this.targetContainerEl.scrollLeft;
+        const diffY = this.targetContainerY - currY;
+        const diffX = this.targetContainerX - currX;
+
+        if (Math.abs(diffY) < 1 && Math.abs(diffX) < 1) {
+          this.targetContainerEl.scrollTop = this.targetContainerY;
+          this.targetContainerEl.scrollLeft = this.targetContainerX;
+          this.smoothScrollRafId = null;
+          this.scheduleRemoteScrollFlagReset();
+          return;
+        }
+
+        this.targetContainerEl.scrollTop = currY + diffY * alpha;
+        this.targetContainerEl.scrollLeft = currX + diffX * alpha;
+        this.smoothScrollRafId = requestAnimationFrame(step);
         return;
       }
 
@@ -784,28 +1058,35 @@ export class FollowManager {
       const diffY = this.targetScrollY - currentY;
       const diffX = this.targetScrollX - currentX;
 
-      if (Math.abs(diffY) < 1.5 && Math.abs(diffX) < 1.5) {
+      if (Math.abs(diffY) < 1 && Math.abs(diffX) < 1) {
         window.scrollTo({
           top: this.targetScrollY,
           left: this.targetScrollX,
           behavior: "auto",
         });
         this.smoothScrollRafId = null;
-        setTimeout(() => {
-          this.isApplyingRemoteScroll = false;
-        }, 80);
+        this.scheduleRemoteScrollFlagReset();
         return;
       }
 
-      // Smooth dampening factor (0.22) with direct pixel positioning
-      const nextY = Math.round(currentY + diffY * 0.22);
-      const nextX = Math.round(currentX + diffX * 0.22);
-
-      window.scrollTo({ top: nextY, left: nextX, behavior: "auto" });
+      window.scrollTo({
+        top: currentY + diffY * alpha,
+        left: currentX + diffX * alpha,
+        behavior: "auto",
+      });
       this.smoothScrollRafId = requestAnimationFrame(step);
     };
 
     this.smoothScrollRafId = requestAnimationFrame(step);
+  }
+
+  private scheduleRemoteScrollFlagReset(): void {
+    if (this.remoteScrollResetTimer) {
+      clearTimeout(this.remoteScrollResetTimer);
+    }
+    this.remoteScrollResetTimer = setTimeout(() => {
+      this.isApplyingRemoteScroll = false;
+    }, 80);
   }
 
   private broadcastStart(leaderId: string): void {
