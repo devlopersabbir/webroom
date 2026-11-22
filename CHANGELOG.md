@@ -1,3 +1,15 @@
+# [3.7.0](https://github.com/devlopersabbir/webroom/compare/v3.6.0...v3.7.0) (2026-11-22)
+
+
+### Bug Fixes
+
+* add DOM anchoring and follow protocol management utilities ([50a8bcd](https://github.com/devlopersabbir/webroom/commit/50a8bcd5120e3271aef2a1579320458ba9091cdb))
+
+
+### Features
+
+* implement follow manager, room synchronization, and content script entry point ([024a5a7](https://github.com/devlopersabbir/webroom/commit/024a5a70d1687731ec50d5038cfcbc6a1b0b289c))
+
 # [3.6.0](https://github.com/devlopersabbir/webroom/compare/v3.5.0...v3.6.0) (2026-11-22)
 
 
