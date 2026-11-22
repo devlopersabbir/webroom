@@ -34,7 +34,13 @@ import {
   VoiceStateListener,
 } from "../voice/voice-manager";
 import { selfId } from "trystero";
-import { canonicalizeUrl, getRoomId } from "./room-id";
+import {
+  canonicalizeHost,
+  canonicalizeUrl,
+  getHostLabel,
+  getRoomId,
+  RoomScope,
+} from "./room-id";
 
 export interface RoomOptions {
   transportFactory?: (roomId: string) => Transport;
@@ -42,6 +48,7 @@ export interface RoomOptions {
   customAvatar?: string;
   identity?: NodeIdentity;
   resourceManager?: ResourceManager;
+  scope?: RoomScope;
 }
 
 export interface Participant {
@@ -76,8 +83,10 @@ export function generatePeerId(): string {
  * WebRoom Room instance representing the active session for a specific canonical webpage URL.
  */
 export class Room {
-  public readonly url: string;
-  public readonly canonicalUrl: string;
+  public url: string;
+  public canonicalUrl: string;
+  public readonly scope: RoomScope;
+  public readonly hostLabel: string;
   public readonly roomId: string;
   public readonly peerId: string;
   public readonly avatar: string;
@@ -99,6 +108,8 @@ export class Room {
   private constructor(
     url: string,
     canonicalUrl: string,
+    scope: RoomScope,
+    hostLabel: string,
     roomId: string,
     peerId: string,
     avatar: string,
@@ -115,6 +126,8 @@ export class Room {
   ) {
     this.url = url;
     this.canonicalUrl = canonicalUrl;
+    this.scope = scope;
+    this.hostLabel = hostLabel;
     this.roomId = roomId;
     this.peerId = peerId;
     this.avatar = avatar;
@@ -132,13 +145,17 @@ export class Room {
 
   /**
    * Initializes and joins a room for the given webpage URL.
+   * Defaults to "domain" scope so all paths on the same host share one room.
    */
   public static async join(
     url: string,
     options: RoomOptions = {},
   ): Promise<Room> {
-    const canonicalUrl = canonicalizeUrl(url);
-    const roomId = await getRoomId(canonicalUrl);
+    const scope: RoomScope = options.scope || "domain";
+    const canonicalUrl =
+      scope === "page" ? canonicalizeUrl(url) : canonicalizeHost(url);
+    const hostLabel = getHostLabel(url);
+    const roomId = await getRoomId(url, scope);
     const identity = options.identity || (await NodeIdentity.initialize());
     const resourceManager =
       options.resourceManager || (await ResourceManager.initialize());
@@ -223,6 +240,8 @@ export class Room {
     return new Room(
       url,
       canonicalUrl,
+      scope,
+      hostLabel,
       roomId,
       peerId,
       avatar,
@@ -237,6 +256,16 @@ export class Room {
       followManager,
       fileTransferManager,
     );
+  }
+
+  /**
+   * Updates the room's tracked URL during SPA path transitions on the same host
+   * without tearing down the WebSocket, voice call, chat history, or file transfers.
+   */
+  public updateCurrentUrl(newUrl: string): void {
+    this.url = newUrl;
+    this.canonicalUrl =
+      this.scope === "page" ? canonicalizeUrl(newUrl) : canonicalizeHost(newUrl);
   }
 
   /**

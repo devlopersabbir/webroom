@@ -1,10 +1,32 @@
 import ReactDOM from "react-dom/client";
 import { Room } from "../room/room";
+import { getRoomId, RoomScope } from "../room/room-id";
+import { getRandomAvatar, SESSION_AVATAR_STORAGE_KEY } from "../shared/constants";
 import { installWebSocketBridge } from "../transport/background-ws-bridge";
 import { installWebRTCBridge } from "../transport/safe-webrtc";
 import { INDICATOR_STYLES } from "../ui/indicator-styles";
 import { WebRoomIndicator } from "../ui/WebRoomIndicator";
 import { UrlListener } from "./url-listener";
+
+/**
+ * Returns a stable emoji avatar for the current browser tab across page reloads.
+ */
+function getTabSessionAvatar(): string {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      const existing = sessionStorage.getItem(SESSION_AVATAR_STORAGE_KEY);
+      if (existing && existing.trim().length > 0) {
+        return existing;
+      }
+      const fresh = getRandomAvatar();
+      sessionStorage.setItem(SESSION_AVATAR_STORAGE_KEY, fresh);
+      return fresh;
+    }
+  } catch {
+    // Fallback if sessionStorage is restricted on the host page
+  }
+  return getRandomAvatar();
+}
 
 /**
  * WebRoom Content Script Entry Point.
@@ -63,16 +85,41 @@ function initWebRoomContentScript(): void {
   const root = ReactDOM.createRoot(mountPoint);
 
   let currentRoom: Room | null = null;
+  let activeJoinSeq = 0;
+  const currentScope: RoomScope = "domain";
+  const tabAvatar = getTabSessionAvatar();
   const urlListener = new UrlListener();
 
   async function joinCurrentRoom(url: string): Promise<void> {
-    if (currentRoom) {
-      currentRoom.leave();
-      currentRoom = null;
-    }
+    const seq = ++activeJoinSeq;
 
     try {
-      const room = await Room.join(url);
+      const nextRoomId = await getRoomId(url, currentScope);
+      if (seq !== activeJoinSeq) {
+        return; // Superseded by a newer navigation event
+      }
+
+      // SPA path change on the same host: stay connected without dropping voice/chat/files
+      if (currentRoom && currentRoom.roomId === nextRoomId) {
+        currentRoom.updateCurrentUrl(url);
+        return;
+      }
+
+      if (currentRoom) {
+        currentRoom.leave();
+        currentRoom = null;
+      }
+
+      const room = await Room.join(url, {
+        scope: currentScope,
+        customAvatar: tabAvatar,
+      });
+
+      if (seq !== activeJoinSeq) {
+        room.leave();
+        return;
+      }
+
       currentRoom = room;
       root.render(<WebRoomIndicator room={room} />);
     } catch (err) {

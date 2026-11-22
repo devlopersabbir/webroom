@@ -162,16 +162,50 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     tabB.leave();
   });
 
-  it("isolates different rooms on different URLs for presence and chat", async () => {
+  it("groups peers on different paths of the same host into one Domain Lobby room and survives SPA path updates", async () => {
     const bus = new MockBus();
 
-    const tabA = await Room.join("https://example.com/page-1", {
+    const tabA = await Room.join("https://github.com/devlopersabbir/webroom", {
       customPeerId: "peer_A",
       customAvatar: "🐸",
       transportFactory: (roomId) => new MockTransport(roomId, bus),
     });
 
-    const tabB = await Room.join("https://example.com/page-2", {
+    const tabB = await Room.join(
+      "https://www.github.com/devlopersabbir/webroom/blob/main/BUILD.md",
+      {
+        customPeerId: "peer_B",
+        customAvatar: "🦊",
+        transportFactory: (roomId) => new MockTransport(roomId, bus),
+      },
+    );
+
+    expect(tabA.roomId).toBe(tabB.roomId);
+    expect(tabA.hostLabel).toBe("github.com");
+    expect(tabA.getOnlineCount()).toBe(2);
+    expect(tabB.getOnlineCount()).toBe(2);
+
+    // SPA navigation on the same host updates URL without dropping connection or chat
+    tabA.sendMessage("Still connected while navigating!");
+    tabA.updateCurrentUrl("https://github.com/devlopersabbir/webroom/issues");
+    expect(tabA.url).toBe("https://github.com/devlopersabbir/webroom/issues");
+    expect(tabA.getOnlineCount()).toBe(2);
+    expect(tabB.getMessages().length).toBe(1);
+
+    tabA.leave();
+    tabB.leave();
+  });
+
+  it("isolates different rooms on different hosts for presence and chat", async () => {
+    const bus = new MockBus();
+
+    const tabA = await Room.join("https://site-a.example.com/page-1", {
+      customPeerId: "peer_A",
+      customAvatar: "🐸",
+      transportFactory: (roomId) => new MockTransport(roomId, bus),
+    });
+
+    const tabB = await Room.join("https://site-b.example.com/page-2", {
       customPeerId: "peer_B",
       customAvatar: "🦊",
       transportFactory: (roomId) => new MockTransport(roomId, bus),
@@ -180,7 +214,7 @@ describe("Room Multi-Peer Presence & Chat Simulation", () => {
     expect(tabA.getOnlineCount()).toBe(1);
     expect(tabB.getOnlineCount()).toBe(1);
 
-    tabA.sendMessage("Secret message in Page 1");
+    tabA.sendMessage("Secret message in Site A");
     expect(tabA.getMessages().length).toBe(1);
     expect(tabB.getMessages().length).toBe(0);
 

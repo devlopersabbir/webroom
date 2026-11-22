@@ -1,5 +1,53 @@
 import { KNOWN_TRACKING_PARAMS } from "../shared/constants";
 
+export type RoomScope = "domain" | "page";
+
+/**
+ * Normalizes a URL down to its canonical host/origin for Domain Lobby rooms.
+ *
+ * Rules:
+ * - Normalizes scheme & hostname to lowercase
+ * - Strips leading 'www.' so www.github.com and github.com share the same room
+ * - Preserves distinct subdomains (e.g. docs.github.com vs github.com)
+ * - Removes standard default ports (:80 for http, :443 for https)
+ * - Ignores pathname, query parameters, and hash fragments so SPA path changes
+ *   within the same host stay connected without reconnecting.
+ */
+export function canonicalizeHost(rawUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return rawUrl.trim().toLowerCase();
+  }
+
+  const protocol = parsed.protocol.toLowerCase();
+  const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+
+  let port = parsed.port;
+  if (
+    (protocol === "http:" && port === "80") ||
+    (protocol === "https:" && port === "443")
+  ) {
+    port = "";
+  }
+
+  const hostWithPort = port ? `${hostname}:${port}` : hostname;
+  return `${protocol}//${hostWithPort}`;
+}
+
+/**
+ * Extracts a clean display label for the host (e.g. "github.com").
+ */
+export function getHostLabel(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return rawUrl.trim().toLowerCase();
+  }
+}
+
 /**
  * Normalizes and canonicalizes a URL string for deterministic room identification.
  * 
@@ -76,12 +124,20 @@ export function canonicalizeUrl(rawUrl: string): string {
 
 /**
  * Computes a deterministic SHA-256 room ID from a webpage URL.
- * 
+ *
+ * Defaults to "domain" scope so all users on the same host (e.g. github.com)
+ * share one live room and stay connected across SPA path transitions.
+ *
  * @param url The raw URL string
+ * @param scope "domain" (default, host-level) or "page" (full canonical URL)
  * @returns 64-character hexadecimal SHA-256 hash
  */
-export async function getRoomId(url: string): Promise<string> {
-  const canonical = canonicalizeUrl(url);
+export async function getRoomId(
+  url: string,
+  scope: RoomScope = "domain",
+): Promise<string> {
+  const canonical =
+    scope === "page" ? canonicalizeUrl(url) : canonicalizeHost(url);
   const encoder = new TextEncoder();
   const data = encoder.encode(canonical);
 

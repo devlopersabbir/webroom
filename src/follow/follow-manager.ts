@@ -425,6 +425,9 @@ export class FollowManager {
       case "FOLLOW_SCROLL": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
+          if (this.isDifferentPath(msg.pathname)) {
+            return;
+          }
           this.applyRemoteScroll(msg);
         }
         break;
@@ -433,6 +436,13 @@ export class FollowManager {
       case "FOLLOW_CURSOR": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
+          if (this.isDifferentPath(msg.pathname)) {
+            if (this.currentLeaderCursor !== null) {
+              this.currentLeaderCursor = null;
+              this.notifyCursorChange(null);
+            }
+            return;
+          }
           this.currentLeaderCursor = {
             leaderId: msg.leaderId,
             leaderAvatar: msg.leaderAvatar,
@@ -454,6 +464,13 @@ export class FollowManager {
       case "FOLLOW_SELECTION": {
         const currentFollowing = this.store.getFollowing();
         if (currentFollowing?.peerId === msg.leaderId) {
+          if (this.isDifferentPath(msg.pathname)) {
+            if (this.currentLeaderSelection !== null) {
+              this.currentLeaderSelection = null;
+              this.notifySelectionChange(null);
+            }
+            return;
+          }
           if (msg.selectedText && msg.selectedText.trim().length > 0) {
             this.currentLeaderSelection = {
               leaderId: msg.leaderId,
@@ -609,6 +626,17 @@ export class FollowManager {
   }
 
   /**
+   * Returns true if a remote follow message originates from a different pathname
+   * on the same host (in Domain Lobby mode), preventing mismatched scroll/cursor sync.
+   */
+  private isDifferentPath(remotePathname?: string): boolean {
+    if (!remotePathname || typeof window === "undefined" || !window.location) {
+      return false;
+    }
+    return window.location.pathname !== remotePathname;
+  }
+
+  /**
    * Broadcasts live cursor position to followers.
    */
   private broadcastCursor(
@@ -633,6 +661,7 @@ export class FollowManager {
       roomId: this.roomId,
       leaderId: this.peerId,
       leaderAvatar: this.avatar,
+      pathname: window.location?.pathname,
       clientX: Math.round(coords.clientX),
       clientY: Math.round(coords.clientY),
       pageX: Math.round(coords.pageX),
@@ -673,6 +702,7 @@ export class FollowManager {
       type: "FOLLOW_SCROLL",
       roomId: this.roomId,
       leaderId: this.peerId,
+      pathname: window.location?.pathname,
       scrollX: Math.round(scrollX),
       scrollY: Math.round(scrollY),
       maxScrollX: Math.round(maxScrollX),

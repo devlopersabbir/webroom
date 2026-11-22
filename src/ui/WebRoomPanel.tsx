@@ -185,7 +185,12 @@ export const WebRoomPanel: React.FC<WebRoomPanelProps> = ({
         <div className="webroom-header-left">
           <div className="webroom-header-title-row">
             <span className="webroom-header-title">WebRoom</span>
-            <span className="webroom-header-badge">V3</span>
+            <span
+              className="webroom-header-badge"
+              title={`Connected to ${room.hostLabel} (${room.scope} room)`}
+            >
+              {room.hostLabel}
+            </span>
           </div>
           <button
             type="button"
